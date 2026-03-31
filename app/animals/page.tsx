@@ -4,6 +4,24 @@ import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import Link from 'next/link';
 
+function ConfirmModal({ message, onConfirm, onCancel }: { message: string, onConfirm: () => void, onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+        <p className="text-brand-dark font-semibold mb-6 text-center">{message}</p>
+        <div className="flex gap-3">
+          <button onClick={onConfirm} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-semibold">
+            Yes, Delete
+          </button>
+          <button onClick={onCancel} className="flex-1 bg-brand-gray-light text-brand-dark py-2 rounded-lg font-semibold">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface Animal {
   id: string;
   name: string;
@@ -30,6 +48,8 @@ export default function AnimalsPage() {
   });
   const [sortBy, setSortBy] = useState<'soonest'|'latest'|'animals'|'full'>('soonest');
   const [editModal, setEditModal] = useState<{open: boolean, date: string, animals: Animal[]}>({open: false, date: '', animals: []});
+  const [confirmModal, setConfirmModal] = useState<{open: boolean, message: string, onConfirm: () => void}>({open: false, message: '', onConfirm: () => {}});
+  const [errorMessage, setErrorMessage] = useState('');
   const [editForm, setEditForm] = useState<{butcher_date: string, estimated_ready_date: string, grass_fed_count: number, grain_finished_count: number, wagyu_count: number}>({butcher_date: '', estimated_ready_date: '', grass_fed_count: 0, grain_finished_count: 0, wagyu_count: 0});
 
   useEffect(() => {
@@ -134,13 +154,21 @@ export default function AnimalsPage() {
   };
 
   const handleDelete = async (animal: Animal) => {
-    if (!confirm(`Delete ${animal.animal_type.replace('_', ' ')} from this butcher date? This cannot be undone.`)) return;
-    try {
-      await fetch(`/api/admin/animals/${animal.id}`, { method: 'DELETE' });
-      loadAnimals();
-    } catch (err) {
-      console.error('Delete error:', err);
-    }
+    const deleteMessage = `Delete ${animal.animal_type.replace('_', ' ')} from this butcher date? This cannot be undone.`;
+    setConfirmModal({
+      open: true,
+      message: deleteMessage,
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/admin/animals/${animal.id}`, { method: 'DELETE' });
+          setConfirmModal({ open: false, message: '', onConfirm: () => {} });
+          loadAnimals();
+        } catch (err) {
+          console.error('Delete error:', err);
+          setConfirmModal({ open: false, message: '', onConfirm: () => {} });
+        }
+      }
+    });
   };
 
   const handleDeleteDate = async (date: string, dateAnimals: Animal[]) => {
@@ -154,20 +182,27 @@ export default function AnimalsPage() {
     );
 
     if (hasReservations.some(Boolean)) {
-      alert('This butcher date has active reservations. Go to Slots to move or cancel them before deleting this date.');
+      setErrorMessage('This butcher date has active reservations. Go to Slots to move or cancel them before deleting this date.');
       return;
     }
 
-    if (!confirm(`Delete entire butcher date of ${new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}? This cannot be undone.`)) return;
-
-    try {
-      await Promise.all(dateAnimals.map(animal =>
-        fetch(`/api/admin/animals/${animal.id}`, { method: 'DELETE' })
-      ));
-      loadAnimals();
-    } catch (err) {
-      console.error('Delete date error:', err);
-    }
+    const deleteMessage = `Delete entire butcher date of ${new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}? This cannot be undone.`;
+    setConfirmModal({
+      open: true,
+      message: deleteMessage,
+      onConfirm: async () => {
+        try {
+          await Promise.all(dateAnimals.map(animal =>
+            fetch(`/api/admin/animals/${animal.id}`, { method: 'DELETE' })
+          ));
+          setConfirmModal({ open: false, message: '', onConfirm: () => {} });
+          loadAnimals();
+        } catch (err) {
+          console.error('Delete date error:', err);
+          setConfirmModal({ open: false, message: '', onConfirm: () => {} });
+        }
+      }
+    });
   };
 
   return (
@@ -458,6 +493,27 @@ export default function AnimalsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {confirmModal.open && (
+        <ConfirmModal
+          message={confirmModal.message}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal({ open: false, message: '', onConfirm: () => {} })}
+        />
+      )}
+
+      {errorMessage && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <p className="text-brand-dark font-semibold mb-6 text-center">{errorMessage}</p>
+            <button
+              onClick={() => setErrorMessage('')}
+              className="w-full bg-brand-orange text-white py-2 rounded-lg font-semibold"
+            >
+              Understood
+            </button>
           </div>
         </div>
       )}

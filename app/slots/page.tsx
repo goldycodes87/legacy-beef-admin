@@ -3,6 +3,24 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 
+function ConfirmModal({ message, onConfirm, onCancel }: { message: string, onConfirm: () => void, onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+        <p className="text-brand-dark font-semibold mb-6 text-center">{message}</p>
+        <div className="flex gap-3">
+          <button onClick={onConfirm} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-semibold">
+            Yes, Delete
+          </button>
+          <button onClick={onCancel} className="flex-1 bg-brand-gray-light text-brand-dark py-2 rounded-lg font-semibold">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface Reservation {
   id: string;
   customer_name: string;
@@ -25,6 +43,7 @@ export default function SlotsPage() {
   const [moveModal, setMoveModal] = useState<{open: boolean, session: Reservation | null}>({open: false, session: null});
   const [availableAnimals, setAvailableAnimals] = useState<{id: string, name: string, butcher_date: string}[]>([]);
   const [selectedAnimalId, setSelectedAnimalId] = useState('');
+  const [confirmModal, setConfirmModal] = useState<{open: boolean, message: string, onConfirm: () => void}>({open: false, message: '', onConfirm: () => {}});
 
   useEffect(() => {
     loadSlots();
@@ -66,13 +85,21 @@ export default function SlotsPage() {
   };
 
   const handleCancel = async (session: Reservation) => {
-    if (!confirm(`Cancel reservation for ${session.customer_name}? Their deposit will need to be refunded manually through Stripe.`)) return;
-    try {
-      await fetch(`/api/admin/sessions/${session.id}/cancel`, { method: 'POST' });
-      loadSlots();
-    } catch (err) {
-      console.error('Cancel error:', err);
-    }
+    const cancelMessage = `Cancel reservation for ${session.customer_name}? Their deposit will need to be refunded manually through Stripe.`;
+    setConfirmModal({
+      open: true,
+      message: cancelMessage,
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/admin/sessions/${session.id}/cancel`, { method: 'POST' });
+          setConfirmModal({ open: false, message: '', onConfirm: () => {} });
+          loadSlots();
+        } catch (err) {
+          console.error('Cancel error:', err);
+          setConfirmModal({ open: false, message: '', onConfirm: () => {} });
+        }
+      }
+    });
   };
 
   const statusColors: Record<string, string> = {
@@ -203,6 +230,14 @@ export default function SlotsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {confirmModal.open && (
+        <ConfirmModal
+          message={confirmModal.message}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal({ open: false, message: '', onConfirm: () => {} })}
+        />
       )}
     </AdminLayout>
   );
