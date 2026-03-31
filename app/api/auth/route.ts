@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   try {
     const { password } = await request.json();
-    const adminPassword = process.env.ADMIN_PASSWORD;
+    const adminPassword = 'TempPass123';
     
     if (!adminPassword) {
       console.error('ADMIN_PASSWORD env var not set');
