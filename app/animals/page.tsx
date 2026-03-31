@@ -22,14 +22,11 @@ export default function AnimalsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    animal_type: 'Grass-Fed',
-    total_animals: 1,
     butcher_date: '',
     estimated_ready_date: '',
-    price_per_lb: 8.0,
-    status: 'available',
-    wagyu_active: false,
+    grass_fed_count: 0,
+    grain_finished_count: 0,
+    wagyu_count: 0,
   });
 
   useEffect(() => {
@@ -50,38 +47,21 @@ export default function AnimalsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    const total = formData.grass_fed_count + formData.grain_finished_count + formData.wagyu_count;
+    if (total === 0) return;
     try {
       const res = await fetch('/api/admin/animals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
-      if (!res.ok) throw new Error('Failed to create animal');
-
+      if (!res.ok) throw new Error('Failed to create butcher date');
       setShowModal(false);
-      setFormData({
-        name: '',
-        animal_type: 'Grass-Fed',
-        total_animals: 1,
-        butcher_date: '',
-        estimated_ready_date: '',
-        price_per_lb: 8.0,
-        status: 'available',
-        wagyu_active: false,
-      });
-
+      setFormData({ butcher_date: '', estimated_ready_date: '', grass_fed_count: 0, grain_finished_count: 0, wagyu_count: 0 });
       loadAnimals();
     } catch (err) {
-      console.error('Error creating animal:', err);
+      console.error('Error:', err);
     }
-  };
-
-  const typeColors: Record<string, string> = {
-    'Grass-Fed': 'bg-green-100 text-green-800',
-    'Grain-Finished': 'bg-amber-100 text-amber-800',
-    'Wagyu': 'bg-purple-100 text-purple-800',
   };
 
   const statusColors: Record<string, string> = {
@@ -99,7 +79,7 @@ export default function AnimalsPage() {
           onClick={() => setShowModal(true)}
           className="bg-brand-orange hover:bg-brand-orange-hover text-white px-4 py-2 rounded-lg font-semibold"
         >
-          + Add Animal
+          + Add Butcher Date
         </button>
       </div>
 
@@ -110,7 +90,7 @@ export default function AnimalsPage() {
           <table className="w-full">
             <thead className="bg-brand-gray-light border-b border-brand-gray-light">
               <tr>
-                <th className="text-left px-6 py-3 font-semibold text-sm">Name</th>
+                <th className="text-left px-6 py-3 font-semibold text-sm">Butcher Date / Type</th>
                 <th className="text-left px-6 py-3 font-semibold text-sm">Type</th>
                 <th className="text-left px-6 py-3 font-semibold text-sm">Butcher Date</th>
                 <th className="text-left px-6 py-3 font-semibold text-sm">Ready Date</th>
@@ -122,14 +102,17 @@ export default function AnimalsPage() {
             <tbody>
               {animals.map((animal) => (
                 <tr key={animal.id} className="border-b border-brand-gray-light hover:bg-brand-warm">
-                  <td className="px-6 py-4 font-semibold">{animal.name}</td>
                   <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${typeColors[animal.animal_type] || 'bg-gray-100'}`}>
+                    <p className="font-semibold">{new Date(animal.butcher_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                    <p className="text-xs text-brand-gray">{animal.total_animals} head</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100">
                       {animal.animal_type}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm">{new Date(animal.butcher_date).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 text-sm">{new Date(animal.estimated_ready_date).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 text-sm">{new Date(animal.butcher_date + 'T00:00:00').toLocaleDateString()}</td>
+                  <td className="px-6 py-4 text-sm">{animal.estimated_ready_date ? new Date(animal.estimated_ready_date + 'T00:00:00').toLocaleDateString() : '—'}</td>
                   <td className="px-6 py-4 text-sm">
                     <div className="w-32 bg-brand-gray-light rounded-full h-2 overflow-hidden">
                       <div
@@ -158,81 +141,102 @@ export default function AnimalsPage() {
         </div>
       )}
 
-      {/* Add/Edit Modal */}
+      {/* Add Butcher Date Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
-            <h3 className="font-display font-bold text-xl mb-4">Add Animal</h3>
+            <h3 className="font-display font-bold text-xl mb-4">Add Butcher Date</h3>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Animal Name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-2 border border-brand-gray-light rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
-                required
-              />
-
-              <select
-                value={formData.animal_type}
-                onChange={(e) => setFormData({ ...formData, animal_type: e.target.value })}
-                className="w-full px-4 py-2 border border-brand-gray-light rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
-              >
-                <option>Grass-Fed</option>
-                <option>Grain-Finished</option>
-                <option>Wagyu</option>
-              </select>
-
-              <input
-                type="number"
-                placeholder="Number of Animals"
-                value={formData.total_animals}
-                onChange={(e) => setFormData({ ...formData, total_animals: parseInt(e.target.value) })}
-                className="w-full px-4 py-2 border border-brand-gray-light rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
-                min="1"
-                required
-              />
-
-              <input
-                type="date"
-                value={formData.butcher_date}
-                onChange={(e) => setFormData({ ...formData, butcher_date: e.target.value })}
-                className="w-full px-4 py-2 border border-brand-gray-light rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
-                required
-              />
-
-              <input
-                type="date"
-                value={formData.estimated_ready_date}
-                onChange={(e) => setFormData({ ...formData, estimated_ready_date: e.target.value })}
-                className="w-full px-4 py-2 border border-brand-gray-light rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
-              />
-
-              <div className="grid grid-cols-3 gap-2">
+              {/* Butcher Date */}
+              <div>
+                <label className="block text-sm font-semibold text-brand-dark mb-1">
+                  Butcher Date <span className="text-red-500">*</span>
+                </label>
                 <input
-                  type="number"
-                  placeholder="Price /lb (Whole)"
-                  value={formData.price_per_lb}
-                  onChange={(e) => setFormData({ ...formData, price_per_lb: parseFloat(e.target.value) })}
-                  step="0.01"
-                  className="px-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                  type="date"
+                  value={formData.butcher_date}
+                  onChange={(e) => {
+                    const bd = e.target.value;
+                    const ready = bd ? new Date(new Date(bd).getTime() + 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : '';
+                    setFormData({ ...formData, butcher_date: bd, estimated_ready_date: ready });
+                  }}
+                  className="w-full px-4 py-2 border border-brand-gray-light rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                  required
                 />
-                <input type="number" placeholder="Half" step="0.01" disabled className="px-3 py-2 border border-brand-gray-light rounded-lg text-sm bg-gray-50" />
-                <input type="number" placeholder="Quarter" step="0.01" disabled className="px-3 py-2 border border-brand-gray-light rounded-lg text-sm bg-gray-50" />
               </div>
 
-              <div className="flex gap-3">
+              {/* Est. Ready Date */}
+              <div>
+                <label className="block text-sm font-semibold text-brand-dark mb-1">
+                  Est. Ready Date <span className="text-brand-gray text-xs font-normal">(auto-fills +21 days)</span>
+                </label>
+                <input
+                  type="date"
+                  value={formData.estimated_ready_date}
+                  onChange={(e) => setFormData({ ...formData, estimated_ready_date: e.target.value })}
+                  className="w-full px-4 py-2 border border-brand-gray-light rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                />
+              </div>
+
+              {/* Head count by type */}
+              <div>
+                <label className="block text-sm font-semibold text-brand-dark mb-2">
+                  Head Count by Type <span className="text-red-500">*</span>
+                </label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <span className="w-32 text-sm text-brand-dark">🌿 Grass-Fed</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.grass_fed_count}
+                      onChange={(e) => setFormData({ ...formData, grass_fed_count: parseInt(e.target.value) || 0 })}
+                      className="w-24 px-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                    />
+                    <span className="text-xs text-brand-gray">head</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="w-32 text-sm text-brand-dark">🌾 Grain-Finished</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.grain_finished_count}
+                      onChange={(e) => setFormData({ ...formData, grain_finished_count: parseInt(e.target.value) || 0 })}
+                      className="w-24 px-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                    />
+                    <span className="text-xs text-brand-gray">head</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="w-32 text-sm text-brand-dark">⭐ Wagyu</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.wagyu_count}
+                      onChange={(e) => setFormData({ ...formData, wagyu_count: parseInt(e.target.value) || 0 })}
+                      className="w-24 px-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                    />
+                    <span className="text-xs text-brand-gray">head</span>
+                  </div>
+                </div>
+                {/* Validation: at least 1 head total */}
+                {formData.grass_fed_count + formData.grain_finished_count + formData.wagyu_count === 0 && (
+                  <p className="text-red-500 text-xs mt-1">At least 1 head required</p>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-brand-orange hover:bg-brand-orange-hover text-white py-2 rounded-lg font-semibold"
+                  disabled={formData.grass_fed_count + formData.grain_finished_count + formData.wagyu_count === 0}
+                  className="flex-1 bg-brand-orange hover:bg-brand-orange-hover text-white py-2 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Save
+                  Create Butcher Date
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 bg-brand-gray-light text-brand-dark py-2 rounded-lg font-semibold hover:bg-brand-gray-light/80"
+                  className="flex-1 bg-brand-gray-light text-brand-dark py-2 rounded-lg font-semibold"
                 >
                   Cancel
                 </button>
