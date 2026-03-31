@@ -12,7 +12,7 @@ const NAV_LINKS = [
   { href: '/payments', label: 'Payments', icon: '💳' },
   { href: '/coupons', label: 'Coupons', icon: '🏷️' },
   { href: '/notifications', label: 'Notifications', icon: '🔔' },
-  { href: '/settings', label: 'Settings', icon: '⚙️' },
+  { href: '/settings', label: 'Prices & Settings', icon: '💲' },
 ];
 
 interface AdminLayoutProps {

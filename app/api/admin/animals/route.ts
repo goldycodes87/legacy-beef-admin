@@ -33,6 +33,19 @@ export async function POST(request: NextRequest) {
     // Format date for display: "May 2026"
     const dateLabel = new Date(butcher_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
+    // Fetch current prices from config
+    const { data: configData } = await supabase
+      .from('config')
+      .select('key, value')
+      .like('key', 'price_whole_%');
+
+    const configMap: Record<string, number> = {};
+    configData?.forEach(row => { configMap[row.key] = parseFloat(row.value); });
+
+    const grassPrice = configMap['price_whole_grass_fed'] ?? 8.00;
+    const grainPrice = configMap['price_whole_grain_finished'] ?? 8.00;
+    const wagyuPrice = configMap['price_whole_wagyu'] ?? 9.50;
+
     const inserts: Record<string, unknown>[] = [];
 
     if (grass_fed_count > 0) {
@@ -44,7 +57,7 @@ export async function POST(request: NextRequest) {
         units_used: 0,
         butcher_date,
         estimated_ready_date: estimated_ready_date || null,
-        price_per_lb: 8.00,
+        price_per_lb: grassPrice,
         status: 'available',
         wagyu_active: false,
       });
@@ -59,7 +72,7 @@ export async function POST(request: NextRequest) {
         units_used: 0,
         butcher_date,
         estimated_ready_date: estimated_ready_date || null,
-        price_per_lb: 8.00,
+        price_per_lb: grainPrice,
         status: 'available',
         wagyu_active: false,
       });
@@ -74,7 +87,7 @@ export async function POST(request: NextRequest) {
         units_used: 0,
         butcher_date,
         estimated_ready_date: estimated_ready_date || null,
-        price_per_lb: 9.50,
+        price_per_lb: wagyuPrice,
         status: 'available',
         wagyu_active: true,
       });
