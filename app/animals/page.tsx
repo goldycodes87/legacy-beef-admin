@@ -143,6 +143,33 @@ export default function AnimalsPage() {
     }
   };
 
+  const handleDeleteDate = async (date: string, dateAnimals: Animal[]) => {
+    // Check for reservations across all animals on this date
+    const hasReservations = await Promise.all(
+      dateAnimals.map(async (animal) => {
+        const res = await fetch(`/api/admin/animals/${animal.id}/reservations`);
+        const data = await res.json();
+        return data.count > 0;
+      })
+    );
+
+    if (hasReservations.some(Boolean)) {
+      alert('This butcher date has active reservations. Go to Slots to move or cancel them before deleting this date.');
+      return;
+    }
+
+    if (!confirm(`Delete entire butcher date of ${new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}? This cannot be undone.`)) return;
+
+    try {
+      await Promise.all(dateAnimals.map(animal =>
+        fetch(`/api/admin/animals/${animal.id}`, { method: 'DELETE' })
+      ));
+      loadAnimals();
+    } catch (err) {
+      console.error('Delete date error:', err);
+    }
+  };
+
   return (
     <AdminLayout title="Animals">
       {/* Header row */}
@@ -246,12 +273,18 @@ export default function AnimalsPage() {
                 </div>
 
                 {/* Card footer */}
-                <div className="pt-2 border-t border-brand-gray-light">
+                <div className="pt-2 border-t border-brand-gray-light flex gap-3">
                   <button
                     onClick={() => handleEditOpen(date, dateAnimals)}
-                    className="w-full text-center text-sm font-semibold text-brand-orange hover:text-brand-orange-hover"
+                    className="flex-1 text-center text-sm font-semibold text-brand-orange hover:text-brand-orange-hover"
                   >
                     Edit This Date →
+                  </button>
+                  <button
+                    onClick={() => handleDeleteDate(date, dateAnimals)}
+                    className="text-sm font-semibold text-red-400 hover:text-red-600"
+                  >
+                    Delete Date
                   </button>
                 </div>
               </div>

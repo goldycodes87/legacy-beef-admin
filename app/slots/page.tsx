@@ -11,6 +11,7 @@ interface Reservation {
   deposit_paid: boolean;
   cut_sheet_complete: boolean;
   created_at: string;
+  animal_id?: string;
 }
 
 interface AnimalGroup {
@@ -21,6 +22,9 @@ interface AnimalGroup {
 export default function SlotsPage() {
   const [slots, setSlots] = useState<Record<string, AnimalGroup>>({});
   const [loading, setLoading] = useState(true);
+  const [moveModal, setMoveModal] = useState<{open: boolean, session: Reservation | null}>({open: false, session: null});
+  const [availableAnimals, setAvailableAnimals] = useState<{id: string, name: string, butcher_date: string}[]>([]);
+  const [selectedAnimalId, setSelectedAnimalId] = useState('');
 
   useEffect(() => {
     loadSlots();
@@ -35,6 +39,39 @@ export default function SlotsPage() {
       console.error('Failed to load slots:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMoveOpen = async (session: Reservation) => {
+    const res = await fetch('/api/admin/animals');
+    const animals = await res.json();
+    // Filter to same purchase type availability
+    setAvailableAnimals(animals.filter((a: any) => a.id !== session.animal_id && (a.total_animals - a.units_used) > 0));
+    setMoveModal({ open: true, session });
+  };
+
+  const handleMove = async () => {
+    if (!moveModal.session || !selectedAnimalId) return;
+    try {
+      await fetch(`/api/admin/sessions/${moveModal.session.id}/move`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_animal_id: selectedAnimalId }),
+      });
+      setMoveModal({ open: false, session: null });
+      loadSlots();
+    } catch (err) {
+      console.error('Move error:', err);
+    }
+  };
+
+  const handleCancel = async (session: Reservation) => {
+    if (!confirm(`Cancel reservation for ${session.customer_name}? Their deposit will need to be refunded manually through Stripe.`)) return;
+    try {
+      await fetch(`/api/admin/sessions/${session.id}/cancel`, { method: 'POST' });
+      loadSlots();
+    } catch (err) {
+      console.error('Cancel error:', err);
     }
   };
 
@@ -73,6 +110,7 @@ export default function SlotsPage() {
                         <th className="text-left px-6 py-3 font-semibold text-sm">Cut Sheet</th>
                         <th className="text-left px-6 py-3 font-semibold text-sm">Status</th>
                         <th className="text-left px-6 py-3 font-semibold text-sm">Booked</th>
+                        <th className="text-left px-6 py-3 font-semibold text-sm">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -102,6 +140,22 @@ export default function SlotsPage() {
                           <td className="px-6 py-4 text-sm text-brand-gray">
                             {new Date(session.created_at).toLocaleDateString()}
                           </td>
+                          <td className="px-6 py-4 text-sm">
+                            <div className="flex gap-3">
+                              <button
+                                onClick={() => handleMoveOpen(session)}
+                                className="text-brand-orange hover:text-brand-orange-hover font-semibold"
+                              >
+                                Move
+                              </button>
+                              <button
+                                onClick={() => handleCancel(session)}
+                                className="text-red-400 hover:text-red-600 font-semibold"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -110,6 +164,44 @@ export default function SlotsPage() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {moveModal.open && moveModal.session && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <h3 className="font-display font-bold text-xl mb-2">Move Reservation</h3>
+            <p className="text-sm text-brand-gray mb-4">
+              Moving {moveModal.session.customer_name} ({moveModal.session.purchase_type}) to a new butcher date.
+            </p>
+            <select
+              value={selectedAnimalId}
+              onChange={(e) => setSelectedAnimalId(e.target.value)}
+              className="w-full px-4 py-2 border border-brand-gray-light rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-brand-orange"
+            >
+              <option value="">Select new butcher date...</option>
+              {availableAnimals.map((animal) => (
+                <option key={animal.id} value={animal.id}>
+                  {animal.name} — {new Date(animal.butcher_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                </option>
+              ))}
+            </select>
+            <div className="flex gap-3">
+              <button
+                onClick={handleMove}
+                disabled={!selectedAnimalId}
+                className="flex-1 bg-brand-orange text-white py-2 rounded-lg font-semibold disabled:opacity-50"
+              >
+                Move Reservation
+              </button>
+              <button
+                onClick={() => setMoveModal({ open: false, session: null })}
+                className="flex-1 bg-brand-gray-light text-brand-dark py-2 rounded-lg font-semibold"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </AdminLayout>
