@@ -42,7 +42,7 @@ export default function PaymentsPage() {
   }
 
   const totalDeposits = payments
-    .filter(p => p.status === 'succeeded')
+    .filter(p => p.status === 'paid' || p.status === 'succeeded')
     .reduce((sum, p) => sum + p.amount_cents, 0) / 100;
 
   const outstandingBalances = payments.filter(
@@ -139,7 +139,7 @@ export default function PaymentsPage() {
                     ${(p.sessions?.balance_due || 0).toFixed(2)}
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    {p.sessions?.balance_paid ? (
+                    {p.status === 'paid' || p.status === 'succeeded' ? (
                       <span className="text-green-600 font-semibold">✓</span>
                     ) : (
                       <span className="text-red-600 font-semibold">
