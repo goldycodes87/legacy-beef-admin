@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
         customer_name: session.customers?.name || 'Unknown',
         purchase_type: session.purchase_type,
         status: session.status,
-        deposit_paid: session.status === 'deposit_paid',
+        deposit_paid: session.status !== 'draft' && session.status !== 'cancelled',
         cut_sheet_complete: session.cut_sheet_complete,
         created_at: session.created_at,
       });
