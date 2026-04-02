@@ -6,7 +6,8 @@ interface Session {
   id: string;
   purchase_type: string;
   customers: { name: string; email: string; phone: string } | null;
-  animals: Array<{ name: string; butcher_date: string; animal_type: string }> | null;
+  animals: { name: string; butcher_date: string; animal_type: string } | null;
+  cut_sheet_answers?: Array<{ section: string; answers: Record<string, unknown>; completed: boolean }>;
 }
 
 interface CutSheetAnswer {
@@ -41,14 +42,13 @@ export default function PrintCutSheetPage() {
 
   useEffect(() => {
     async function load() {
-      const [sessionRes, answersRes] = await Promise.all([
-        fetch(`/api/session/${sessionId}`),
-        fetch(`/api/cut-sheet/${sessionId}`),
-      ]);
-      const sessionData = await sessionRes.json();
-      const answersData = await answersRes.json();
-      setSession(sessionData);
-      setAnswers(Array.isArray(answersData) ? answersData : []);
+      const res = await fetch('/api/admin/cut-sheets');
+      const data = await res.json();
+      const found = data.find((s: any) => s.id === sessionId);
+      if (found) {
+        setSession(found);
+        setAnswers(found.cut_sheet_answers || []);
+      }
       setLoading(false);
     }
     load();
@@ -69,9 +69,7 @@ export default function PrintCutSheetPage() {
     );
   }
 
-  const animal = Array.isArray(session.animals)
-    ? session.animals[0]
-    : session.animals;
+  const animal = session.animals;
 
   return (
     <div className="w-full max-w-4xl mx-auto p-8 bg-white print:p-0">

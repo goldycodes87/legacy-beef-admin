@@ -17,10 +17,11 @@ interface Session {
   cut_sheet_answers: Array<{ section: string; answers: Record<string, unknown>; completed: boolean; custom_request: string; custom_request_status: string }>;
 }
 
+const SECTION_ORDER = ['chuck','brisket','skirt','rib','short_ribs','sirloin','round','short_loin','flank','stew_meat','tenderized_round','organs','bones','packing'];
 const SECTION_DISPLAY_NAMES: Record<string, string> = {
   chuck: 'Chuck',
   brisket: 'Brisket',
-  skirt: 'Skirt',
+  skirt: 'Skirt Steak',
   rib: 'Rib',
   short_ribs: 'Short Ribs',
   sirloin: 'Sirloin',
@@ -294,32 +295,57 @@ export default function CutSheetsPage() {
                 {expandedSheet === session.id && (
                   <div className="border-t bg-gray-50 p-4">
                     <p className="font-semibold text-gray-900 mb-3">Full Cut Sheet</p>
-                    <div className="space-y-2">
-                      {session.cut_sheet_answers.map(answer => (
-                        <div
-                          key={`${session.id}-${answer.section}`}
-                          className="bg-white border border-gray-200 rounded p-3 grid grid-cols-3 gap-4 text-sm"
-                        >
-                          <div>
-                            <p className="font-semibold text-gray-900">
-                              {SECTION_DISPLAY_NAMES[answer.section]}
-                            </p>
-                          </div>
-                          <div className="text-gray-600">
-                            {(answer.answers.choice as string) || (answer.answers.choices as string[])?.join(', ') || '—'}
-                          </div>
-                          <div className="text-gray-600 text-right">
-                            {Object.entries(answer.answers)
-                              .filter(
-                                ([key]) =>
-                                  !['choice', 'choices', 'house_default'].includes(key)
-                              )
-                              .map(([key, val]) => `${key}: ${val}`)
-                              .join(' • ')}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <table className="w-full">
+                      <tbody>
+                        {session.cut_sheet_answers
+                          ?.sort((a: any, b: any) => SECTION_ORDER.indexOf(a.section) - SECTION_ORDER.indexOf(b.section))
+                          .map((answer: any) => {
+                            const a = answer.answers || {};
+                            const details: string[] = [];
+                            if (a.house_default) details.push('House Default');
+                            if (a.choice) details.push(String(a.choice).replace(/_/g, ' ').replace(/\b\w/g, (l:string) => l.toUpperCase()));
+                            if (a.choices) details.push((a.choices as string[]).map((c:string) => c.replace(/_/g, ' ')).join(', '));
+                            if (a.thickness) details.push(`${a.thickness} thick`);
+                            if (a.tbone_thickness) details.push(`T-Bone: ${a.tbone_thickness}`);
+                            if (a.strip_thickness) details.push(`Strip: ${a.strip_thickness}`);
+                            if (a.filet_thickness) details.push(`Filet: ${a.filet_thickness}`);
+                            if (a.steaks_per_pack) details.push(`${a.steaks_per_pack}/pack`);
+                            if (a.roast_weight) details.push(`${a.roast_weight} lb roasts`);
+                            if (a.fat_pct) details.push(`${a.fat_pct} fat`);
+                            if (a.lbs_per_pack) details.push(`${a.lbs_per_pack} lb burger packs`);
+                            if (a.pounds) details.push(`${a.pounds} lbs`);
+                            if (a.pkg_size) details.push(`${a.pkg_size} packs`);
+                            if (a.reason === 'round_not_steaks') details.push('N/A — Round not steaks');
+
+                            return (
+                              <tr key={answer.section} className="border-b border-gray-100">
+                                <td className="py-3 px-4 font-semibold text-sm text-gray-800 w-40">
+                                  {SECTION_DISPLAY_NAMES[answer.section] || answer.section}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-gray-600">
+                                  {details.join(' · ') || '—'}
+                                </td>
+                                <td className="py-3 px-4 text-sm">
+                                  {answer.custom_request && (
+                                    <span className="text-amber-600 text-xs">⚠ {answer.custom_request}</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 text-right">
+                                  <button
+                                    onClick={() => {
+                                      const idx = SECTION_ORDER.indexOf(answer.section);
+                                      window.open(`https://www.legacylandandcattleco.com/session/${session.id}/cuts?section=${idx}`, '_blank');
+                                    }}
+                                    className="text-brand-orange text-xs font-semibold hover:underline"
+                                  >
+                                    Edit
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>

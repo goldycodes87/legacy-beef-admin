@@ -2,6 +2,18 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 
+interface Session {
+  id: string;
+  customer_id: string;
+  animal_id: string;
+  purchase_type: string;
+  status: string;
+  deposit_paid: boolean;
+  cut_sheet_complete: boolean;
+  created_at: string;
+  animals: { name: string; butcher_date: string; animal_type: string } | null;
+}
+
 interface Customer {
   id: string;
   name: string;
@@ -12,18 +24,7 @@ interface Customer {
   state: string;
   zip: string;
   created_at: string;
-  sessions: Array<{
-    id: string;
-    purchase_type: string;
-    status: string;
-    deposit_paid: boolean;
-    created_at: string;
-    animals: Array<{
-      name: string;
-      butcher_date: string;
-      animal_type: string;
-    }>;
-  }>;
+  sessions: Session[];
 }
 
 export default function CustomersPage() {
@@ -114,25 +115,31 @@ export default function CustomersPage() {
                         <td colSpan={7} className="px-6 py-4 bg-gray-50">
                           <div className="space-y-3">
                             <p className="font-semibold text-gray-900">Sessions:</p>
-                            {c.sessions.map(session => (
+                            {c.sessions.map(s => (
                               <div
-                                key={session.id}
+                                key={s.id}
                                 className="bg-white border border-gray-200 rounded p-3 text-sm"
                               >
                                 <p className="font-medium">
                                   <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs mr-2">
-                                    {session.purchase_type}
+                                    {s.purchase_type}
                                   </span>
-                                  {session.animals?.[0]?.name || 'Unknown'} •{' '}
-                                  {session.animals?.[0]?.butcher_date || 'TBD'}
+                                  <span className="font-medium">
+                                    {s.animals?.name || 'Unknown'}
+                                  </span>
+                                  <span className="text-gray-500 text-xs ml-1">
+                                    • Butcher {s.animals?.butcher_date
+                                      ? new Date(s.animals.butcher_date + 'T00:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})
+                                      : 'TBD'}
+                                  </span>
                                 </p>
                                 <p className="text-gray-600 mt-1">
                                   Status:{' '}
-                                  <span className="font-semibold capitalize">{session.status}</span>
+                                  <span className="font-semibold capitalize">{s.status}</span>
                                 </p>
                                 <p className="text-gray-600">
                                   Deposit:{' '}
-                                  {session.deposit_paid ? (
+                                  {s.deposit_paid ? (
                                     <span className="text-green-600 font-semibold">✓ Deposit Paid</span>
                                   ) : (
                                     <span className="text-red-500 font-semibold">✗ Deposit Pending</span>

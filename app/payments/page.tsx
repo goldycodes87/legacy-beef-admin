@@ -149,17 +149,11 @@ export default function PaymentsPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    {p.method ? (
-                      <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs">
-                        {p.sessions.balance_payment_method === 'cash_check'
-                          ? 'Cash/Check'
-                          : p.sessions.balance_payment_method === 'stripe'
-                            ? 'Stripe'
-                            : p.sessions.balance_payment_method}
-                      </span>
-                    ) : (
-                      '—'
-                    )}
+                    {p.method === 'card' ? '💳 Card' :
+                     p.method === 'cash' ? '💵 Cash' :
+                     p.method === 'check' ? '📄 Check' :
+                     p.method === 'cash_check' ? '💵 Cash/Check' :
+                     p.method || '—'}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     {p.sessions?.balance_due > 0 && !p.sessions?.balance_paid ? (

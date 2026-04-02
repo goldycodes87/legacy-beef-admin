@@ -43,6 +43,22 @@ export async function GET(request: NextRequest) {
 
     const paidSessionIds = new Set((paidDeposits || []).map((p: any) => p.session_id));
 
+    if (animalId) {
+      // Return flat array for single animal lookup
+      const flat = (sessions || []).map((s: any) => ({
+        id: s.id,
+        customer_name: s.customers?.name || 'Unknown',
+        customer_email: s.customers?.email || '',
+        customer_phone: s.customers?.phone || '',
+        purchase_type: s.purchase_type,
+        status: s.status,
+        deposit_paid: paidSessionIds.has(s.id),
+        cut_sheet_complete: s.cut_sheet_complete,
+        created_at: s.created_at,
+      }));
+      return NextResponse.json(flat);
+    }
+
     // Group by animal
     const grouped = (sessions || []).reduce((acc: any, session: any) => {
       const animalName = session.animals?.name || 'Unknown';
