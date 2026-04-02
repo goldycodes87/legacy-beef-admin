@@ -6,11 +6,14 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 export async function GET(request: NextRequest) {
   try {
     const supabase = getSupabaseAdmin();
-    // Total available animals
-    const { count: totalAnimals } = await supabase
+    // Total available animals (sum of total_animals column, not row count)
+    const { data: animalCounts } = await supabase
       .from('animals')
-      .select('*', { count: 'exact', head: true })
+      .select('total_animals')
       .eq('status', 'available');
+    const totalAnimals = (animalCounts || []).reduce(
+      (sum, a) => sum + (a.total_animals || 0), 0
+    );
 
     // Open capacity (sum of remaining units across all available animals)
     const { data: animals } = await supabase
@@ -63,7 +66,7 @@ export async function GET(request: NextRequest) {
       .eq('status', 'beef_ready');
 
     return NextResponse.json({
-      total_animals: totalAnimals || 0,
+      total_animals: totalAnimals,
       open_capacity: openCapacity,
       reservations_this_season: reservations || 0,
       revenue_collected: revenue,
