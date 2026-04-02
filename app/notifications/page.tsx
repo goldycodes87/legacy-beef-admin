@@ -67,10 +67,21 @@ export default function NotificationsPage() {
   async function handleSend() {
     setSending(true);
     let target = formData.target;
+
     if (target === 'butcher_date' && selectedDate) {
       target = `butcher_date:${selectedDate}`;
     } else if (target === 'customer' && selectedCustomer) {
-      target = `session:${selectedCustomer}`;
+      // selectedCustomer is the customer ID, need to find their session ID
+      const selectedCust = customers.find(c => c.id === selectedCustomer);
+      const sessionId = selectedCust?.sessions?.[0]?.id;
+
+      if (!sessionId) {
+        alert('This customer has no active reservations.');
+        setSending(false);
+        return;
+      }
+
+      target = `session:${sessionId}`;
     }
 
     const res = await fetch('/api/admin/notifications', {
@@ -98,7 +109,7 @@ export default function NotificationsPage() {
       setSelectedCustomer('');
       setSelectedDate('');
       setTimeout(() => setSuccessMessage(''), 3000);
-      load();
+      loadAll();
     }
     setSending(false);
   }
@@ -179,7 +190,7 @@ export default function NotificationsPage() {
                 >
                   <option value="">Select a customer...</option>
                   {customers.map(c => (
-                    <option key={c.id} value={c.sessions?.[0]?.id || ''}>
+                    <option key={c.id} value={c.id}>
                       {c.name} ({c.email})
                     </option>
                   ))}

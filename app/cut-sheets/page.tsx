@@ -103,6 +103,10 @@ export default function CutSheetsPage() {
     load();
   }
 
+  const handlePrintCutSheet = (sessionId: string) => {
+    window.open(`/cut-sheets/${sessionId}/print`, '_blank');
+  };
+
   async function handleMarkBeefReady(sessionId: string) {
     await fetch(`/api/admin/cut-sheets/${sessionId}`, {
       method: 'PUT',
@@ -198,8 +202,11 @@ export default function CutSheetsPage() {
                       >
                         {expandedSheet === session.id ? 'Hide' : 'View'} Full Cut Sheet
                       </button>
-                      <button className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded font-medium text-sm hover:bg-gray-200">
-                        Download PDF
+                      <button
+                        onClick={() => handlePrintCutSheet(session.id)}
+                        className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded font-medium text-sm hover:bg-gray-200"
+                      >
+                        Print Cut Sheet
                       </button>
                     </div>
                   )}
