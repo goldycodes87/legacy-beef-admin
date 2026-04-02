@@ -147,9 +147,9 @@ export default function SlotsPage() {
                           <td className="px-6 py-4 text-sm capitalize">{session.purchase_type}</td>
                           <td className="px-6 py-4 text-sm">
                             {session.deposit_paid ? (
-                              <span className="text-green-600 font-semibold">✓ Paid</span>
+                              <span className="text-green-600 font-semibold">✓</span>
                             ) : (
-                              <span className="text-amber-600">Pending</span>
+                              <span className="text-red-600 font-semibold">✗</span>
                             )}
                           </td>
                           <td className="px-6 py-4 text-sm">

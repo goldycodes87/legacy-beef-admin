@@ -32,6 +32,17 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
+    // Get all paid deposits for these sessions
+    const sessionIds = (sessions || []).map((s: any) => s.id);
+    const { data: paidDeposits } = await supabase
+      .from('payments')
+      .select('session_id')
+      .in('session_id', sessionIds)
+      .eq('type', 'deposit')
+      .eq('status', 'paid');
+
+    const paidSessionIds = new Set((paidDeposits || []).map((p: any) => p.session_id));
+
     // Group by animal
     const grouped = (sessions || []).reduce((acc: any, session: any) => {
       const animalName = session.animals?.name || 'Unknown';
@@ -46,7 +57,7 @@ export async function GET(request: NextRequest) {
         customer_name: session.customers?.name || 'Unknown',
         purchase_type: session.purchase_type,
         status: session.status,
-        deposit_paid: session.status !== 'draft' && session.status !== 'cancelled',
+        deposit_paid: paidSessionIds.has(session.id),
         cut_sheet_complete: session.cut_sheet_complete,
         created_at: session.created_at,
       });

@@ -133,9 +133,9 @@ export default function CustomersPage() {
                                 <p className="text-gray-600">
                                   Deposit:{' '}
                                   {session.deposit_paid ? (
-                                    <span className="text-green-600 font-semibold">✓ Paid</span>
+                                    <span className="text-green-600 font-semibold">✓ Deposit Paid</span>
                                   ) : (
-                                    <span className="text-red-600 font-semibold">✗ Pending</span>
+                                    <span className="text-red-500 font-semibold">✗ Deposit Pending</span>
                                   )}
                                 </p>
                               </div>
