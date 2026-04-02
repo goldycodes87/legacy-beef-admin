@@ -26,11 +26,11 @@ export async function GET(request: NextRequest) {
       0
     );
 
-    // Reservations this season (deposit_paid = true)
+    // Reservations this season (status = deposit_paid or later)
     const { count: reservations } = await supabase
       .from('sessions')
       .select('*', { count: 'exact', head: true })
-      .eq('deposit_paid', true);
+      .not('status', 'eq', 'draft').not('status', 'eq', 'cancelled');
 
     // Revenue collected (sum of payments where status=paid)
     const { data: payments } = await supabase
@@ -40,11 +40,11 @@ export async function GET(request: NextRequest) {
 
     const revenue = (payments || []).reduce((sum, p) => sum + (p.amount_cents || 0), 0) / 100;
 
-    // Pending cut sheets (deposit_paid=true AND cut_sheet_complete=false)
+    // Pending cut sheets
     const { count: pendingCutSheets } = await supabase
       .from('sessions')
       .select('*', { count: 'exact', head: true })
-      .eq('deposit_paid', true)
+      .not('status', 'eq', 'draft').not('status', 'eq', 'cancelled')
       .eq('cut_sheet_complete', false);
 
     // Cut sheets locked (status=locked)

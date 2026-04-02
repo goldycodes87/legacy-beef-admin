@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
         id,
         purchase_type,
         status,
-        deposit_paid,
+        status,
         cut_sheet_complete,
         created_at,
         customers (name, email, phone),
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
         customer_name: session.customers?.name || 'Unknown',
         purchase_type: session.purchase_type,
         status: session.status,
-        deposit_paid: session.deposit_paid,
+        deposit_paid: session.status === 'deposit_paid',
         cut_sheet_complete: session.cut_sheet_complete,
         created_at: session.created_at,
       });

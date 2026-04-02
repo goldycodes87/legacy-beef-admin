@@ -26,14 +26,14 @@ export async function POST(request: NextRequest) {
     const { data } = await supabase
       .from('sessions')
       .select('id, customers(email, name)')
-      .eq('deposit_paid', true)
+      .not('status', 'eq', 'draft').not('status', 'eq', 'cancelled')
       .neq('status', 'cancelled');
     sessions = (data || []) as unknown as typeof sessions;
   } else if (target === 'pending_cut_sheets') {
     const { data } = await supabase
       .from('sessions')
       .select('id, customers(email, name)')
-      .eq('deposit_paid', true)
+      .not('status', 'eq', 'draft').not('status', 'eq', 'cancelled')
       .eq('cut_sheet_complete', false);
     sessions = (data || []) as unknown as typeof sessions;
   } else if (target.startsWith('butcher_date:')) {
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       .from('sessions')
       .select('id, customers(email, name), animals!inner(butcher_date)')
       .eq('animals.butcher_date', date)
-      .eq('deposit_paid', true);
+      .not('status', 'eq', 'draft').not('status', 'eq', 'cancelled');
     sessions = (data || []) as unknown as typeof sessions;
   } else if (target.startsWith('session:')) {
     const sessionId = target.replace('session:', '');

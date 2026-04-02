@@ -8,7 +8,7 @@ export async function GET() {
     .from('customers')
     .select(`
       id, name, email, phone, address, city, state, zip, created_at,
-      sessions(id, purchase_type, status, deposit_paid, created_at,
+      sessions(id, purchase_type, status, status, created_at,
         animals(name, butcher_date, animal_type))
     `)
     .order('created_at', { ascending: false });
