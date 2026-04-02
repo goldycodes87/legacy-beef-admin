@@ -55,7 +55,7 @@ export default function PaymentsPage() {
 
   const cashCheckPending = payments.filter(
     p =>
-      p.sessions?.balance_payment_method === 'cash_check' && !p.sessions?.balance_paid
+      p.method === 'cash_check' && !p.sessions?.balance_paid
   ).length;
 
   async function handleMarkPaid(sessionId: string, method: string) {
@@ -125,7 +125,7 @@ export default function PaymentsPage() {
                     {p.sessions?.customers?.name || '—'}
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    {p.sessions?.animals?.[0]?.name || '—'}
+                    {p.sessions?.animals?.name || '—'}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
@@ -148,7 +148,7 @@ export default function PaymentsPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    {p.sessions?.balance_payment_method ? (
+                    {p.method ? (
                       <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs">
                         {p.sessions.balance_payment_method === 'cash_check'
                           ? 'Cash/Check'
