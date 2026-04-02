@@ -35,6 +35,55 @@ interface Animal {
   wagyu_active: boolean;
 }
 
+function ReservationsTable({ animalId }: { animalId: string }) {
+  const [reservations, setReservations] = useState<any[]>([]);
+  const [loadingRes, setLoadingRes] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const res = await fetch(`/api/admin/slots?animal_id=${animalId}`);
+      const data = await res.json();
+      setReservations(Array.isArray(data) ? data : []);
+      setLoadingRes(false);
+    }
+    load();
+  }, [animalId]);
+
+  if (loadingRes) return <div className="text-sm text-gray-500">Loading...</div>;
+  if (reservations.length === 0) return <div className="text-sm text-gray-500">No reservations found.</div>;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-white border-b">
+          <tr>
+            <th className="px-4 py-2 text-left font-semibold text-gray-900">Customer Name</th>
+            <th className="px-4 py-2 text-left font-semibold text-gray-900">Purchase Type</th>
+            <th className="px-4 py-2 text-left font-semibold text-gray-900">Deposit Paid</th>
+            <th className="px-4 py-2 text-left font-semibold text-gray-900">Status</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {reservations.map(r => (
+            <tr key={r.id}>
+              <td className="px-4 py-2">{r.customers?.name || '—'}</td>
+              <td className="px-4 py-2 capitalize">{r.purchase_type}</td>
+              <td className="px-4 py-2">
+                {r.deposit_paid ? (
+                  <span className="text-green-600 font-semibold">✓</span>
+                ) : (
+                  <span className="text-red-600 font-semibold">✗</span>
+                )}
+              </td>
+              <td className="px-4 py-2 capitalize">{r.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function AnimalsPage() {
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +99,10 @@ export default function AnimalsPage() {
   const [editModal, setEditModal] = useState<{open: boolean, date: string, animals: Animal[]}>({open: false, date: '', animals: []});
   const [confirmModal, setConfirmModal] = useState<{open: boolean, message: string, onConfirm: () => void}>({open: false, message: '', onConfirm: () => {}});
   const [errorMessage, setErrorMessage] = useState('');
+  const [expandedReservations, setExpandedReservations] = useState<string | null>(null);
+  const [archiveId, setArchiveId] = useState<string | null>(null);
+  const [archiving, setArchiving] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [editForm, setEditForm] = useState<{butcher_date: string, estimated_ready_date: string, grass_fed_count: number, grain_finished_count: number, wagyu_count: number}>({butcher_date: '', estimated_ready_date: '', grass_fed_count: 0, grain_finished_count: 0, wagyu_count: 0});
 
   useEffect(() => {
@@ -95,8 +148,13 @@ export default function AnimalsPage() {
     return acc;
   }, {} as Record<string, Animal[]>);
 
-  // Sort the grouped dates
-  const sortedDates = Object.keys(groupedByDate).sort((a, b) => {
+  // Sort the grouped dates (filter archived if not showing)
+  const sortedDates = Object.keys(groupedByDate).filter(date => {
+    if (!showArchived) {
+      return !groupedByDate[date].every(a => a.status === 'archived');
+    }
+    return true;
+  }).sort((a, b) => {
     if (sortBy === 'soonest') return new Date(a).getTime() - new Date(b).getTime();
     if (sortBy === 'latest') return new Date(b).getTime() - new Date(a).getTime();
     if (sortBy === 'animals') {
@@ -154,6 +212,22 @@ export default function AnimalsPage() {
   };
 
   const handleDelete = async (animal: Animal) => {
+    // Check for active sessions first
+    const res = await fetch(`/api/admin/cut-sheets`);
+    const allSessions = await res.json();
+    const activeSessions = allSessions.filter(
+      (s: any) => s.animals?.[0]?.id === animal.id &&
+        s.status !== 'cancelled' &&
+        s.status !== 'picked_up'
+    );
+
+    if (activeSessions.length > 0) {
+      alert(
+        `Cannot delete — ${activeSessions.length} active reservation(s) on this date. Archive instead.`
+      );
+      return;
+    }
+
     const deleteMessage = `Delete ${animal.animal_type.replace('_', ' ')} from this butcher date? This cannot be undone.`;
     setConfirmModal({
       open: true,
@@ -205,6 +279,21 @@ export default function AnimalsPage() {
     });
   };
 
+  async function handleArchive(animalId: string) {
+    setArchiving(true);
+    const res = await fetch(`/api/admin/animals/${animalId}/archive`, {
+      method: 'POST',
+    });
+    const result = await res.json();
+    if (result.error) {
+      alert(result.error);
+    } else {
+      setArchiveId(null);
+      loadAnimals();
+    }
+    setArchiving(false);
+  }
+
   return (
     <AdminLayout title="Animals">
       {/* Header row */}
@@ -219,7 +308,7 @@ export default function AnimalsPage() {
       </div>
 
       {/* Sort controls */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-4">
         {(['soonest', 'latest', 'animals', 'full'] as const).map((s) => (
           <button
             key={s}
@@ -233,6 +322,19 @@ export default function AnimalsPage() {
             {s === 'soonest' ? 'Soonest First' : s === 'latest' ? 'Latest First' : s === 'animals' ? 'Most Animals' : 'Most Full'}
           </button>
         ))}
+      </div>
+
+      {/* Show Archived toggle */}
+      <div className="flex items-center gap-4 mb-6">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+            className="rounded"
+          />
+          <span className="text-sm font-medium text-gray-700">Show Archived</span>
+        </label>
       </div>
 
       {loading ? (
@@ -322,6 +424,32 @@ export default function AnimalsPage() {
                     Delete Date
                   </button>
                 </div>
+
+                {/* View Reservations + Archive buttons */}
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() =>
+                      setExpandedReservations(expandedReservations === dateAnimals[0]?.id ? null : dateAnimals[0]?.id)
+                    }
+                    className="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded font-medium text-sm hover:bg-blue-200"
+                  >
+                    {expandedReservations === dateAnimals[0]?.id ? 'Hide' : 'View'} Reservations
+                  </button>
+                  <button
+                    onClick={() => setArchiveId(dateAnimals[0]?.id)}
+                    className="flex-1 px-3 py-2 bg-orange-100 text-orange-700 rounded font-medium text-sm hover:bg-orange-200"
+                  >
+                    Archive Date
+                  </button>
+                </div>
+
+                {/* Expanded reservations panel */}
+                {expandedReservations === dateAnimals[0]?.id && (
+                  <div className="mt-4 bg-gray-50 rounded-lg p-4">
+                    <p className="font-semibold text-gray-900 mb-3">Reservations</p>
+                    <ReservationsTable animalId={dateAnimals[0]?.id} />
+                  </div>
+                )}
               </div>
             );
           })}
@@ -514,6 +642,33 @@ export default function AnimalsPage() {
             >
               Understood
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Archive confirmation modal */}
+      {archiveId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full">
+            <p className="text-lg font-semibold mb-4">Archive this butcher date?</p>
+            <p className="text-gray-600 mb-6">
+              It will be hidden from the main view. Active reservations will block archival.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setArchiveId(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 font-medium hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleArchive(archiveId)}
+                disabled={archiving}
+                className="flex-1 px-4 py-2 bg-orange-600 text-white rounded font-medium hover:bg-orange-700 disabled:opacity-50"
+              >
+                {archiving ? 'Archiving...' : 'Archive'}
+              </button>
+            </div>
           </div>
         </div>
       )}

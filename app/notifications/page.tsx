@@ -24,25 +24,53 @@ export default function NotificationsPage() {
   });
   const [sending, setSending] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [customers, setCustomers] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    sessions: { id: string }[];
+  }[]>([]);
+  const [butcherDates, setButcherDates] = useState<{
+    id: string;
+    butcher_date: string;
+    animal_type: string;
+  }[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [selectedDate, setSelectedDate] = useState('');
 
-  useEffect(() => {
-    load();
-  }, []);
+  async function loadAll() {
+    const [notifRes, custRes, dateRes] = await Promise.all([
+      fetch('/api/admin/notifications'),
+      fetch('/api/admin/customers'),
+      fetch('/api/admin/animals'),
+    ]);
+    const notifData = await notifRes.json();
+    const custData = await custRes.json();
+    const dateData = await dateRes.json();
+    setNotifications(notifData);
+    setCustomers(custData);
+    setButcherDates(dateData);
+    setLoading(false);
+  }
 
   async function load() {
     const res = await fetch('/api/admin/notifications');
     const data = await res.json();
     setNotifications(data);
-    setLoading(false);
   }
+
+  useEffect(() => {
+    loadAll();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSend() {
     setSending(true);
     let target = formData.target;
-    if (target === 'butcher_date' && formData.butcher_date) {
-      target = `butcher_date:${formData.butcher_date}`;
-    } else if (target === 'customer' && formData.customer_search) {
-      target = `session:${formData.customer_search}`;
+    if (target === 'butcher_date' && selectedDate) {
+      target = `butcher_date:${selectedDate}`;
+    } else if (target === 'customer' && selectedCustomer) {
+      target = `session:${selectedCustomer}`;
     }
 
     const res = await fetch('/api/admin/notifications', {
@@ -67,6 +95,8 @@ export default function NotificationsPage() {
         butcher_date: '',
         customer_search: '',
       });
+      setSelectedCustomer('');
+      setSelectedDate('');
       setTimeout(() => setSuccessMessage(''), 3000);
       load();
     }
@@ -116,27 +146,44 @@ export default function NotificationsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Butcher Date
                 </label>
-                <input
-                  type="date"
-                  value={formData.butcher_date}
-                  onChange={(e) => setFormData({ ...formData, butcher_date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
+                <select
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm"
+                >
+                  <option value="">Select a butcher date...</option>
+                  {butcherDates.map(a => (
+                    <option key={a.id} value={a.butcher_date}>
+                      {new Date(a.butcher_date + 'T00:00:00').toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}{' '}
+                      — {a.animal_type}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
 
             {formData.target === 'customer' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Customer Session ID
+                  Customer
                 </label>
-                <input
-                  type="text"
-                  placeholder="Paste customer session UUID"
-                  value={formData.customer_search}
-                  onChange={(e) => setFormData({ ...formData, customer_search: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
+                <select
+                  value={selectedCustomer}
+                  onChange={(e) => setSelectedCustomer(e.target.value)}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm"
+                >
+                  <option value="">Select a customer...</option>
+                  {customers.map(c => (
+                    <option key={c.id} value={c.sessions?.[0]?.id || ''}>
+                      {c.name} ({c.email})
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
 
@@ -181,8 +228,8 @@ export default function NotificationsPage() {
                 sending ||
                 !formData.subject ||
                 !formData.message ||
-                (formData.target === 'butcher_date' && !formData.butcher_date) ||
-                (formData.target === 'customer' && !formData.customer_search)
+                (formData.target === 'butcher_date' && !selectedDate) ||
+                (formData.target === 'customer' && !selectedCustomer)
               }
               className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
             >
