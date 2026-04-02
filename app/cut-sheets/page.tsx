@@ -45,6 +45,9 @@ export default function CutSheetsPage() {
   const [confirmApprove, setConfirmApprove] = useState<{ sessionId: string; section: string } | null>(null);
   const [confirmDeny, setConfirmDeny] = useState<{ sessionId: string; section: string } | null>(null);
   const [confirmReady, setConfirmReady] = useState<string | null>(null);
+  const [editingSection, setEditingSection] = useState<{sessionId: string, section: string, answers: Record<string,unknown>} | null>(null);
+  const [editAnswers, setEditAnswers] = useState<Record<string,unknown>>({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     load();
@@ -333,8 +336,8 @@ export default function CutSheetsPage() {
                                 <td className="py-3 px-4 text-right">
                                   <button
                                     onClick={() => {
-                                      const idx = SECTION_ORDER.indexOf(answer.section);
-                                      window.open(`https://www.legacylandandcattleco.com/session/${session.id}/cuts?section=${idx}`, '_blank');
+                                      setEditingSection({ sessionId: session.id, section: answer.section, answers: answer.answers });
+                                      setEditAnswers(answer.answers);
                                     }}
                                     className="text-brand-orange text-xs font-semibold hover:underline"
                                   >
@@ -417,6 +420,59 @@ export default function CutSheetsPage() {
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded font-medium hover:bg-blue-700"
               >
                 Mark Ready
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingSection && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
+            <h3 className="font-bold text-lg text-gray-900 mb-4">
+              Edit {SECTION_DISPLAY_NAMES[editingSection.section]}
+            </h3>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Raw answers (JSON) — edit carefully
+              </label>
+              <textarea
+                value={JSON.stringify(editAnswers, null, 2)}
+                onChange={e => {
+                  try { setEditAnswers(JSON.parse(e.target.value)); } catch {}
+                }}
+                rows={10}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-orange"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mb-4">
+              Valid choice keys: choice, choices, thickness, tbone_thickness, strip_thickness, filet_thickness, steaks_per_pack, roast_weight, fat_pct, lbs_per_pack, pounds, pkg_size
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={async () => {
+                  setSaving(true);
+                  await fetch(`/api/admin/cut-sheets/${editingSection.sessionId}/section`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ section: editingSection.section, answers: editAnswers }),
+                  });
+                  setSaving(false);
+                  setEditingSection(null);
+                  // Refresh cut sheets
+                  const res = await fetch('/api/admin/cut-sheets');
+                  setSessions(await res.json());
+                }}
+                disabled={saving}
+                className="flex-1 bg-brand-orange text-white py-3 rounded-xl font-semibold disabled:opacity-50"
+              >
+                {saving ? 'Saving…' : 'Save Changes'}
+              </button>
+              <button
+                onClick={() => setEditingSection(null)}
+                className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-semibold"
+              >
+                Cancel
               </button>
             </div>
           </div>

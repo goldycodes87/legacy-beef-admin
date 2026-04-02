@@ -24,11 +24,13 @@ export async function POST(
 
     const unitCost = session.purchase_type === 'whole' ? 1.0 : session.purchase_type === 'half' ? 0.5 : 0.25;
 
-    // Release capacity on animal
-    const { data: animal } = await supabase.from('animals').select('units_used').eq('id', session.animal_id).single();
-    await supabase.from('animals')
-      .update({ units_used: Math.max(0, (animal?.units_used || 0) - unitCost) })
-      .eq('id', session.animal_id);
+    // Release capacity on animal — only if session is not a draft (drafts never incremented units_used)
+    if (session.status !== 'draft') {
+      const { data: animal } = await supabase.from('animals').select('units_used').eq('id', session.animal_id).single();
+      await supabase.from('animals')
+        .update({ units_used: Math.max(0, (animal?.units_used || 0) - unitCost) })
+        .eq('id', session.animal_id);
+    }
 
     // Mark session cancelled
     await supabase.from('sessions').update({ status: 'cancelled' }).eq('id', id);

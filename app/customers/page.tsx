@@ -49,9 +49,15 @@ export default function CustomersPage() {
     c.phone.includes(search)
   );
 
+  const getActiveSessions = (c: Customer) =>
+    c.sessions?.filter(
+      s => s.status !== 'cancelled' && !(s.status === 'draft' && !s.deposit_paid)
+    ) || [];
+
   const lastOrder = (c: Customer) => {
-    if (c.sessions.length === 0) return '—';
-    const latest = c.sessions[0];
+    const active = getActiveSessions(c);
+    if (active.length === 0) return '—';
+    const latest = active[0];
     return new Date(latest.created_at).toLocaleDateString();
   };
 
@@ -97,7 +103,7 @@ export default function CustomersPage() {
                       <td className="px-6 py-4 text-sm text-gray-600">{c.email}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{c.phone}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{c.city}, {c.state}</td>
-                      <td className="px-6 py-4 text-sm font-medium">{c.sessions.length}</td>
+                      <td className="px-6 py-4 text-sm font-medium">{getActiveSessions(c).length}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{lastOrder(c)}</td>
                       <td className="px-6 py-4 text-sm">
                         <button
@@ -115,7 +121,7 @@ export default function CustomersPage() {
                         <td colSpan={7} className="px-6 py-4 bg-gray-50">
                           <div className="space-y-3">
                             <p className="font-semibold text-gray-900">Sessions:</p>
-                            {c.sessions.map(s => (
+                            {getActiveSessions(c).map(s => (
                               <div
                                 key={s.id}
                                 className="bg-white border border-gray-200 rounded p-3 text-sm"

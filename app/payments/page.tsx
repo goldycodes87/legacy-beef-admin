@@ -156,7 +156,7 @@ export default function PaymentsPage() {
                      p.method || '—'}
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    {p.sessions?.balance_due > 0 && !p.sessions?.balance_paid ? (
+                    {(p.sessions?.balance_due ?? 0) > 0 && !p.sessions?.balance_paid ? (
                       <div className="relative group">
                         <button className="text-blue-600 hover:underline font-medium text-xs">
                           Mark Paid ▼
@@ -173,8 +173,10 @@ export default function PaymentsPage() {
                           ))}
                         </div>
                       </div>
+                    ) : p.sessions?.balance_paid ? (
+                      <span className="text-green-600 text-xs font-semibold">✓ Balance Paid</span>
                     ) : (
-                      '—'
+                      <span className="text-gray-400 text-xs">Awaiting hanging weight</span>
                     )}
                   </td>
                 </tr>

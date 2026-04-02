@@ -39,15 +39,25 @@ function ReservationsTable({ animalId }: { animalId: string }) {
   const [reservations, setReservations] = useState<any[]>([]);
   const [loadingRes, setLoadingRes] = useState(true);
 
+  async function loadReservations() {
+    const res = await fetch(`/api/admin/slots?animal_id=${animalId}`);
+    const data = await res.json();
+    setReservations(Array.isArray(data) ? data : []);
+    setLoadingRes(false);
+  }
+
   useEffect(() => {
-    async function load() {
-      const res = await fetch(`/api/admin/slots?animal_id=${animalId}`);
-      const data = await res.json();
-      setReservations(Array.isArray(data) ? data : []);
-      setLoadingRes(false);
-    }
-    load();
+    loadReservations();
   }, [animalId]);
+
+  async function handleCancel(sessionId: string) {
+    if (!confirm('Cancel this reservation?')) return;
+    await fetch(`/api/admin/sessions/${sessionId}/cancel`, { method: 'POST' });
+    // Re-fetch reservations after cancel
+    const updated = await fetch(`/api/admin/slots?animal_id=${animalId}`);
+    const data = await updated.json();
+    setReservations(Array.isArray(data) ? data : []);
+  }
 
   if (loadingRes) return <div className="text-sm text-gray-500">Loading...</div>;
   if (reservations.length === 0) return <div className="text-sm text-gray-500">No reservations found.</div>;
@@ -58,15 +68,18 @@ function ReservationsTable({ animalId }: { animalId: string }) {
         <thead className="bg-white border-b">
           <tr>
             <th className="px-4 py-2 text-left font-semibold text-gray-900">Customer Name</th>
+            <th className="px-4 py-2 text-left font-semibold text-gray-900">Email</th>
             <th className="px-4 py-2 text-left font-semibold text-gray-900">Purchase Type</th>
             <th className="px-4 py-2 text-left font-semibold text-gray-900">Deposit Paid</th>
             <th className="px-4 py-2 text-left font-semibold text-gray-900">Status</th>
+            <th className="px-4 py-2 text-left font-semibold text-gray-900">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y">
           {reservations.map(r => (
             <tr key={r.id}>
-              <td className="px-4 py-2">{r.customers?.name || '—'}</td>
+              <td className="px-4 py-2">{r.customer_name || '—'}</td>
+              <td className="px-4 py-2 text-gray-500">{r.customer_email || '—'}</td>
               <td className="px-4 py-2 capitalize">{r.purchase_type}</td>
               <td className="px-4 py-2">
                 {r.deposit_paid ? (
@@ -76,6 +89,16 @@ function ReservationsTable({ animalId }: { animalId: string }) {
                 )}
               </td>
               <td className="px-4 py-2 capitalize">{r.status}</td>
+              <td className="px-4 py-2">
+                {r.status !== 'cancelled' && (
+                  <button
+                    onClick={() => handleCancel(r.id)}
+                    className="text-red-400 hover:text-red-600 text-xs font-semibold"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
