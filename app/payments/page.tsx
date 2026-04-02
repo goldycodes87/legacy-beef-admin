@@ -19,7 +19,7 @@ interface Payment {
     balance_paid: boolean;
     balance_payment_method: string;
     customers: { name: string; email: string; phone: string } | null;
-    animals: Array<{ name: string; butcher_date: string; animal_type: string }>;
+    animals: { name: string; butcher_date: string; animal_type: string } | null;
   };
 }
 
