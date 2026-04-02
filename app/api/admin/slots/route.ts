@@ -3,10 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = getSupabaseAdmin();
-    const { data: sessions, error } = await supabase
+    const { searchParams } = new URL(request.url);
+    const animalId = searchParams.get('animal_id');
+
+    let query = supabase
       .from('sessions')
       .select(`
         id,
@@ -15,10 +18,17 @@ export async function GET() {
         deposit_paid,
         cut_sheet_complete,
         created_at,
-        customers (name),
-        animals (name, butcher_date)
+        customers (name, email, phone),
+        animals (id, name, butcher_date)
       `)
+      .not('status', 'eq', 'cancelled')
       .order('created_at', { ascending: false });
+
+    if (animalId) {
+      query = query.eq('animal_id', animalId);
+    }
+
+    const { data: sessions, error } = await query;
 
     if (error) throw error;
 

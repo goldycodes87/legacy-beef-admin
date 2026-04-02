@@ -160,7 +160,7 @@ export default function NotificationsPage() {
                         day: 'numeric',
                         year: 'numeric',
                       })}{' '}
-                      — {a.animal_type}
+                      — {a.animal_type?.replace(/_/g, '-').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                     </option>
                   ))}
                 </select>

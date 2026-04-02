@@ -295,10 +295,10 @@ export default function AnimalsPage() {
   }
 
   return (
-    <AdminLayout title="Animals">
+    <AdminLayout title="Butcher Dates">
       {/* Header row */}
       <div className="flex justify-between items-center mb-6">
-        <h2 className="font-display font-bold text-2xl">Animal Inventory</h2>
+        <h2 className="font-display font-bold text-2xl">Butcher Dates</h2>
         <button
           onClick={() => setShowModal(true)}
           className="bg-brand-orange hover:bg-brand-orange-hover text-white px-4 py-2 rounded-lg font-semibold"
