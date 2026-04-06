@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
         customers (name, email, phone),
         animals (id, name, butcher_date)
       `)
-      .not('status', 'in', '(cancelled,draft)')
+      .neq('status', 'cancelled').neq('status', 'draft')
       .order('created_at', { ascending: false });
 
     if (animalId) {
