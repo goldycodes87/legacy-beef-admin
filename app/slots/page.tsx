@@ -141,7 +141,7 @@ export default function SlotsPage() {
           {Object.entries(slots).map(([animalName, group]) => (
             <div key={animalName}>
               <h3 className="font-display font-bold text-lg text-brand-dark mb-4">
-                {group.animal.name} • Butcher {new Date(group.animal.butcher_date).toLocaleDateString()}
+                {group.animal?.name ?? "Unknown"} • Butcher {group.animal?.butcher_date ? new Date(group.animal.butcher_date).toLocaleDateString() : "TBD"}
               </h3>
 
               {group.sessions.length === 0 ? (
