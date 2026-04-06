@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 
 function ConfirmModal({ message, onConfirm, onCancel }: { message: string, onConfirm: () => void, onCancel: () => void }) {
@@ -162,8 +162,8 @@ export default function SlotsPage() {
                     </thead>
                     <tbody>
                       {group.sessions.map((session) => (
-                        <>
-                        <tr key={session.id} className="border-b border-brand-gray-light hover:bg-brand-warm cursor-pointer" onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)}>
+                        <React.Fragment key={session.id}>
+                        <tr className="border-b border-brand-gray-light hover:bg-brand-warm cursor-pointer" onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)}>
                           <td className="px-6 py-4 font-semibold">{session.customer_name}</td>
                           <td className="px-6 py-4 text-sm capitalize">{session.purchase_type}</td>
                           <td className="px-6 py-4 text-sm">
@@ -236,7 +236,7 @@ export default function SlotsPage() {
                             </td>
                           </tr>
                         )}
-                        </>
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>
