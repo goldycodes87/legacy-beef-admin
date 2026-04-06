@@ -17,9 +17,8 @@ export async function GET(request: NextRequest) {
         status,
         cut_sheet_complete,
         created_at,
-        price_per_lb,
         customers (name, email, phone),
-        animals (id, name, butcher_date)
+        animals (id, name, butcher_date, price_per_lb)
       `)
       .neq('status', 'cancelled').neq('status', 'draft')
       .order('created_at', { ascending: false });
@@ -76,7 +75,7 @@ export async function GET(request: NextRequest) {
         deposit_paid: paidSessionIds.has(session.id),
         cut_sheet_complete: session.cut_sheet_complete,
         created_at: session.created_at,
-        price_per_lb: session.price_per_lb || null,
+        price_per_lb: session.animals?.price_per_lb || null,
         deposit_amount_cents: paidSessionIds.has(session.id) ? (session.purchase_type === "whole" ? 85000 : session.purchase_type === "half" ? 50000 : 25000) : 0,
       });
       return acc;
