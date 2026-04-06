@@ -60,9 +60,10 @@ function ReservationsTable({ animalId }: { animalId: string }) {
   }
 
   if (loadingRes) return <div className="text-sm text-gray-500">Loading...</div>;
-  if (reservations.length === 0) return <div className="text-sm text-gray-500">No reservations found.</div>;
+  if (reservations.length === 0) return null;
 
   return (
+    <div className="mb-4">
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-white border-b">
@@ -103,6 +104,7 @@ function ReservationsTable({ animalId }: { animalId: string }) {
           ))}
         </tbody>
       </table>
+    </div>
     </div>
   );
 }
@@ -470,7 +472,9 @@ export default function AnimalsPage() {
                 {expandedReservations === dateAnimals[0]?.id && (
                   <div className="mt-4 bg-gray-50 rounded-lg p-4">
                     <p className="font-semibold text-gray-900 mb-3">Reservations</p>
-                    <ReservationsTable animalId={dateAnimals[0]?.id} />
+                    {dateAnimals.map((animal) => (
+                      <ReservationsTable key={animal.id} animalId={animal.id} />
+                    ))}
                   </div>
                 )}
               </div>
