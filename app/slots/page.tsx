@@ -30,6 +30,8 @@ interface Reservation {
   cut_sheet_complete: boolean;
   created_at: string;
   animal_id?: string;
+  price_per_lb?: number;
+  deposit_amount_cents?: number;
 }
 
 interface AnimalGroup {
@@ -44,6 +46,9 @@ export default function SlotsPage() {
   const [availableAnimals, setAvailableAnimals] = useState<{id: string, name: string, butcher_date: string}[]>([]);
   const [selectedAnimalId, setSelectedAnimalId] = useState('');
   const [confirmModal, setConfirmModal] = useState<{open: boolean, message: string, onConfirm: () => void}>({open: false, message: '', onConfirm: () => {}});
+  const [expandedSession, setExpandedSession] = useState<string | null>(null);
+  const [hangingWeights, setHangingWeights] = useState<Record<string, string>>({});
+  const [savingWeight, setSavingWeight] = useState<string | null>(null);
 
   useEffect(() => {
     loadSlots();
@@ -102,6 +107,21 @@ export default function SlotsPage() {
     });
   };
 
+  const handleSaveHangingWeight = async (sessionId: string, pricePerLb: number, depositAmountCents: number) => {
+    setSavingWeight(sessionId);
+    const weight = parseFloat(hangingWeights[sessionId]);
+    if (!weight) return;
+    const balanceDue = (weight * pricePerLb) - (depositAmountCents / 100);
+    await fetch(`/api/admin/sessions/${sessionId}/hanging-weight`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hanging_weight_lbs: weight, balance_due: balanceDue }),
+    });
+    setSavingWeight(null);
+    setExpandedSession(null);
+    loadSlots();
+  };
+
   const statusColors: Record<string, string> = {
     draft: 'bg-gray-100 text-gray-800',
     deposit_paid: 'bg-green-100 text-green-800',
@@ -142,7 +162,8 @@ export default function SlotsPage() {
                     </thead>
                     <tbody>
                       {group.sessions.map((session) => (
-                        <tr key={session.id} className="border-b border-brand-gray-light hover:bg-brand-warm">
+                        <>
+                        <tr key={session.id} className="border-b border-brand-gray-light hover:bg-brand-warm cursor-pointer" onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)}>
                           <td className="px-6 py-4 font-semibold">{session.customer_name}</td>
                           <td className="px-6 py-4 text-sm capitalize">{session.purchase_type}</td>
                           <td className="px-6 py-4 text-sm">
@@ -170,13 +191,13 @@ export default function SlotsPage() {
                           <td className="px-6 py-4 text-sm">
                             <div className="flex gap-3">
                               <button
-                                onClick={() => handleMoveOpen(session)}
+                                onClick={(e) => { e.stopPropagation(); handleMoveOpen(session); }}
                                 className="text-brand-orange hover:text-brand-orange-hover font-semibold"
                               >
                                 Move
                               </button>
                               <button
-                                onClick={() => handleCancel(session)}
+                                onClick={(e) => { e.stopPropagation(); handleCancel(session); }}
                                 className="text-red-400 hover:text-red-600 font-semibold"
                               >
                                 Cancel
@@ -184,6 +205,38 @@ export default function SlotsPage() {
                             </div>
                           </td>
                         </tr>
+                        {expandedSession === session.id && (
+                          <tr key={session.id + '-expand'}>
+                            <td colSpan={7} className="px-6 py-4 bg-brand-warm border-b border-brand-gray-light">
+                              <div className="flex items-center gap-4">
+                                <p className="text-sm font-semibold text-brand-dark">Hanging Weight (lbs):</p>
+                                <input
+                                  type="number"
+                                  placeholder="e.g. 385"
+                                  value={hangingWeights[session.id] || ''}
+                                  onChange={(e) => setHangingWeights({ ...hangingWeights, [session.id]: e.target.value })}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-32 px-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                                />
+                                {hangingWeights[session.id] && (
+                                  <p className="text-sm text-brand-gray">
+                                    Balance Due: <span className="font-bold text-brand-dark">
+                                      ${((parseFloat(hangingWeights[session.id]) * (session.price_per_lb ?? 8.25)) - (session.deposit_amount_cents ?? 0) / 100).toFixed(2)}
+                                    </span>
+                                  </p>
+                                )}
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleSaveHangingWeight(session.id, session.price_per_lb ?? 8.25, session.deposit_amount_cents ?? 0); }}
+                                  disabled={!hangingWeights[session.id] || savingWeight === session.id}
+                                  className="px-4 py-2 bg-brand-orange text-white rounded-lg text-sm font-semibold disabled:opacity-50"
+                                >
+                                  {savingWeight === session.id ? 'Saving...' : 'Save & Calculate'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        </>
                       ))}
                     </tbody>
                   </table>

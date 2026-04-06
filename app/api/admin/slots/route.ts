@@ -15,9 +15,10 @@ export async function GET(request: NextRequest) {
         id,
         purchase_type,
         status,
-        status,
         cut_sheet_complete,
         created_at,
+        price_per_lb,
+        deposit_amount_cents,
         customers (name, email, phone),
         animals (id, name, butcher_date)
       `)
@@ -76,6 +77,8 @@ export async function GET(request: NextRequest) {
         deposit_paid: paidSessionIds.has(session.id),
         cut_sheet_complete: session.cut_sheet_complete,
         created_at: session.created_at,
+        price_per_lb: session.price_per_lb || null,
+        deposit_amount_cents: session.deposit_amount_cents || null,
       });
       return acc;
     }, {});
