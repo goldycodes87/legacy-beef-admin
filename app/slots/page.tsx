@@ -32,6 +32,8 @@ interface Reservation {
   animal_id?: string;
   price_per_lb?: number;
   deposit_amount_cents?: number;
+  admin_notes?: string | null;
+  hanging_weight_lbs?: number | null;
 }
 
 interface AnimalGroup {
@@ -49,6 +51,14 @@ export default function SlotsPage() {
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const [hangingWeights, setHangingWeights] = useState<Record<string, string>>({});
   const [savingWeight, setSavingWeight] = useState<string | null>(null);
+
+  const handleSaveAdminNotes = async (sessionId: string, notes: string) => {
+    await fetch(`/api/admin/sessions/${sessionId}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ admin_notes: notes }),
+    });
+  };
 
   useEffect(() => {
     loadSlots();
@@ -112,14 +122,16 @@ export default function SlotsPage() {
     const weight = parseFloat(hangingWeights[sessionId]);
     if (!weight) return;
     const balanceDue = (weight * pricePerLb) - (depositAmountCents / 100);
-    await fetch(`/api/admin/sessions/${sessionId}/hanging-weight`, {
+    const res = await fetch(`/api/admin/sessions/${sessionId}/hanging-weight`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ hanging_weight_lbs: weight, balance_due: balanceDue }),
     });
     setSavingWeight(null);
     setExpandedSession(null);
-    loadSlots();
+    if (res.ok) {
+      loadSlots();
+    }
   };
 
   const statusColors: Record<string, string> = {
@@ -208,10 +220,11 @@ export default function SlotsPage() {
                               >
                                 Move
                               </button>
-                              {session.status === 'locked' && (
+                              {(session.status === 'locked' || session.status === 'deposit_paid' || session.status === 'beef_ready') && (
                                 <button
                                   onClick={async (e) => {
                                     e.stopPropagation();
+                                    if (session.status === 'beef_ready') return;
                                     const res = await fetch(`/api/admin/sessions/${session.id}/mark-ready`, {
                                       method: 'POST',
                                       headers: { 'Content-Type': 'application/json' },
@@ -223,9 +236,10 @@ export default function SlotsPage() {
                                       alert(`Error marking ready: ${error.error || 'Unknown error'}`);
                                     }
                                   }}
-                                  className="px-3 py-1 bg-green-600 text-white rounded text-sm"
+                                  disabled={session.status === 'beef_ready'}
+                                  className="px-3 py-1 bg-green-600 text-white rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  Mark Ready
+                                  {session.status === 'beef_ready' ? 'Ready ✓' : 'Mark Ready'}
                                 </button>
                               )}
                               <button
@@ -245,7 +259,8 @@ export default function SlotsPage() {
                                 <input
                                   type="number"
                                   placeholder="e.g. 385"
-                                  value={hangingWeights[session.id] || ''}
+                                  defaultValue={session.hanging_weight_lbs || ''}
+                                  value={hangingWeights[session.id] !== undefined ? hangingWeights[session.id] : (session.hanging_weight_lbs ? String(session.hanging_weight_lbs) : '')}
                                   onChange={(e) => setHangingWeights({ ...hangingWeights, [session.id]: e.target.value })}
                                   onClick={(e) => e.stopPropagation()}
                                   className="w-32 px-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
@@ -264,6 +279,19 @@ export default function SlotsPage() {
                                 >
                                   {savingWeight === session.id ? 'Saving...' : 'Save & Calculate'}
                                 </button>
+                              </div>
+                              <div className="flex items-center gap-4 mt-3">
+                                <p className="text-sm font-semibold text-brand-dark whitespace-nowrap">
+                                  Admin Notes:
+                                </p>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Tag 34, Black Steer"
+                                  defaultValue={session.admin_notes || ''}
+                                  onBlur={(e) => handleSaveAdminNotes(session.id, e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex-1 px-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                                />
                               </div>
                             </td>
                           </tr>

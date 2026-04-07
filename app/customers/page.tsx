@@ -32,16 +32,52 @@ export default function CustomersPage() {
   const [search, setSearch] = useState('');
   const [expandedCustomer, setExpandedCustomer] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingCustomer, setEditingCustomer] = useState<any>(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    zip: '',
+  });
+
+  const loadCustomers = async () => {
+    const res = await fetch('/api/admin/customers');
+    const data = await res.json();
+    setCustomers(data);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    async function load() {
-      const res = await fetch('/api/admin/customers');
-      const data = await res.json();
-      setCustomers(data);
-      setLoading(false);
-    }
-    load();
+    loadCustomers();
   }, []);
+
+  const handleEditCustomer = (customer: any) => {
+    setEditingCustomer(customer);
+    setEditForm({
+      name: customer.name || '',
+      email: customer.email || '',
+      phone: customer.phone || '',
+      address: customer.address || '',
+      city: customer.city || '',
+      state: customer.state || '',
+      zip: customer.zip || '',
+    });
+  };
+
+  const handleSaveCustomer = async () => {
+    const res = await fetch(`/api/admin/customers/${editingCustomer.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editForm),
+    });
+    if (res.ok) {
+      loadCustomers();
+      setEditingCustomer(null);
+    }
+  };
 
   const filtered = customers.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -106,14 +142,22 @@ export default function CustomersPage() {
                       <td className="px-6 py-4 text-sm font-medium">{getActiveSessions(c).length}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{lastOrder(c)}</td>
                       <td className="px-6 py-4 text-sm">
-                        <button
-                          onClick={() =>
-                            setExpandedCustomer(expandedCustomer === c.id ? null : c.id)
-                          }
-                          className="text-blue-600 hover:underline font-medium"
-                        >
-                          {expandedCustomer === c.id ? 'Hide' : 'View'}
-                        </button>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() =>
+                              setExpandedCustomer(expandedCustomer === c.id ? null : c.id)
+                            }
+                            className="text-blue-600 hover:underline font-medium"
+                          >
+                            {expandedCustomer === c.id ? 'Hide' : 'View'}
+                          </button>
+                          <button
+                            onClick={() => handleEditCustomer(c)}
+                            className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
+                          >
+                            Edit
+                          </button>
+                        </div>
                       </td>
                     </tr>
                     {expandedCustomer === c.id && (
@@ -164,6 +208,96 @@ export default function CustomersPage() {
           </div>
         )}
       </div>
+      {editingCustomer && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
+            <h2 className="text-xl font-bold mb-4">Edit Customer</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-semibold mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full px-3 py-2 border rounded"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">Email</label>
+                <input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  className="w-full px-3 py-2 border rounded"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">Phone</label>
+                <input
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  className="w-full px-3 py-2 border rounded"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">Address</label>
+                <input
+                  type="text"
+                  value={editForm.address}
+                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                  className="w-full px-3 py-2 border rounded"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-sm font-semibold mb-1">City</label>
+                  <input
+                    type="text"
+                    value={editForm.city}
+                    onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                    className="w-full px-3 py-2 border rounded"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1">State</label>
+                  <input
+                    type="text"
+                    value={editForm.state}
+                    onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
+                    className="w-full px-3 py-2 border rounded"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1">Zip</label>
+                  <input
+                    type="text"
+                    value={editForm.zip}
+                    onChange={(e) => setEditForm({ ...editForm, zip: e.target.value })}
+                    className="w-full px-3 py-2 border rounded"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setEditingCustomer(null)}
+                className="flex-1 px-4 py-2 bg-gray-400 text-white rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveCustomer}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

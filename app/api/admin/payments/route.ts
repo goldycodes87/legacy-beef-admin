@@ -11,7 +11,7 @@ export async function GET() {
       session_id,
       sessions(
         id, purchase_type, deposit_amount, balance_due, balance_paid,
-        balance_payment_method,
+        balance_payment_method, status,
         customers(name, email, phone),
         animals(name, butcher_date, animal_type)
       )
@@ -19,7 +19,29 @@ export async function GET() {
     .order('paid_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data || []);
+
+  // FIX 1: Filter out payments linked to cancelled sessions
+  const filtered = (data || []).filter((p: any) => p.sessions?.status !== 'cancelled');
+
+  // FIX 2: Build set of session IDs with paid deposits (from payments table)
+  const { data: deposits } = await supabase
+    .from('payments')
+    .select('session_id')
+    .eq('type', 'deposit')
+    .eq('status', 'paid');
+
+  const paidSessionIds = new Set(deposits?.map((d: any) => d.session_id) || []);
+
+  // Add deposit_paid to each session object
+  const result = filtered.map((p: any) => ({
+    ...p,
+    sessions: p.sessions ? {
+      ...p.sessions,
+      deposit_paid: paidSessionIds.has(p.sessions.id),
+    } : null,
+  }));
+
+  return NextResponse.json(result);
 }
 
 export async function PUT(request: NextRequest) {

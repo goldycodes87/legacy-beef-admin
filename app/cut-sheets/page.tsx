@@ -17,6 +17,15 @@ interface Session {
   cut_sheet_answers: Array<{ section: string; answers: Record<string, unknown>; completed: boolean; custom_request: string; custom_request_status: string }>;
 }
 
+function formatPurchaseType(type: string): string {
+  return type.charAt(0).toUpperCase() + type.slice(1) + ' Beef';
+}
+
+function formatAnimalType(type: string): string {
+  if (type === 'wagyu') return 'American Wagyu';
+  return type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+}
+
 const SECTION_ORDER = ['chuck','brisket','skirt','rib','short_ribs','sirloin','round','short_loin','flank','stew_meat','tenderized_round','organs','bones','packing'];
 const SECTION_DISPLAY_NAMES: Record<string, string> = {
   chuck: 'Chuck',
@@ -163,10 +172,10 @@ export default function CutSheetsPage() {
                     <div className="flex items-center gap-3">
                       <span className="font-semibold text-lg">{session.customers?.name}</span>
                       <span className="bg-white/20 px-2 py-1 rounded text-xs font-semibold">
-                        {session.purchase_type}
+                        {formatPurchaseType(session.purchase_type)}
                       </span>
                       <span className="bg-white/20 px-2 py-1 rounded text-xs font-semibold">
-                        {animal?.animal_type || 'Unknown'}
+                        {formatAnimalType(animal?.animal_type || '')}
                       </span>
                     </div>
                   </div>

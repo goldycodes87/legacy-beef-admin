@@ -17,6 +17,8 @@ export async function GET(request: NextRequest) {
         status,
         cut_sheet_complete,
         created_at,
+        admin_notes,
+        hanging_weight_lbs,
         customers (name, email, phone),
         animals (id, name, butcher_date, price_per_lb)
       `)
@@ -54,6 +56,8 @@ export async function GET(request: NextRequest) {
         deposit_paid: paidSessionIds.has(s.id),
         cut_sheet_complete: s.cut_sheet_complete,
         created_at: s.created_at,
+        admin_notes: s.admin_notes || null,
+        hanging_weight_lbs: s.hanging_weight_lbs || null,
       }));
       return NextResponse.json(flat);
     }
@@ -77,6 +81,8 @@ export async function GET(request: NextRequest) {
         created_at: session.created_at,
         price_per_lb: session.animals?.price_per_lb || null,
         deposit_amount_cents: paidSessionIds.has(session.id) ? (session.purchase_type === "whole" ? 85000 : session.purchase_type === "half" ? 50000 : 25000) : 0,
+        admin_notes: session.admin_notes || null,
+        hanging_weight_lbs: session.hanging_weight_lbs || null,
       });
       return acc;
     }, {});
