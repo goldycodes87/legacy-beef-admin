@@ -13,6 +13,8 @@ const NAV_LINKS = [
   { href: '/coupons', label: 'Coupons', icon: '🏷️' },
   { href: '/notifications', label: 'Notifications', icon: '🔔' },
   { href: '/settings', label: 'Prices & Settings', icon: '💲' },
+  { href: '/pickup-windows', label: 'Pickup Windows', icon: '📅' },
+  { href: '/pickup-schedule', label: 'Pickup Schedule', icon: '🗓️' },
 ];
 
 interface AdminLayoutProps {

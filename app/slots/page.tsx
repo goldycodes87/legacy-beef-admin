@@ -66,6 +66,14 @@ export default function SlotsPage() {
     }
   };
 
+  const handleMarkReady = async (sessionId: string) => {
+    const res = await fetch(`/api/admin/sessions/${sessionId}/mark-ready`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (res.ok) loadSlots();
+  };
+
   const handleMoveOpen = async (session: Reservation) => {
     const res = await fetch('/api/admin/animals');
     const animals = await res.json();
@@ -164,7 +172,19 @@ export default function SlotsPage() {
                       {group.sessions.map((session) => (
                         <React.Fragment key={session.id}>
                         <tr className="border-b border-brand-gray-light hover:bg-brand-warm cursor-pointer" onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)}>
-                          <td className="px-6 py-4 font-semibold">{session.customer_name}</td>
+                          <td className="px-6 py-4 font-semibold">
+                            {session.customer_name}
+                            {session.status === 'beef_ready' && !(session as any).pickup_appointment && (
+                              <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">
+                                Awaiting Pickup
+                              </span>
+                            )}
+                            {(session as any).pickup_appointment && (
+                              <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">
+                                ✓ Pickup Scheduled
+                              </span>
+                            )}
+                          </td>
                           <td className="px-6 py-4 text-sm capitalize">{session.purchase_type}</td>
                           <td className="px-6 py-4 text-sm">
                             {session.deposit_paid ? (
@@ -196,6 +216,14 @@ export default function SlotsPage() {
                               >
                                 Move
                               </button>
+                              {session.status === 'locked' && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleMarkReady(session.id); }}
+                                  className="px-3 py-1 bg-green-600 text-white rounded text-sm"
+                                >
+                                  Mark Ready
+                                </button>
+                              )}
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleCancel(session); }}
                                 className="text-red-400 hover:text-red-600 font-semibold"
