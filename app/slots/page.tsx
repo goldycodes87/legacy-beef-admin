@@ -66,14 +66,6 @@ export default function SlotsPage() {
     }
   };
 
-  const handleMarkReady = async (sessionId: string) => {
-    const res = await fetch(`/api/admin/sessions/${sessionId}/mark-ready`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    if (res.ok) loadSlots();
-  };
-
   const handleMoveOpen = async (session: Reservation) => {
     const res = await fetch('/api/admin/animals');
     const animals = await res.json();
@@ -218,7 +210,19 @@ export default function SlotsPage() {
                               </button>
                               {session.status === 'locked' && (
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); handleMarkReady(session.id); }}
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    const res = await fetch(`/api/admin/sessions/${session.id}/mark-ready`, {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                    });
+                                    if (res.ok) {
+                                      loadSlots(); // Refresh table
+                                    } else {
+                                      const error = await res.json();
+                                      alert(`Error marking ready: ${error.error || 'Unknown error'}`);
+                                    }
+                                  }}
                                   className="px-3 py-1 bg-green-600 text-white rounded text-sm"
                                 >
                                   Mark Ready
