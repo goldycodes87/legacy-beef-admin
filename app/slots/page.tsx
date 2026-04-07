@@ -34,6 +34,8 @@ interface Reservation {
   deposit_amount_cents?: number;
   admin_notes?: string | null;
   hanging_weight_lbs?: number | null;
+  balance_paid?: boolean;
+  balance_due?: number;
 }
 
 interface AnimalGroup {
@@ -117,6 +119,19 @@ export default function SlotsPage() {
     });
   };
 
+  const handlePickedUp = async (sessionId: string) => {
+    if (!confirm('Mark this reservation as picked up? This cannot be undone.')) return;
+    try {
+      const res = await fetch(`/api/admin/sessions/${sessionId}/picked-up`, {
+        method: 'POST',
+      });
+      if (res.ok) loadSlots();
+      else alert('Failed to mark as picked up');
+    } catch (err) {
+      alert('Error: ' + err);
+    }
+  };
+
   const handleSaveHangingWeight = async (sessionId: string, pricePerLb: number, depositAmountCents: number) => {
     setSavingWeight(sessionId);
     const weight = parseFloat(hangingWeights[sessionId]);
@@ -167,6 +182,7 @@ export default function SlotsPage() {
                         <th className="text-left px-6 py-3 font-semibold text-sm">Size</th>
                         <th className="text-left px-6 py-3 font-semibold text-sm">Deposit</th>
                         <th className="text-left px-6 py-3 font-semibold text-sm">Cut Sheet</th>
+                        <th className="text-left px-6 py-3 font-semibold text-sm">Balance</th>
                         <th className="text-left px-6 py-3 font-semibold text-sm">Status</th>
                         <th className="text-left px-6 py-3 font-semibold text-sm">Booked</th>
                         <th className="text-left px-6 py-3 font-semibold text-sm">Actions</th>
@@ -202,6 +218,19 @@ export default function SlotsPage() {
                               <span className="text-green-600 font-semibold">✓ Complete</span>
                             ) : (
                               <span className="text-brand-gray">Pending</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-sm">
+                            {(session.balance_due ?? 0) > 0 ? (
+                              session.balance_paid ? (
+                                <span className="text-green-600 font-semibold">✓ Paid</span>
+                              ) : (
+                                <span className="text-amber-600 font-semibold">
+                                  ${(session.balance_due ?? 0).toFixed(2)} due
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-brand-gray text-xs">TBD</span>
                             )}
                           </td>
                           <td className="px-6 py-4">
@@ -240,6 +269,14 @@ export default function SlotsPage() {
                                   className="px-3 py-1 bg-green-600 text-white rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   {session.status === 'beef_ready' ? 'Ready ✓' : 'Mark Ready'}
+                                </button>
+                              )}
+                              {session.status === 'beef_ready' && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handlePickedUp(session.id); }}
+                                  className="text-brand-green hover:text-green-800 font-semibold ml-3"
+                                >
+                                  Picked Up ✓
                                 </button>
                               )}
                               <button

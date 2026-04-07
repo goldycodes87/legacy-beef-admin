@@ -120,6 +120,15 @@ export default function CutSheetsPage() {
     window.open(`/cut-sheets/${sessionId}/print`, '_blank');
   };
 
+  const handleManualLock = async (sessionId: string) => {
+    if (!confirm('Manually lock this cut sheet? Incomplete sections will use house defaults.')) return;
+    const res = await fetch(`/api/admin/cut-sheets/${sessionId}/manual-lock`, {
+      method: 'POST',
+    });
+    if (res.ok) load();
+    else alert('Failed to lock cut sheet');
+  };
+
   async function handleMarkBeefReady(sessionId: string) {
     await fetch(`/api/admin/cut-sheets/${sessionId}`, {
       method: 'PUT',
@@ -197,13 +206,23 @@ export default function CutSheetsPage() {
                 <div className="p-4 space-y-4">
                   {/* Progress or Buttons */}
                   {!session.cut_sheet_complete ? (
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full transition-all"
-                        style={{
-                          width: `${(completedSections(session) / 14) * 100}%`,
-                        }}
-                      />
+                    <div className="space-y-2">
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all"
+                          style={{
+                            width: `${(completedSections(session) / 14) * 100}%`,
+                          }}
+                        />
+                      </div>
+                      {session.status !== 'locked' && (
+                        <button
+                          onClick={() => handleManualLock(session.id)}
+                          className="text-brand-orange hover:text-brand-orange-hover font-semibold text-sm ml-3"
+                        >
+                          Lock Sheet
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="flex gap-2">

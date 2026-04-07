@@ -19,6 +19,8 @@ export async function GET(request: NextRequest) {
         created_at,
         admin_notes,
         hanging_weight_lbs,
+        balance_paid,
+        balance_due,
         customers (name, email, phone),
         animals (id, name, butcher_date, price_per_lb)
       `)
@@ -83,6 +85,8 @@ export async function GET(request: NextRequest) {
         deposit_amount_cents: paidSessionIds.has(session.id) ? (session.purchase_type === "whole" ? 85000 : session.purchase_type === "half" ? 50000 : 25000) : 0,
         admin_notes: session.admin_notes || null,
         hanging_weight_lbs: session.hanging_weight_lbs || null,
+        balance_paid: session.balance_paid || false,
+        balance_due: session.balance_due || 0,
       });
       return acc;
     }, {});
