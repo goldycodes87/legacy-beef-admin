@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import AdminLayout from '@/components/AdminLayout';
 
 interface PaymentRecord {
   session_id: string;
@@ -76,6 +77,7 @@ export default function PaymentsPage() {
   if (loading) return <div className="p-6 text-center">Loading...</div>;
 
   return (
+    <AdminLayout title="Payments">
     <div className="p-6">
       <h1 className="text-3xl font-bold mb-6">Payments</h1>
 
@@ -181,5 +183,6 @@ export default function PaymentsPage() {
         </table>
       </div>
     </div>
+    </AdminLayout>
   );
 }
