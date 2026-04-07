@@ -1,217 +1,185 @@
 'use client';
-import { useState, useEffect } from 'react';
-import AdminLayout from '@/components/AdminLayout';
 
-interface Payment {
-  id: string;
-  type: string;
-  status: string;
-  method: string;
-  amount_cents: number;
-  paid_at: string;
-  stripe_payment_intent_id: string;
+import { useEffect, useState } from 'react';
+
+interface PaymentRecord {
   session_id: string;
-  sessions: {
-    id: string;
-    purchase_type: string;
-    deposit_amount: number;
-    balance_due: number;
-    balance_paid: boolean;
-    balance_payment_method: string;
-    customers: { name: string; email: string; phone: string } | null;
-    animals: { name: string; butcher_date: string; animal_type: string } | null;
-  };
+  customer_name: string;
+  animal_name: string;
+  butcher_date: string;
+  purchase_type: string;
+  deposit_amount_cents: number | null;
+  deposit_paid_at: string | null;
+  deposit_method: string | null;
+  balance_due: number;
+  balance_paid: boolean;
+  balance_paid_at: string | null;
+  balance_payment_method: string | null;
 }
 
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [records, setRecords] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [confirmModal, setConfirmModal] = useState<{ sessionId: string; method: string } | null>(
-    null
-  );
-  const [marking, setMarking] = useState(false);
 
   useEffect(() => {
-    load();
+    loadPayments();
   }, []);
 
-  async function load() {
+  const loadPayments = async () => {
     const res = await fetch('/api/admin/payments');
     const data = await res.json();
-    setPayments(data);
-    setLoading(false);
-  }
-
-  const totalDeposits = payments
-    .filter(p => p.status === 'paid' || p.status === 'succeeded')
-    .reduce((sum, p) => sum + p.amount_cents, 0) / 100;
-
-  const outstandingBalances = payments.filter(
-    p => p.sessions?.balance_due > 0 && !p.sessions?.balance_paid
-  ).length;
-
-  const balancesCollected = payments
-    .filter(p => p.sessions?.balance_paid)
-    .reduce((sum, p) => sum + (p.sessions?.balance_due || 0), 0);
-
-  const cashCheckPending = payments.filter(
-    p =>
-      p.method === 'cash_check' && !p.sessions?.balance_paid
-  ).length;
-
-  async function handleMarkPaid(sessionId: string, method: string) {
-    setMarking(true);
-    await fetch('/api/admin/payments', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId, method }),
+    // Sort by butcher_date, then customer_name
+    data.sort((a: PaymentRecord, b: PaymentRecord) => {
+      const dateA = new Date(a.butcher_date || '').getTime();
+      const dateB = new Date(b.butcher_date || '').getTime();
+      if (dateA !== dateB) return dateA - dateB;
+      return a.customer_name.localeCompare(b.customer_name);
     });
-    setConfirmModal(null);
-    setMarking(false);
-    load();
-  }
+    setRecords(data);
+    setLoading(false);
+  };
 
-  if (loading) {
-    return <AdminLayout title="Payments"><div>Loading...</div></AdminLayout>;
-  }
+  // Calculate summary stats
+  const totalDeposits = records.reduce((sum, r) => 
+    sum + (r.deposit_amount_cents || 0), 0) / 100;
+
+  const outstandingBalances = records.filter(r => 
+    r.balance_due > 0 && !r.balance_paid).length;
+
+  const balancesCollected = records.reduce((sum, r) => 
+    sum + (r.balance_paid ? (r.balance_due || 0) : 0), 0);
+
+  const totalRevenue = totalDeposits + balancesCollected;
+
+  const formatCurrency = (cents: number | null) => {
+    if (cents === null || cents === undefined) return '$0.00';
+    return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+  };
+
+  const formatPurchaseType = (type: string) => {
+    return type.charAt(0).toUpperCase() + type.slice(1) + ' Beef';
+  };
+
+  const formatPaymentMethod = (method: string | null) => {
+    if (!method) return '—';
+    if (method === 'card') return '💳 Card';
+    if (method === 'cash') return '💵 Cash';
+    if (method === 'check') return '📄 Check';
+    return method;
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  if (loading) return <div className="p-6 text-center">Loading...</div>;
 
   return (
-    <AdminLayout title="Payments">
-      <div className="space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-4 gap-4">
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-xs text-gray-600 font-semibold mb-1">Total Deposits Collected</p>
-            <p className="text-2xl font-bold text-gray-900">${totalDeposits.toLocaleString()}</p>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-xs text-gray-600 font-semibold mb-1">Outstanding Balances</p>
-            <p className="text-2xl font-bold text-gray-900">{outstandingBalances}</p>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-xs text-gray-600 font-semibold mb-1">Balances Collected</p>
-            <p className="text-2xl font-bold text-gray-900">
-              ${balancesCollected.toLocaleString()}
-            </p>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-xs text-gray-600 font-semibold mb-1">Cash/Check Pending</p>
-            <p className="text-2xl font-bold text-gray-900">{cashCheckPending}</p>
-          </div>
+    <div className="p-6">
+      <h1 className="text-3xl font-bold mb-6">Payments</h1>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="bg-white rounded-lg shadow p-6 border-t-4 border-green-500">
+          <p className="text-sm text-gray-600 mb-2">Total Deposits Collected</p>
+          <p className="text-3xl font-bold text-gray-900">
+            {formatCurrency(totalDeposits * 100)}
+          </p>
         </div>
 
-        {/* Payments Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">
-                  Customer
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Animal</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Deposit</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">
-                  Balance Due
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Paid</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Method</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {payments.map(p => (
-                <tr key={p.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium">
-                    {p.sessions?.customers?.name || '—'}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    {p.sessions?.animals?.name || '—'}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                      {p.sessions?.purchase_type || '—'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium">
-                    ${(p.sessions?.deposit_amount || 0).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium">
-                    ${(p.sessions?.balance_due || 0).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    {p.status === 'paid' || p.status === 'succeeded' ? (
-                      <span className="text-green-600 font-semibold">✓</span>
-                    ) : (
-                      <span className="text-red-600 font-semibold">
-                        ${(p.sessions?.balance_due || 0).toFixed(2)}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    {p.method === 'card' ? '💳 Card' :
-                     p.method === 'cash' ? '💵 Cash' :
-                     p.method === 'check' ? '📄 Check' :
-                     p.method === 'cash_check' ? '💵 Cash/Check' :
-                     p.method || '—'}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    {(p.sessions?.balance_due ?? 0) > 0 && !p.sessions?.balance_paid ? (
-                      <div className="relative group">
-                        <button className="text-blue-600 hover:underline font-medium text-xs">
-                          Mark Paid ▼
-                        </button>
-                        <div className="hidden group-hover:block absolute bg-white border border-gray-200 rounded shadow-lg z-10 mt-1">
-                          {['Stripe', 'ACH', 'Cash/Check'].map(method => (
-                            <button
-                              key={method}
-                              onClick={() => setConfirmModal({ sessionId: p.session_id, method })}
-                              className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50 first:rounded-t last:rounded-b"
-                            >
-                              {method}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : p.sessions?.balance_paid ? (
-                      <span className="text-green-600 text-xs font-semibold">✓ Balance Paid</span>
-                    ) : (
-                      <span className="text-gray-400 text-xs">Awaiting hanging weight</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="bg-white rounded-lg shadow p-6 border-t-4 border-amber-500">
+          <p className="text-sm text-gray-600 mb-2">Outstanding Balances</p>
+          <p className="text-3xl font-bold text-gray-900">{outstandingBalances}</p>
+          <p className="text-xs text-gray-500 mt-1">sessions</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6 border-t-4 border-blue-500">
+          <p className="text-sm text-gray-600 mb-2">Balances Collected</p>
+          <p className="text-3xl font-bold text-gray-900">
+            {formatCurrency(balancesCollected * 100)}
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6 border-t-4 border-brand-orange">
+          <p className="text-sm text-gray-600 mb-2">Total Revenue</p>
+          <p className="text-3xl font-bold text-gray-900">
+            {formatCurrency(totalRevenue * 100)}
+          </p>
         </div>
       </div>
 
-      {/* Confirm Modal */}
-      {confirmModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm">
-            <p className="text-lg font-semibold mb-4">Confirm Payment</p>
-            <p className="text-gray-600 mb-6">
-              Mark balance as paid via <strong>{confirmModal.method}</strong>?
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmModal(null)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 font-medium hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleMarkPaid(confirmModal.sessionId, confirmModal.method)}
-                disabled={marking}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 disabled:opacity-50"
-              >
-                {marking ? 'Saving...' : 'Confirm'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </AdminLayout>
+      {/* Payments Table */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-100 border-b">
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Customer</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Animal</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Type</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Deposit Paid</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Deposit Method</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Balance Due</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Balance Paid</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Balance Method</th>
+            </tr>
+          </thead>
+          <tbody>
+            {records.map((record, idx) => (
+              <tr key={record.session_id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <td className="px-6 py-4 text-sm text-gray-900">{record.customer_name}</td>
+                <td className="px-6 py-4 text-sm text-gray-900">{record.animal_name}</td>
+                <td className="px-6 py-4 text-sm">
+                  <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">
+                    {formatPurchaseType(record.purchase_type)}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-sm">
+                  {record.deposit_amount_cents && record.deposit_amount_cents > 0 ? (
+                    <div>
+                      <p className="text-green-600 font-semibold">✓ {formatCurrency(record.deposit_amount_cents)}</p>
+                      <p className="text-xs text-gray-500">{formatDate(record.deposit_paid_at)}</p>
+                    </div>
+                  ) : (
+                    <p className="text-red-600 font-semibold">✗ Not Paid</p>
+                  )}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-600">
+                  {formatPaymentMethod(record.deposit_method)}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-900 font-semibold">
+                  {record.balance_due > 0 ? formatCurrency(record.balance_due * 100) : 'TBD'}
+                </td>
+                <td className="px-6 py-4 text-sm">
+                  {record.balance_paid ? (
+                    <div>
+                      <p className="text-green-600 font-semibold">✓ {formatCurrency(record.balance_due * 100)}</p>
+                      <p className="text-xs text-gray-500">{formatDate(record.balance_paid_at)}</p>
+                    </div>
+                  ) : record.balance_due > 0 ? (
+                    <p className="text-amber-600 font-semibold">Pending</p>
+                  ) : (
+                    <p className="text-gray-400">—</p>
+                  )}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-600">
+                  {formatPaymentMethod(record.balance_payment_method)}
+                </td>
+              </tr>
+            ))}
+            
+            {/* Summary Row */}
+            <tr className="bg-gray-100 border-t-2 font-bold">
+              <td colSpan={3} className="px-6 py-4 text-sm text-gray-900">Totals</td>
+              <td className="px-6 py-4 text-sm text-green-600">{formatCurrency(totalDeposits * 100)}</td>
+              <td></td>
+              <td className="px-6 py-4 text-sm text-gray-900">{formatCurrency(balancesCollected * 100)}</td>
+              <td></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

@@ -2,62 +2,64 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from('payments')
+
+  // Query sessions table for all non-cancelled sessions with deposit_paid or higher
+  const { data: sessions } = await supabase
+    .from('sessions')
     .select(`
-      id, type, status, amount_cents, paid_at, stripe_payment_intent_id,
-      session_id,
-      sessions(
-        id, purchase_type, deposit_amount, balance_due, balance_paid,
-        balance_payment_method, status,
-        customers(name, email, phone),
-        animals(name, butcher_date, animal_type)
-      )
+      id, purchase_type, status, balance_due, balance_paid,
+      balance_paid_at, balance_payment_method, price_per_lb,
+      hanging_weight_lbs,
+      customers(name, email),
+      animals(name, butcher_date)
     `)
-    .order('paid_at', { ascending: false });
+    .not('status', 'eq', 'cancelled')
+    .in('status', ['deposit_paid', 'in_progress', 'locked', 'beef_ready', 'completed'])
+    .order('status', { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!sessions) return NextResponse.json([]);
 
-  // FIX 1: Filter out payments linked to cancelled sessions
-  const filtered = (data || []).filter((p: any) => p.sessions?.status !== 'cancelled');
-
-  // FIX 2: Build set of session IDs with paid deposits (from payments table)
-  const { data: deposits } = await supabase
+  // For each session, fetch related payments
+  const { data: allPayments } = await supabase
     .from('payments')
-    .select('session_id')
-    .eq('type', 'deposit')
-    .eq('status', 'paid');
+    .select('session_id, type, status, amount_cents, paid_at, method')
+    .in('session_id', sessions.map(s => s.id));
 
-  const paidSessionIds = new Set(deposits?.map((d: any) => d.session_id) || []);
+  const paymentsMap = new Map();
+  allPayments?.forEach(p => {
+    if (!paymentsMap.has(p.session_id)) {
+      paymentsMap.set(p.session_id, {});
+    }
+    const key = `${p.type}`;
+    paymentsMap.get(p.session_id)[key] = p;
+  });
 
-  // Add deposit_paid to each session object
-  const result = filtered.map((p: any) => ({
-    ...p,
-    sessions: p.sessions ? {
-      ...p.sessions,
-      deposit_paid: paidSessionIds.has(p.sessions.id),
-    } : null,
-  }));
+  // Build response
+  const result = sessions.map(session => {
+    const customer = Array.isArray(session.customers) ? session.customers[0] : session.customers;
+    const animal = Array.isArray(session.animals) ? session.animals[0] : session.animals;
+    const payments = paymentsMap.get(session.id) || {};
+    const deposit = payments['deposit'];
+
+    return {
+      session_id: session.id,
+      customer_name: customer?.name || 'Unknown',
+      animal_name: animal?.name || 'Unknown',
+      butcher_date: animal?.butcher_date,
+      purchase_type: session.purchase_type,
+      deposit_amount_cents: deposit?.amount_cents || null,
+      deposit_paid_at: deposit?.paid_at || null,
+      deposit_method: deposit?.method || null,
+      balance_due: session.balance_due || 0,
+      balance_paid: session.balance_paid || false,
+      balance_paid_at: session.balance_paid_at || null,
+      balance_payment_method: session.balance_payment_method || null,
+      price_per_lb: session.price_per_lb,
+      hanging_weight_lbs: session.hanging_weight_lbs,
+    };
+  });
 
   return NextResponse.json(result);
-}
-
-export async function PUT(request: NextRequest) {
-  const supabase = getSupabaseAdmin();
-  const body = await request.json();
-  const { session_id, method } = body;
-
-  await supabase
-    .from('sessions')
-    .update({
-      balance_paid: true,
-      balance_paid_at: new Date().toISOString(),
-      balance_payment_method: method,
-      status: 'paid_in_full',
-    })
-    .eq('id', session_id);
-
-  return NextResponse.json({ success: true });
 }
