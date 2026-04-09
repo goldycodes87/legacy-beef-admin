@@ -91,8 +91,14 @@ export default function PrintCutSheetPage() {
     <div style={{fontFamily:'Arial, sans-serif', maxWidth:850, margin:'0 auto', padding:16, fontSize:12, lineHeight:1.4}}>
       {/* Header with T-K logo and branding */}
       <div style={{textAlign:'center', marginBottom:12, borderBottom:'3px solid black', paddingBottom:8}}>
-        <div style={{fontSize:28, fontWeight:'900', fontFamily:'Impact, Arial Black, sans-serif', letterSpacing:3, color:'#000', WebkitTextStroke:'1px black'}}>T-K PROCESSING</div>
-        <div style={{fontSize:13, fontWeight:'bold', marginTop:4}}>Beef Cutting Instructions</div>
+        <img 
+          src="/tk-logo.png" 
+          alt="T-K Processing"
+          style={{height:80, width:'auto', display:'block', margin:'0 auto 8px'}}
+        />
+        <div style={{fontSize:13, fontWeight:'bold', marginTop:4}}>
+          Beef Cutting Instructions
+        </div>
         <div style={{fontSize:10, marginTop:4, maxWidth:700, margin:'4px auto 0', lineHeight:1.3}}>
           *Cut instructions must be received at time of drop off. If more than one option is selected, please note how much of each is desired. Questions? Call 719-371-4700 or email TbarkProcessing@Gmail.com
         </div>
@@ -225,29 +231,54 @@ export default function PrintCutSheetPage() {
       {/* Packing information */}
       <div style={{marginBottom:12}}>
         <div style={{fontWeight:'bold', textDecoration:'underline', marginBottom:6}}>PACKING INFORMATION</div>
-        <div>Percentage of Fat: <strong>{String(packing.fat_pct || '___')}</strong> &nbsp;|&nbsp; Pounds Per Pack of Burger: <strong>{String(packing.lbs_per_pack || '___')} lbs/pack</strong> &nbsp;|&nbsp; Number Per Pack (steaks): <strong>{String(packing.steaks_per_pack || '2')}/pack</strong></div>
+        <div>
+          Percentage of Fat: <strong>{String(packing.fat_pct || '___')}</strong>
+          &nbsp;|&nbsp;
+          Pounds Per Pack of Burger: <strong>
+            {String(packing.lbs_per_pack || '___')} lbs/pack
+          </strong>
+        </div>
       </div>
 
-      {/* T-K Processing Packing Sheet Footer */}
-      <div style={{borderTop:'2px solid black', paddingTop:12, marginBottom:12}}>
-        
-        {/* Signature and date */}
-        <div style={{marginBottom:10}}>
-          <div>Customer Signature: _______________________ &nbsp;&nbsp; Date: __________</div>
+
+
+      {/* PAGE 2 — Ambulatory + Specified Risk Material */}
+      <div className="page-break" style={{paddingTop:40}}>
+        {/* Ambulatory at time of slaughter */}
+        <div style={{marginBottom:20, fontSize:13}}>
+          <div style={{marginBottom:4}}>
+            <strong>Ambulatory at Time of Slaughter:</strong> &nbsp; 
+            <span style={{marginRight:20}}>Yes ___ Initials ___</span>
+            <span>No ___ Initials ___</span>
+          </div>
         </div>
 
-        {/* Verification statement */}
-        <div style={{marginBottom:10, fontSize:11, lineHeight:1.4}}>
-          I verify the animals I brought in for slaughter have no residual antibiotics or veterinary medication and meet all specified requirements.
+        {/* Customer Signature section */}
+        <div style={{marginBottom:20, fontSize:13}}>
+          <div style={{marginBottom:20}}>
+            <div>Customer Signature: _______________________ &nbsp;&nbsp; Date: __________</div>
+          </div>
+          <div style={{marginBottom:20, fontSize:12, lineHeight:1.4}}>
+            I verify the animals I brought in for slaughter have no residual antibiotics or veterinary medication and meet all specified requirements.
+          </div>
+          <div style={{marginBottom:20}}>
+            <div>Customer Name (print): _______________________________</div>
+          </div>
         </div>
 
-        {/* Customer name for signature */}
-        <div style={{marginBottom:10}}>
-          <div>Customer Name (print): _______________________________</div>
+        {/* Specified Risk Material section */}
+        <div style={{marginBottom:20, borderTop:'1px solid black', paddingTop:8, fontSize:13}}>
+          <div style={{fontWeight:'bold', marginBottom:4}}>Specified Risk Material:</div>
+          <div style={{marginLeft:16}}>
+            <div style={{marginBottom:4}}>Beef Age: &nbsp; 
+              <input type="checkbox" style={{marginRight:4}} /> Less than 30 months &nbsp; 
+              <input type="checkbox" style={{marginRight:4}} /> Older than 30 months
+            </div>
+          </div>
         </div>
 
         {/* For Office Use Only */}
-        <div style={{borderTop:'1px solid black', paddingTop:8, marginBottom:10}}>
+        <div style={{borderTop:'1px solid black', paddingTop:8, marginBottom:20, fontSize:13}}>
           <div style={{fontWeight:'bold', marginBottom:6}}>FOR OFFICE USE ONLY</div>
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16}}>
             <div>
@@ -262,31 +293,8 @@ export default function PrintCutSheetPage() {
         </div>
 
         {/* Pickup notice */}
-        <div style={{marginTop:10, fontSize:10, lineHeight:1.3, color:'#333', borderTop:'1px solid black', paddingTop:6}}>
+        <div style={{marginTop:20, fontSize:12, lineHeight:1.3, color:'#333', borderTop:'1px solid black', paddingTop:6}}>
           <strong>PICKUP NOTICE:</strong> Your meat is typically ready for pickup 7-10 business days after drop-off. You will receive notification when ready. Please call 719-371-4700 to confirm pickup time.
-        </div>
-      </div>
-
-      {/* PAGE 2 — Ambulatory + Specified Risk Material */}
-      <div style={{pageBreakBefore:'always', paddingTop:20}}>
-        {/* Ambulatory at time of slaughter */}
-        <div style={{marginBottom:10, fontSize:13}}>
-          <div style={{marginBottom:4}}>
-            <strong>Ambulatory at Time of Slaughter:</strong> &nbsp; 
-            <span style={{marginRight:20}}>Yes ___ Initials ___</span>
-            <span>No ___ Initials ___</span>
-          </div>
-        </div>
-
-        {/* Specified Risk Material section */}
-        <div style={{marginBottom:10, borderTop:'1px solid black', paddingTop:8, fontSize:13}}>
-          <div style={{fontWeight:'bold', marginBottom:4}}>Specified Risk Material:</div>
-          <div style={{marginLeft:16}}>
-            <div style={{marginBottom:4}}>Beef Age: &nbsp; 
-              <input type="checkbox" style={{marginRight:4}} /> Less than 30 months &nbsp; 
-              <input type="checkbox" style={{marginRight:4}} /> Older than 30 months
-            </div>
-          </div>
         </div>
       </div>
 
@@ -298,6 +306,7 @@ export default function PrintCutSheetPage() {
         @media print {
           body { margin: 0; }
           button { display: none; }
+          .page-break { page-break-before: always; break-before: page; }
         }
       `}</style>
     </div>
