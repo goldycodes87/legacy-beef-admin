@@ -25,8 +25,8 @@ function isSelected(answers: CutSheetAnswer[], section: string, value: string): 
   return a.choice === value;
 }
 
-function StyleText({ text, selected }: { text: string; selected: boolean }) {
-  return <span style={{fontWeight: selected ? 'bold' : 'normal', textDecoration: selected ? 'underline' : 'none'}}>{text}</span>;
+function SelectedOnly({ text }: { text: string }) {
+  return <span style={{fontWeight:'bold', textDecoration:'underline'}}>{text}</span>;
 }
 
 export default function PrintCutSheetPage() {
@@ -90,9 +90,9 @@ export default function PrintCutSheetPage() {
   return (
     <div style={{fontFamily:'Arial, sans-serif', maxWidth:850, margin:'0 auto', padding:16, fontSize:12, lineHeight:1.4}}>
       {/* Header with T-K logo and branding */}
-      <div style={{textAlign:'center', marginBottom:12}}>
-        <div style={{fontSize:24, fontWeight:'bold', letterSpacing:1.5, marginBottom:2}}>T-K PROCESSING</div>
-        <div style={{fontSize:13, fontWeight:'bold'}}>Beef Cutting Instructions</div>
+      <div style={{textAlign:'center', marginBottom:12, borderBottom:'3px solid black', paddingBottom:8}}>
+        <div style={{fontSize:28, fontWeight:'900', fontFamily:'Impact, Arial Black, sans-serif', letterSpacing:3, color:'#000', WebkitTextStroke:'1px black'}}>T-K PROCESSING</div>
+        <div style={{fontSize:13, fontWeight:'bold', marginTop:4}}>Beef Cutting Instructions</div>
         <div style={{fontSize:10, marginTop:4, maxWidth:700, margin:'4px auto 0', lineHeight:1.3}}>
           *Cut instructions must be received at time of drop off. If more than one option is selected, please note how much of each is desired. Questions? Call 719-371-4700 or email TbarkProcessing@Gmail.com
         </div>
@@ -116,48 +116,42 @@ export default function PrintCutSheetPage() {
           <div style={{marginBottom:10}}>
             <div style={{fontWeight:'bold', textDecoration:'underline'}}>Chuck</div>
             <div>
-              <StyleText text="Roasts" selected={isSelected(a,'chuck','roasts')} /> &nbsp; 
-              <StyleText text="Steaks" selected={isSelected(a,'chuck','steaks')} /> &nbsp; 
-              <StyleText text="Grind" selected={isSelected(a,'chuck','grind')} />
-              {(chuck?.thickness as any) && <span> — {String(chuck.thickness)}"</span>}
+              {isSelected(a,'chuck','roasts') && <div><SelectedOnly text="Roasts" />{chuck?.roast_weight ? ` — ${chuck.roast_weight} lb` : ''}</div>}
+              {isSelected(a,'chuck','steaks') && <div><SelectedOnly text="Steaks" />{chuck?.thickness ? ` — ${chuck.thickness}" thick` : ''}{chuck?.steaks_per_pack ? `, ${chuck.steaks_per_pack}/pack` : ''}</div>}
+              {isSelected(a,'chuck','grind') && <div><SelectedOnly text="Grind" /></div>}
             </div>
           </div>
 
           <div style={{marginBottom:10}}>
             <div style={{fontWeight:'bold', textDecoration:'underline'}}>Brisket</div>
             <div>
-              <StyleText text="Yes (Whole)" selected={brisket.choice === 'yes_whole'} /> &nbsp; 
-              <StyleText text="Yes (Half)" selected={brisket.choice === 'yes_half'} /> &nbsp; 
-              <StyleText text="No" selected={brisket.choice === false || brisket.choice === 'no'} />
+              {brisket.choice === 'yes_whole' && <SelectedOnly text="Yes (Whole)" />}
+              {brisket.choice === 'half' && <SelectedOnly text="Yes (Half)" />}
+              {(brisket.choice === false || brisket.choice === 'no') && <SelectedOnly text="No" />}
             </div>
           </div>
 
           <div style={{marginBottom:10}}>
             <div style={{fontWeight:'bold', textDecoration:'underline'}}>Skirt Steak (if available)</div>
             <div>
-              <StyleText text="Yes" selected={skirtIsTrue} /> &nbsp; 
-              <StyleText text="No" selected={!skirtIsTrue} />
+              {skirtIsTrue ? <SelectedOnly text="Yes" /> : <SelectedOnly text="No" />}
             </div>
           </div>
 
           <div style={{marginBottom:10}}>
             <div style={{fontWeight:'bold', textDecoration:'underline'}}>Rib</div>
             <div>
-              Roasts: <StyleText text="Bone-in" selected={isSelected(a,'rib','bone_in_roast')} /> &nbsp; 
-              <StyleText text="Boneless" selected={isSelected(a,'rib','boneless_roast')} />
-            </div>
-            <div>
-              Steaks: <StyleText text="Bone-in" selected={isSelected(a,'rib','bone_in_steaks')} /> &nbsp; 
-              <StyleText text="Boneless" selected={isSelected(a,'rib','boneless_steaks')} />
-              {(rib?.thickness as any) && <span> — {String(rib.thickness)}"</span>}
+              {isSelected(a,'rib','bone_in_roast') && <div>Roasts: <SelectedOnly text="Bone-in" />{rib?.roast_weight ? ` — ${rib.roast_weight} lb` : ''}</div>}
+              {isSelected(a,'rib','boneless_roast') && <div>Roasts: <SelectedOnly text="Boneless" />{rib?.roast_weight ? ` — ${rib.roast_weight} lb` : ''}</div>}
+              {isSelected(a,'rib','bone_in_steaks') && <div>Steaks: <SelectedOnly text="Bone-in" />{rib?.thickness ? ` — ${rib.thickness}" thick` : ''}{rib?.steaks_per_pack ? `, ${rib.steaks_per_pack}/pack` : ''}</div>}
+              {isSelected(a,'rib','boneless_steaks') && <div>Steaks: <SelectedOnly text="Boneless" />{rib?.thickness ? ` — ${rib.thickness}" thick` : ''}{rib?.steaks_per_pack ? `, ${rib.steaks_per_pack}/pack` : ''}</div>}
             </div>
           </div>
 
           <div style={{marginBottom:10}}>
             <div style={{fontWeight:'bold', textDecoration:'underline'}}>Short Ribs</div>
             <div>
-              <StyleText text="Yes" selected={short_ribsIsTrue} /> &nbsp; 
-              <StyleText text="No" selected={!short_ribsIsTrue} />
+              {short_ribsIsTrue ? <SelectedOnly text="Yes" /> : <SelectedOnly text="No" />}
             </div>
           </div>
         </div>
@@ -169,40 +163,33 @@ export default function PrintCutSheetPage() {
           <div style={{marginBottom:10}}>
             <div style={{fontWeight:'bold', textDecoration:'underline'}}>Sirloin</div>
             <div>
-              <StyleText text="Roasts" selected={isSelected(a,'sirloin','roasts')} /> &nbsp; 
-              <StyleText text="Steaks" selected={isSelected(a,'sirloin','steaks')} /> &nbsp; 
-              <StyleText text="Grind" selected={isSelected(a,'sirloin','grind')} />
-              {(sirloin?.thickness as any) && <span> — {String(sirloin.thickness)}"</span>}
+              {isSelected(a,'sirloin','roasts') && <div><SelectedOnly text="Roasts" />{sirloin?.roast_weight ? ` — ${sirloin.roast_weight} lb` : ''}</div>}
+              {isSelected(a,'sirloin','steaks') && <div><SelectedOnly text="Steaks" />{sirloin?.thickness ? ` — ${sirloin.thickness}" thick` : ''}{sirloin?.steaks_per_pack ? `, ${sirloin.steaks_per_pack}/pack` : ''}</div>}
+              {isSelected(a,'sirloin','grind') && <div><SelectedOnly text="Grind" /></div>}
             </div>
           </div>
 
           <div style={{marginBottom:10}}>
             <div style={{fontWeight:'bold', textDecoration:'underline'}}>Round</div>
             <div>
-              <StyleText text="Roasts" selected={isSelected(a,'round','roasts')} /> &nbsp; 
-              <StyleText text="Steaks" selected={isSelected(a,'round','steaks')} /> &nbsp; 
-              <StyleText text="Grind" selected={isSelected(a,'round','grind')} />
-              {(round?.thickness as any) && <span> — {String(round.thickness)}"</span>}
+              {isSelected(a,'round','roasts') && <div><SelectedOnly text="Roasts" />{round?.roast_weight ? ` — ${round.roast_weight} lb` : ''}</div>}
+              {isSelected(a,'round','steaks') && <div><SelectedOnly text="Steaks" />{round?.thickness ? ` — ${round.thickness}" thick` : ''}{round?.steaks_per_pack ? `, ${round.steaks_per_pack}/pack` : ''}</div>}
+              {isSelected(a,'round','grind') && <div><SelectedOnly text="Grind" /></div>}
             </div>
           </div>
 
           <div style={{marginBottom:10}}>
             <div style={{fontWeight:'bold', textDecoration:'underline'}}>Short Loin</div>
             <div>
-              <StyleText text="T-Bone Steaks" selected={isSelected(a,'short_loin','tbone')} />
-              {(getAnswer(a,'short_loin')?.tbone_thickness as any) && <span> — {String(getAnswer(a,'short_loin').tbone_thickness)}"</span>}
-            </div>
-            <div>
-              <StyleText text="NY Strip & Filet" selected={isSelected(a,'short_loin','ny_strip_and_filet')} />
-              {(getAnswer(a,'short_loin')?.strip_thickness as any) && <span> — Strip: {String(getAnswer(a,'short_loin').strip_thickness)}" / Filet: {String(getAnswer(a,'short_loin').filet_thickness)}"</span>}
+              {isSelected(a,'short_loin','tbone') && <div><SelectedOnly text="T-Bone Steaks" />{getAnswer(a,'short_loin')?.tbone_thickness ? ` — ${getAnswer(a,'short_loin').tbone_thickness}" thick` : ''}{getAnswer(a,'short_loin')?.steaks_per_pack ? `, ${getAnswer(a,'short_loin').steaks_per_pack}/pack` : ''}</div>}
+              {isSelected(a,'short_loin','ny_strip_and_filet') && <div><SelectedOnly text="NY Strip & Filet" />{getAnswer(a,'short_loin')?.strip_thickness ? ` — Strip: ${getAnswer(a,'short_loin').strip_thickness}", Filet: ${getAnswer(a,'short_loin').filet_thickness}"` : ''}</div>}
             </div>
           </div>
 
           <div style={{marginBottom:10}}>
             <div style={{fontWeight:'bold', textDecoration:'underline'}}>Flank Steak</div>
             <div>
-              <StyleText text="Yes" selected={flankIsTrue} /> &nbsp; 
-              <StyleText text="No" selected={!flankIsTrue} />
+              {flankIsTrue ? <SelectedOnly text="Yes" /> : <SelectedOnly text="No" />}
             </div>
           </div>
         </div>
@@ -213,72 +200,45 @@ export default function PrintCutSheetPage() {
         <div>
           <div style={{fontWeight:'bold', textDecoration:'underline'}}>Stew Meat</div>
           <div>
-            <StyleText text="Yes" selected={stew_meatIsTrue} /> &nbsp; 
-            <StyleText text="No" selected={!stew_meatIsTrue} />
+            {stew_meatIsTrue ? <SelectedOnly text="Yes" /> : <SelectedOnly text="No" />}
           </div>
           {(stew_meat?.pounds as any) && <div style={{fontSize:10, color:'#555'}}>{String(stew_meat.pounds)} lbs, {String(stew_meat.pkg_size)} packs</div>}
         </div>
         <div>
           <div style={{fontWeight:'bold', textDecoration:'underline'}}>Tenderized Round</div>
           <div>
-            <StyleText text="Yes" selected={tenderized_roundIsTrue} /> &nbsp; 
-            <StyleText text="No" selected={!tenderized_roundIsTrue} />
+            {tenderized_roundIsTrue ? <SelectedOnly text="Yes" /> : <SelectedOnly text="No" />}
           </div>
         </div>
         <div>
           <div style={{fontWeight:'bold', textDecoration:'underline', color:'darkred'}}>Organs</div>
           <div style={{fontSize:10, color:'darkred', marginBottom:4}}>Must be requested at drop-off or unavailable</div>
-          <div><StyleText text="Tongue" selected={isSelected(a,'organs','tongue')} /></div>
-          <div><StyleText text="Heart" selected={isSelected(a,'organs','heart')} /></div>
-          <div><StyleText text="Liver" selected={isSelected(a,'organs','liver')} /></div>
-          <div><StyleText text="Oxtail" selected={isSelected(a,'organs','oxtail')} /></div>
-          <div><StyleText text="None" selected={isSelected(a,'organs','none')} /></div>
+          {['tongue','heart','liver','oxtail'].map(o => isSelected(a,'organs',o) && <div key={o}><SelectedOnly text={organNames[o]} /></div>)}
+          {isSelected(a,'organs','none') && <div><SelectedOnly text="None" /></div>}
         </div>
         <div>
           <div style={{fontWeight:'bold', textDecoration:'underline'}}>Bones</div>
-          <div><StyleText text="Dog" selected={isSelected(a,'bones','dog')} /></div>
-          <div><StyleText text="Soup" selected={isSelected(a,'bones','soup')} /></div>
-          <div><StyleText text="None" selected={isSelected(a,'bones','none')} /></div>
+          {['dog','soup','none'].map(b => isSelected(a,'bones',b) && <div key={b}><SelectedOnly text={b.charAt(0).toUpperCase()+b.slice(1)} /></div>)}
         </div>
       </div>
 
       {/* Packing information */}
       <div style={{marginBottom:12}}>
         <div style={{fontWeight:'bold', textDecoration:'underline', marginBottom:6}}>PACKING INFORMATION</div>
-        <div>Percentage of Fat: <strong>{String(packing.fat_pct || '___')}</strong> &nbsp; | &nbsp; Pounds Per Pack of Burger: <strong>{String(packing.lbs_per_pack || '___')} lbs/pack</strong></div>
+        <div>Percentage of Fat: <strong>{String(packing.fat_pct || '___')}</strong> &nbsp;|&nbsp; Pounds Per Pack of Burger: <strong>{String(packing.lbs_per_pack || '___')} lbs/pack</strong> &nbsp;|&nbsp; Number Per Pack (steaks): <strong>{String(packing.steaks_per_pack || '2')}/pack</strong></div>
       </div>
 
       {/* T-K Processing Packing Sheet Footer */}
       <div style={{borderTop:'2px solid black', paddingTop:12, marginBottom:12}}>
         
-        {/* Ambulatory at time of slaughter */}
-        <div style={{marginBottom:10}}>
-          <div style={{marginBottom:4}}>
-            <strong>Ambulatory at Time of Slaughter:</strong> &nbsp; 
-            <span style={{marginRight:20}}>Yes ___ Initials ___</span>
-            <span>No ___ Initials ___</span>
-          </div>
-        </div>
-
-        {/* Verification statement */}
-        <div style={{marginBottom:10, fontSize:11, lineHeight:1.4}}>
-          I verify the animals I brought in for slaughter have no residual antibiotics or veterinary medication and meet all specified requirements.
-        </div>
-
         {/* Signature and date */}
         <div style={{marginBottom:10}}>
           <div>Customer Signature: _______________________ &nbsp;&nbsp; Date: __________</div>
         </div>
 
-        {/* Specified Risk Material section */}
-        <div style={{marginBottom:10, borderTop:'1px solid black', paddingTop:8}}>
-          <div style={{fontWeight:'bold', marginBottom:4}}>Specified Risk Material:</div>
-          <div style={{marginLeft:16}}>
-            <div style={{marginBottom:4}}>Beef Age: &nbsp; 
-              <input type="checkbox" style={{marginRight:4}} /> Less than 30 months &nbsp; 
-              <input type="checkbox" style={{marginRight:4}} /> Older than 30 months
-            </div>
-          </div>
+        {/* Verification statement */}
+        <div style={{marginBottom:10, fontSize:11, lineHeight:1.4}}>
+          I verify the animals I brought in for slaughter have no residual antibiotics or veterinary medication and meet all specified requirements.
         </div>
 
         {/* Customer name for signature */}
@@ -307,7 +267,34 @@ export default function PrintCutSheetPage() {
         </div>
       </div>
 
+      {/* PAGE 2 — Ambulatory + Specified Risk Material */}
+      <div style={{pageBreakBefore:'always', paddingTop:20}}>
+        {/* Ambulatory at time of slaughter */}
+        <div style={{marginBottom:10, fontSize:13}}>
+          <div style={{marginBottom:4}}>
+            <strong>Ambulatory at Time of Slaughter:</strong> &nbsp; 
+            <span style={{marginRight:20}}>Yes ___ Initials ___</span>
+            <span>No ___ Initials ___</span>
+          </div>
+        </div>
+
+        {/* Specified Risk Material section */}
+        <div style={{marginBottom:10, borderTop:'1px solid black', paddingTop:8, fontSize:13}}>
+          <div style={{fontWeight:'bold', marginBottom:4}}>Specified Risk Material:</div>
+          <div style={{marginLeft:16}}>
+            <div style={{marginBottom:4}}>Beef Age: &nbsp; 
+              <input type="checkbox" style={{marginRight:4}} /> Less than 30 months &nbsp; 
+              <input type="checkbox" style={{marginRight:4}} /> Older than 30 months
+            </div>
+          </div>
+        </div>
+      </div>
+
       <style>{`
+        @page {
+          margin: 0.5in;
+          size: letter portrait;
+        }
         @media print {
           body { margin: 0; }
           button { display: none; }
