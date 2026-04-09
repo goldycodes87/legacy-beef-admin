@@ -21,6 +21,8 @@ export async function GET(request: NextRequest) {
         hanging_weight_lbs,
         balance_paid,
         balance_due,
+        balance_payment_method,
+        price_per_lb,
         customers (name, email, phone),
         animals (id, name, butcher_date, price_per_lb)
       `)
