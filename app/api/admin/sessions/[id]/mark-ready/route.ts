@@ -93,8 +93,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         
         <div style="background: #f9f9f9; border-radius: 8px; padding: 16px; margin: 20px 0;">
           <p><strong>${animal.name}</strong></p>
-          <p>Hanging Weight: <strong>${session.hanging_weight_lbs} lbs</strong></p>
-          <p>Price: <strong>$${session.price_per_lb.toFixed(2)}/lb</strong></p>
+          <p>Hanging Weight: <strong>${session.hanging_weight_lbs ? session.hanging_weight_lbs + ' lbs' : 'TBD'}</strong></p>
+          <p>Price: <strong>$${session.price_per_lb ? session.price_per_lb.toFixed(2) : '8.25'}/lb</strong></p>
         </div>
 
         ${balanceSection}
