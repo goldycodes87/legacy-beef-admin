@@ -29,7 +29,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // Calculate balance if not set
   const depositPaid = (session.payments || []).reduce((sum: number, p: any) => sum + (p.amount_cents || 0) / 100, 0);
-  const balanceDue = (session.hanging_weight_lbs * session.price_per_lb) - depositPaid;
+  const hangingWeight = session.hanging_weight_lbs || 0;
+  const pricePerLb = session.price_per_lb || 0;
+  const balanceDue = hangingWeight > 0 && pricePerLb > 0 ? (hangingWeight * pricePerLb) - depositPaid : 0;
 
   // Update session
   await supabase
