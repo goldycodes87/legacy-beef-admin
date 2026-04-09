@@ -87,14 +87,20 @@ export default function PrintCutSheetPage() {
     none: 'None'
   };
 
+  // Helper function to clean thickness values (strip trailing quotes)
+  function cleanThickness(val: unknown): string {
+    if (!val) return '';
+    return String(val).replace(/"+$/, '"');
+  }
+
   return (
-    <div style={{fontFamily:'Arial, sans-serif', maxWidth:850, margin:'0 auto', padding:16, fontSize:12, lineHeight:1.4}}>
+    <div style={{fontFamily:'Arial, sans-serif', maxWidth:850, margin:'0 auto', padding:16, fontSize:12, lineHeight:1.4, WebkitPrintColorAdjust:'exact'}}>
       {/* Header with T-K logo and branding */}
       <div style={{textAlign:'center', marginBottom:12, borderBottom:'3px solid black', paddingBottom:8}}>
         <img 
           src="/tk-logo.png" 
           alt="T-K Processing"
-          style={{height:80, width:'auto', display:'block', margin:'0 auto 8px'}}
+          style={{height:60, width:'auto', display:'block', margin:'0 auto 4px'}}
         />
         <div style={{fontSize:13, fontWeight:'bold', marginTop:4}}>
           Beef Cutting Instructions
@@ -123,7 +129,7 @@ export default function PrintCutSheetPage() {
             <div style={{fontWeight:'bold', textDecoration:'underline'}}>Chuck</div>
             <div>
               {isSelected(a,'chuck','roasts') && <div><SelectedOnly text="Roasts" />{chuck?.roast_weight ? ` — ${chuck.roast_weight} lb` : ''}</div>}
-              {isSelected(a,'chuck','steaks') && <div><SelectedOnly text="Steaks" />{chuck?.thickness ? ` — ${chuck.thickness}" thick` : ''}{chuck?.steaks_per_pack ? `, ${chuck.steaks_per_pack}/pack` : ''}</div>}
+              {isSelected(a,'chuck','steaks') && <div><SelectedOnly text="Steaks" />{chuck?.thickness ? ` — ${cleanThickness(chuck.thickness)} thick` : ''}{chuck?.steaks_per_pack ? `, ${chuck.steaks_per_pack}/pack` : ''}</div>}
               {isSelected(a,'chuck','grind') && <div><SelectedOnly text="Grind" /></div>}
             </div>
           </div>
@@ -149,8 +155,8 @@ export default function PrintCutSheetPage() {
             <div>
               {isSelected(a,'rib','bone_in_roast') && <div>Roasts: <SelectedOnly text="Bone-in" />{rib?.roast_weight ? ` — ${rib.roast_weight} lb` : ''}</div>}
               {isSelected(a,'rib','boneless_roast') && <div>Roasts: <SelectedOnly text="Boneless" />{rib?.roast_weight ? ` — ${rib.roast_weight} lb` : ''}</div>}
-              {isSelected(a,'rib','bone_in_steaks') && <div>Steaks: <SelectedOnly text="Bone-in" />{rib?.thickness ? ` — ${rib.thickness}" thick` : ''}{rib?.steaks_per_pack ? `, ${rib.steaks_per_pack}/pack` : ''}</div>}
-              {isSelected(a,'rib','boneless_steaks') && <div>Steaks: <SelectedOnly text="Boneless" />{rib?.thickness ? ` — ${rib.thickness}" thick` : ''}{rib?.steaks_per_pack ? `, ${rib.steaks_per_pack}/pack` : ''}</div>}
+              {isSelected(a,'rib','bone_in_steaks') && <div>Steaks: <SelectedOnly text="Bone-in" />{rib?.thickness ? ` — ${cleanThickness(rib.thickness)} thick` : ''}{rib?.steaks_per_pack ? `, ${rib.steaks_per_pack}/pack` : ''}</div>}
+              {isSelected(a,'rib','boneless_steaks') && <div>Steaks: <SelectedOnly text="Boneless" />{rib?.thickness ? ` — ${cleanThickness(rib.thickness)} thick` : ''}{rib?.steaks_per_pack ? `, ${rib.steaks_per_pack}/pack` : ''}</div>}
             </div>
           </div>
 
@@ -170,7 +176,7 @@ export default function PrintCutSheetPage() {
             <div style={{fontWeight:'bold', textDecoration:'underline'}}>Sirloin</div>
             <div>
               {isSelected(a,'sirloin','roasts') && <div><SelectedOnly text="Roasts" />{sirloin?.roast_weight ? ` — ${sirloin.roast_weight} lb` : ''}</div>}
-              {isSelected(a,'sirloin','steaks') && <div><SelectedOnly text="Steaks" />{sirloin?.thickness ? ` — ${sirloin.thickness}" thick` : ''}{sirloin?.steaks_per_pack ? `, ${sirloin.steaks_per_pack}/pack` : ''}</div>}
+              {isSelected(a,'sirloin','steaks') && <div><SelectedOnly text="Steaks" />{sirloin?.thickness ? ` — ${cleanThickness(sirloin.thickness)} thick` : ''}{sirloin?.steaks_per_pack ? `, ${sirloin.steaks_per_pack}/pack` : ''}</div>}
               {isSelected(a,'sirloin','grind') && <div><SelectedOnly text="Grind" /></div>}
             </div>
           </div>
@@ -179,7 +185,7 @@ export default function PrintCutSheetPage() {
             <div style={{fontWeight:'bold', textDecoration:'underline'}}>Round</div>
             <div>
               {isSelected(a,'round','roasts') && <div><SelectedOnly text="Roasts" />{round?.roast_weight ? ` — ${round.roast_weight} lb` : ''}</div>}
-              {isSelected(a,'round','steaks') && <div><SelectedOnly text="Steaks" />{round?.thickness ? ` — ${round.thickness}" thick` : ''}{round?.steaks_per_pack ? `, ${round.steaks_per_pack}/pack` : ''}</div>}
+              {isSelected(a,'round','steaks') && <div><SelectedOnly text="Steaks" />{round?.thickness ? ` — ${cleanThickness(round.thickness)} thick` : ''}{round?.steaks_per_pack ? `, ${round.steaks_per_pack}/pack` : ''}</div>}
               {isSelected(a,'round','grind') && <div><SelectedOnly text="Grind" /></div>}
             </div>
           </div>
@@ -187,8 +193,8 @@ export default function PrintCutSheetPage() {
           <div style={{marginBottom:10}}>
             <div style={{fontWeight:'bold', textDecoration:'underline'}}>Short Loin</div>
             <div>
-              {isSelected(a,'short_loin','tbone') && <div><SelectedOnly text="T-Bone Steaks" />{getAnswer(a,'short_loin')?.tbone_thickness ? ` — ${getAnswer(a,'short_loin').tbone_thickness}" thick` : ''}{getAnswer(a,'short_loin')?.steaks_per_pack ? `, ${getAnswer(a,'short_loin').steaks_per_pack}/pack` : ''}</div>}
-              {isSelected(a,'short_loin','ny_strip_and_filet') && <div><SelectedOnly text="NY Strip & Filet" />{getAnswer(a,'short_loin')?.strip_thickness ? ` — Strip: ${getAnswer(a,'short_loin').strip_thickness}", Filet: ${getAnswer(a,'short_loin').filet_thickness}"` : ''}</div>}
+              {isSelected(a,'short_loin','tbone') && <div><SelectedOnly text="T-Bone Steaks" />{getAnswer(a,'short_loin')?.tbone_thickness ? ` — ${cleanThickness(getAnswer(a,'short_loin').tbone_thickness)} thick` : ''}{getAnswer(a,'short_loin')?.steaks_per_pack ? `, ${getAnswer(a,'short_loin').steaks_per_pack}/pack` : ''}</div>}
+              {isSelected(a,'short_loin','ny_strip_and_filet') && <div><SelectedOnly text="NY Strip & Filet" />{getAnswer(a,'short_loin')?.strip_thickness ? ` — Strip: ${cleanThickness(getAnswer(a,'short_loin').strip_thickness)}, Filet: ${cleanThickness(getAnswer(a,'short_loin').filet_thickness)}` : ''}</div>}
             </div>
           </div>
 
@@ -202,7 +208,7 @@ export default function PrintCutSheetPage() {
       </div>
 
       {/* Bottom row — 4 columns */}
-      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:16, borderBottom:'2px solid black', paddingBottom:12, marginBottom:12}}>
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:16, borderBottom:'2px solid black', paddingBottom:8, marginBottom:8}}>
         <div>
           <div style={{fontWeight:'bold', textDecoration:'underline'}}>Stew Meat</div>
           <div>
@@ -229,7 +235,7 @@ export default function PrintCutSheetPage() {
       </div>
 
       {/* Packing information */}
-      <div style={{marginBottom:12}}>
+      <div style={{marginBottom:6}}>
         <div style={{fontWeight:'bold', textDecoration:'underline', marginBottom:6}}>PACKING INFORMATION</div>
         <div>
           Percentage of Fat: <strong>{String(packing.fat_pct || '___')}</strong>
@@ -299,13 +305,14 @@ export default function PrintCutSheetPage() {
       </div>
 
       <style>{`
-        @page {
-          margin: 0.5in;
-          size: letter portrait;
-        }
         @media print {
           body { margin: 0; }
           button { display: none; }
+          @page { 
+            margin: 0.5in;
+            size: letter portrait;
+          }
+          html { -webkit-print-color-adjust: exact; }
           .page-break { page-break-before: always; break-before: page; }
         }
       `}</style>
