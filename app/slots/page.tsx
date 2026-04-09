@@ -36,6 +36,7 @@ interface Reservation {
   hanging_weight_lbs?: number | null;
   balance_paid?: boolean;
   balance_due?: number;
+  balance_payment_method?: string;
 }
 
 interface AnimalGroup {
@@ -60,6 +61,20 @@ export default function SlotsPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ admin_notes: notes }),
     });
+  };
+
+  const handleMarkBalancePaid = async (sessionId: string) => {
+    if (!confirm('Mark balance as paid by cash/check?')) return;
+    try {
+      const res = await fetch(
+        `/api/admin/sessions/${sessionId}/mark-balance-paid`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+      );
+      if (res.ok) loadSlots();
+      else alert('Failed to mark balance paid');
+    } catch (err) {
+      alert('Error: ' + err);
+    }
   };
 
   useEffect(() => {
@@ -277,6 +292,17 @@ export default function SlotsPage() {
                                   className="text-brand-green hover:text-green-800 font-semibold ml-3"
                                 >
                                   Picked Up ✓
+                                </button>
+                              )}
+                              {session.balance_payment_method === 'cash' && !session.balance_paid && (
+                                <button
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    handleMarkBalancePaid(session.id); 
+                                  }}
+                                  className="text-green-600 hover:text-green-800 font-semibold text-sm ml-3"
+                                >
+                                  Mark Paid ✓
                                 </button>
                               )}
                               <button

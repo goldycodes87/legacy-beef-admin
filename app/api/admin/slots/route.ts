@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
         hanging_weight_lbs: session.hanging_weight_lbs || null,
         balance_paid: session.balance_paid || false,
         balance_due: session.balance_due || 0,
+        balance_payment_method: session.balance_payment_method || null,
       });
       return acc;
     }, {});
