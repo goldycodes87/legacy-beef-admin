@@ -53,14 +53,24 @@ export async function GET() {
   });
 
   // Enrich each session with deposit_paid from payments table
-  const enriched = (data || []).map((customer: any) => ({
-    ...customer,
-    sessions: (customer.sessions || []).map((s: any) => ({
+  const enriched = (data || []).map((customer: any) => {
+    const sessions = (customer.sessions || []).map((s: any) => ({
       ...s,
       deposit_paid: paidSet.has(s.id),
-    })),
-    links: linksMap.get(customer.id) || [],
-  }));
+    }));
+    
+    // Check for active sessions (not cancelled and not draft without deposit)
+    const hasActiveSessions = sessions.some(
+      (s: any) => s.status !== 'cancelled' && !(s.status === 'draft' && !s.deposit_paid)
+    );
+
+    return {
+      ...customer,
+      sessions,
+      links: linksMap.get(customer.id) || [],
+      has_active_sessions: hasActiveSessions,
+    };
+  });
 
   return NextResponse.json(enriched);
 }

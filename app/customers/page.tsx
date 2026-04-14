@@ -34,6 +34,7 @@ interface Customer {
   created_at: string;
   sessions: Session[];
   links?: CustomerLink[];
+  has_active_sessions?: boolean;
 }
 
 export default function CustomersPage() {
@@ -267,7 +268,7 @@ export default function CustomersPage() {
                           >
                             Link
                           </button>
-                          {!hasActiveSessions(c) && (
+                          {!c.has_active_sessions && (
                             <button
                               onClick={() => setDeleteConfirm(c.id)}
                               className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
