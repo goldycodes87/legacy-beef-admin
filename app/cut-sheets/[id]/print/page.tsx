@@ -115,7 +115,7 @@ export default function PrintCutSheetPage() {
         Customer Name: <strong>{session.customers?.name || '_______________'}</strong> &nbsp; | &nbsp; Phone: <strong>{session.customers?.phone || '_______________'}</strong>
       </div>
       <div style={{borderBottom:'2px solid black', marginBottom:12, paddingBottom:4}}>
-        Address: <strong>Legacy Land & Cattle — Grant Goldberg, 719-459-5151</strong>
+        Address: <strong>Legacy Land & Cattle — Grant Goldberg, 719-258-1777</strong>
       </div>
 
       {/* Two column layout - Front & Hind Quarters */}
