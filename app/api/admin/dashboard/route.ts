@@ -32,10 +32,11 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .not('status', 'eq', 'draft').not('status', 'eq', 'cancelled');
 
-    // Revenue collected (sum of payments where status=paid)
+    // Revenue collected (sum of payments where status=paid, excluding cancelled sessions)
     const { data: payments } = await supabase
       .from('payments')
-      .select('amount_cents')
+      .select('amount_cents, sessions!inner(status)')
+      .not('sessions.status', 'eq', 'cancelled')
       .eq('status', 'paid');
 
     const revenue = (payments || []).reduce((sum, p) => sum + (p.amount_cents || 0), 0) / 100;
