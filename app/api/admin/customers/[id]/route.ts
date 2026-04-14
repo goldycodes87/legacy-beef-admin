@@ -45,8 +45,16 @@ export async function DELETE(
     );
   }
 
-  // Delete cancelled/draft sessions first to satisfy FK constraint
-  await supabase.from('sessions').delete().eq('customer_id', id);
+  // Get all session IDs first
+  const { data: allSessions } = await supabase
+    .from('sessions').select('id').eq('customer_id', id);
+  const sessionIds = (allSessions || []).map((s: any) => s.id);
+  if (sessionIds.length > 0) {
+    await supabase.from('payments').delete().in('session_id', sessionIds);
+    await supabase.from('cut_sheet_answers').delete().in('session_id', sessionIds);
+    await supabase.from('pickup_appointments').delete().in('session_id', sessionIds);
+    await supabase.from('sessions').delete().eq('customer_id', id);
+  }
 
   const { error } = await supabase.from('customers').delete().eq('id', id);
 
