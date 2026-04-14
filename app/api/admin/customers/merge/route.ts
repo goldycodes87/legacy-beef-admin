@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(request: NextRequest) {
   const supabase = getSupabaseAdmin();
-  const { source_id, target_id } = await request.json();
+  const { source_id, target_id, merged_data } = await request.json();
 
   if (!source_id || !target_id) {
     return NextResponse.json(
@@ -27,7 +27,14 @@ export async function POST(request: NextRequest) {
       .update({ customer_id: target_id })
       .eq('customer_id', source_id);
 
-    // 2. Delete source customer
+    // 2. Apply merged field choices to target customer
+    if (merged_data) {
+      await supabase.from('customers')
+        .update(merged_data)
+        .eq('id', target_id);
+    }
+
+    // 3. Delete source customer
     await supabase.from('customers').delete().eq('id', source_id);
 
     return NextResponse.json({ success: true });

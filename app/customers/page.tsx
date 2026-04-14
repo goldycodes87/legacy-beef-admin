@@ -53,8 +53,14 @@ export default function CustomersPage() {
     zip: '',
   });
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [mergeModal, setMergeModal] = useState<{ customerId: string; customerName: string } | null>(null);
+  const [mergeModal, setMergeModal] = useState<{ customer: Customer } | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState('');
+  const [mergeFieldChoices, setMergeFieldChoices] = useState<{
+    name: 'source' | 'target';
+    email: 'source' | 'target';
+    phone: 'source' | 'target';
+    address: 'source' | 'target';
+  }>({ name: 'target', email: 'target', phone: 'target', address: 'target' });
   const [linkModal, setLinkModal] = useState<{ customerId: string; customerName: string } | null>(null);
   const [linkTargetId, setLinkTargetId] = useState('');
   const [linkRelationship, setLinkRelationship] = useState('');
@@ -110,21 +116,34 @@ export default function CustomersPage() {
 
   const handleMergeCustomers = async () => {
     if (!mergeModal || !mergeTargetId) return;
+    const source = mergeModal.customer;
+    const target = customers.find(c => c.id === mergeTargetId);
+    if (!target) return;
+    const mergedData = {
+      name: mergeFieldChoices.name === 'source' ? source.name : target.name,
+      email: mergeFieldChoices.email === 'source' ? source.email : target.email,
+      phone: mergeFieldChoices.phone === 'source' ? source.phone : target.phone,
+      address: mergeFieldChoices.address === 'source' ? source.address : target.address,
+      city: mergeFieldChoices.address === 'source' ? source.city : target.city,
+      state: mergeFieldChoices.address === 'source' ? source.state : target.state,
+      zip: mergeFieldChoices.address === 'source' ? source.zip : target.zip,
+    };
     const res = await fetch('/api/admin/customers/merge', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        source_id: mergeModal.customerId,
+        source_id: source.id,
         target_id: mergeTargetId,
+        merged_data: mergedData,
       }),
     });
     if (res.ok) {
-      loadCustomers();
       setMergeModal(null);
       setMergeTargetId('');
+      loadCustomers();
     } else {
-      const { error } = await res.json();
-      alert(`Error: ${error}`);
+      const d = await res.json();
+      alert(d.error || 'Merge failed');
     }
   };
 
@@ -257,7 +276,11 @@ export default function CustomersPage() {
                             Edit
                           </button>
                           <button
-                            onClick={() => setMergeModal({ customerId: c.id, customerName: c.name })}
+                            onClick={() => {
+                              setMergeModal({ customer: c });
+                              setMergeTargetId('');
+                              setMergeFieldChoices({ name: 'target', email: 'target', phone: 'target', address: 'target' });
+                            }}
                             className="px-3 py-1 bg-amber-600 text-white rounded text-sm hover:bg-amber-700"
                           >
                             Merge
@@ -444,45 +467,101 @@ export default function CustomersPage() {
       )}
 
       {mergeModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
-            <h2 className="text-xl font-bold mb-4">Merge {mergeModal.customerName} into another customer</h2>
-            <div className="space-y-4">
-              <p className="text-sm text-gray-700">
-                All sessions from <strong>{mergeModal.customerName}</strong> will be moved to the selected customer. <strong>{mergeModal.customerName}</strong> will be deleted.
-              </p>
-              <div>
-                <label className="block text-sm font-semibold mb-2">Select target customer</label>
-                <select
-                  value={mergeTargetId}
-                  onChange={(e) => setMergeTargetId(e.target.value)}
-                  className="w-full px-3 py-2 border rounded"
-                >
-                  <option value="">— Choose a customer —</option>
-                  {customers
-                    .filter(c => c.id !== mergeModal.customerId)
-                    .map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-xl my-4">
+            <h2 className="text-xl font-bold mb-1">Merge Customers</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Choose which information to keep. All sessions from <strong> {mergeModal.customer.name}</strong> will move to the target customer.
+            </p>
+
+            {/* Target selector */}
+            <div className="mb-5">
+              <label className="block text-sm font-semibold mb-1">
+                Merge into:
+              </label>
+              <select
+                value={mergeTargetId}
+                onChange={e => setMergeTargetId(e.target.value)}
+                className="w-full border rounded-xl px-4 py-2.5 text-sm"
+              >
+                <option value="">Select target customer...</option>
+                {customers
+                  .filter(c => c.id !== mergeModal.customer.id)
+                  .map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} — {c.email}
+                    </option>
+                  ))}
+              </select>
             </div>
-            <div className="flex gap-2 mt-6">
+
+            {/* Field chooser — only show when target selected */}
+            {mergeTargetId && (() => {
+              const target = customers.find(c => c.id === mergeTargetId);
+              if (!target) return null;
+              const source = mergeModal.customer;
+              const fields: { key: keyof typeof mergeFieldChoices; label: string; srcVal: string; tgtVal: string }[] = [
+                { key: 'name', label: 'Name', srcVal: source.name, tgtVal: target.name },
+                { key: 'email', label: 'Email', srcVal: source.email, tgtVal: target.email },
+                { key: 'phone', label: 'Phone', srcVal: source.phone || '—', tgtVal: target.phone || '—' },
+                { key: 'address', label: 'Address', srcVal: `${source.address || ''} ${source.city || ''} ${source.state || ''}`.trim() || '—', tgtVal: `${target.address || ''} ${target.city || ''} ${target.state || ''}`.trim() || '—' },
+              ];
+              return (
+                <div className="border rounded-xl overflow-hidden mb-5">
+                  <div className="grid grid-cols-3 bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-500">
+                    <div>Field</div>
+                    <div className="text-center">
+                      {source.name} (source)
+                    </div>
+                    <div className="text-center">
+                      {target.name} (target)
+                    </div>
+                  </div>
+                  {fields.map(f => (
+                    <div key={f.key} className="grid grid-cols-3 px-4 py-3 border-t items-center text-sm">
+                      <div className="font-semibold text-gray-700">
+                        {f.label}
+                      </div>
+                      <div
+                        onClick={() => setMergeFieldChoices(prev => ({ ...prev, [f.key]: 'source' }))}
+                        className={`text-center cursor-pointer rounded-lg py-1.5 mx-2 transition-colors ${
+                          mergeFieldChoices[f.key] === 'source'
+                            ? 'bg-brand-orange text-white font-semibold'
+                            : 'hover:bg-orange-50 text-gray-600'
+                        }`}
+                      >
+                        {f.srcVal}
+                      </div>
+                      <div
+                        onClick={() => setMergeFieldChoices(prev => ({ ...prev, [f.key]: 'target' }))}
+                        className={`text-center cursor-pointer rounded-lg py-1.5 mx-2 transition-colors ${
+                          mergeFieldChoices[f.key] === 'target'
+                            ? 'bg-brand-orange text-white font-semibold'
+                            : 'hover:bg-orange-50 text-gray-600'
+                        }`}
+                      >
+                        {f.tgtVal}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            <p className="text-xs text-red-500 mb-4">
+              ⚠️ {mergeModal.customer.name} will be permanently deleted after merge.
+            </p>
+            <div className="flex gap-3">
               <button
-                onClick={() => {
-                  setMergeModal(null);
-                  setMergeTargetId('');
-                }}
-                className="flex-1 px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                onClick={() => setMergeModal(null)}
+                className="flex-1 py-2.5 border rounded-xl text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={handleMergeCustomers}
                 disabled={!mergeTargetId}
-                className="flex-1 px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
               >
                 Merge Customers
               </button>
