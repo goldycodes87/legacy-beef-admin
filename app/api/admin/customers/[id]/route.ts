@@ -45,6 +45,14 @@ export async function DELETE(
     );
   }
 
+  // Delete customer_links (FK direct to customers)
+  await supabase.from('customer_links')
+    .delete()
+    .or(`customer_id_a.eq.${id},customer_id_b.eq.${id}`);
+
+  // Delete butcher_slots (FK direct to customers)
+  await supabase.from('butcher_slots').delete().eq('customer_id', id);
+
   // Get all session IDs first
   const { data: allSessions } = await supabase
     .from('sessions').select('id').eq('customer_id', id);
