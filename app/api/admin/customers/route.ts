@@ -29,13 +29,37 @@ export async function GET() {
 
   const paidSet = new Set((paidDeposits || []).map((p: any) => p.session_id));
 
+  // Get all customer links for all customers
+  const customerIds = (data || []).map((c: any) => c.id);
+  const { data: allLinks } = await supabase
+    .from('customer_links')
+    .select('*')
+    .or(
+      customerIds
+        .map((id: string) => `customer_id_a.eq.${id},customer_id_b.eq.${id}`)
+        .join(',')
+    );
+
+  const linksMap = new Map<string, any[]>();
+  (allLinks || []).forEach((link: any) => {
+    if (!linksMap.has(link.customer_id_a)) {
+      linksMap.set(link.customer_id_a, []);
+    }
+    if (!linksMap.has(link.customer_id_b)) {
+      linksMap.set(link.customer_id_b, []);
+    }
+    linksMap.get(link.customer_id_a)?.push(link);
+    linksMap.get(link.customer_id_b)?.push(link);
+  });
+
   // Enrich each session with deposit_paid from payments table
   const enriched = (data || []).map((customer: any) => ({
     ...customer,
     sessions: (customer.sessions || []).map((s: any) => ({
       ...s,
       deposit_paid: paidSet.has(s.id),
-    }))
+    })),
+    links: linksMap.get(customer.id) || [],
   }));
 
   return NextResponse.json(enriched);

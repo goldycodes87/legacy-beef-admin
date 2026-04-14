@@ -23,3 +23,31 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   return NextResponse.json({ success: true });
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = getSupabaseAdmin();
+  const { id } = await params;
+
+  // Safety check — no active sessions
+  const { data: sessions } = await supabase
+    .from('sessions')
+    .select('id')
+    .eq('customer_id', id)
+    .not('status', 'in', '("cancelled","draft")');
+
+  if (sessions && sessions.length > 0) {
+    return NextResponse.json(
+      { error: 'Customer has active sessions' },
+      { status: 400 }
+    );
+  }
+
+  const { error } = await supabase.from('customers').delete().eq('id', id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ success: true });
+}
