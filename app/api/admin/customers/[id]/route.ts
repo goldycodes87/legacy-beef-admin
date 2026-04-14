@@ -53,6 +53,16 @@ export async function DELETE(
   // Delete butcher_slots (FK direct to customers)
   await supabase.from('butcher_slots').delete().eq('customer_id', id);
 
+  // Nullify self-referencing session FKs first
+  const { data: allSessionsFirst } = await supabase
+    .from('sessions').select('id').eq('customer_id', id);
+  const sessionIdsFirst = (allSessionsFirst || []).map((s: any) => s.id);
+  if (sessionIdsFirst.length > 0) {
+    await supabase.from('sessions').update({ partner_session_id: null, cut_sheet_partner_session_id: null }).in('id', sessionIdsFirst);
+    await supabase.from('notifications').delete().in('session_id', sessionIdsFirst);
+    await supabase.from('coupon_codes').delete().in('redeemed_by', sessionIdsFirst);
+  }
+
   // Get all session IDs first
   const { data: allSessions } = await supabase
     .from('sessions').select('id').eq('customer_id', id);
