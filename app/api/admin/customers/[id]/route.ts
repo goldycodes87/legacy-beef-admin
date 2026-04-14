@@ -45,6 +45,9 @@ export async function DELETE(
     );
   }
 
+  // Delete cancelled/draft sessions first to satisfy FK constraint
+  await supabase.from('sessions').delete().eq('customer_id', id);
+
   const { error } = await supabase.from('customers').delete().eq('id', id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
