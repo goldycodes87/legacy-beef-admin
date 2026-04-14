@@ -7,7 +7,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from('customers')
     .select(`
-      id, name, email, phone, address, city, state, zip, created_at,
+      id, name, email, phone, address, city, state, zip, created_at, archived_at,
       sessions(id, purchase_type, status, status, created_at,
         animals(name, butcher_date, animal_type))
     `)

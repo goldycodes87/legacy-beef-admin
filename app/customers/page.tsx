@@ -32,6 +32,7 @@ interface Customer {
   state: string;
   zip: string;
   created_at: string;
+  archived_at?: string | null;
   sessions: Session[];
   links?: CustomerLink[];
   has_active_sessions?: boolean;
@@ -40,6 +41,7 @@ interface Customer {
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'active' | 'archived' | 'all'>('active');
   const [expandedCustomer, setExpandedCustomer] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
@@ -114,6 +116,20 @@ export default function CustomersPage() {
     }
   };
 
+  const handleArchive = async (customer: Customer) => {
+    const isArchived = !!customer.archived_at;
+    const res = await fetch(
+      `/api/admin/customers/${customer.id}/archive`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: !isArchived })
+      }
+    );
+    if (res.ok) loadCustomers();
+    else alert('Archive action failed');
+  };
+
   const handleMergeCustomers = async () => {
     if (!mergeModal || !mergeTargetId) return;
     const source = mergeModal.customer;
@@ -169,11 +185,15 @@ export default function CustomersPage() {
     }
   };
 
-  const filtered = customers.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.email.toLowerCase().includes(search.toLowerCase()) ||
-    c.phone.includes(search)
-  );
+  const filtered = customers.filter(c => {
+    const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.email.toLowerCase().includes(search.toLowerCase()) ||
+      c.phone.includes(search);
+    const matchesFilter = filter === 'all' ? true :
+      filter === 'archived' ? !!c.archived_at :
+      !c.archived_at;
+    return matchesSearch && matchesFilter;
+  });
 
   const getActiveSessions = (c: Customer) =>
     c.sessions?.filter(
@@ -209,6 +229,16 @@ export default function CustomersPage() {
   return (
     <AdminLayout title="Customers">
       <div className="space-y-6">
+        <div className="flex gap-2 mb-4">
+          {(['active', 'archived', 'all'] as const).map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold capitalize transition-colors ${filter === f
+                ? 'bg-brand-dark text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              {f === 'active' ? 'Active' : f === 'archived' ? 'Archived' : 'All'}
+            </button>
+          ))}
+        </div>
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-600">{customers.length} customers total</p>
           <input
@@ -274,6 +304,14 @@ export default function CustomersPage() {
                             className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
                           >
                             Edit
+                          </button>
+                          <button
+                            onClick={() => handleArchive(c)}
+                            className={`text-sm font-semibold ${
+                              c.archived_at ? 'text-green-600 hover:text-green-800' : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                          >
+                            {c.archived_at ? 'Unarchive' : 'Archive'}
                           </button>
                           <button
                             onClick={() => {
