@@ -59,7 +59,7 @@ function buildEmailHtml(content: string, preheader?: string): string {
               <p style="font-size:12px;color:#666;margin:0 0 8px;
                 font-family:Arial,sans-serif;">
                 <strong>Legacy Land & Cattle</strong><br>
-                6105 Burgess Rd, Colorado Springs, CO 80908
+                Colorado Springs, CO
               </p>
               <p style="font-size:12px;color:#666;margin:0;
                 font-family:Arial,sans-serif;">
@@ -120,25 +120,35 @@ function orderCard(fields: { label: string; value: string }[]): string {
 
 function depositConfirmation(): string {
   const content = `
-    <h2 style="font-family:Georgia,serif;color:#1A3D2B;margin:0 0 8px;">
-      You're reserved, ${MOCK.customerName}.
-    </h2>
-    <p>Your deposit has been received and your spot is locked in. Here's a summary of your reservation:</p>
+    <div style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
+      <div style="font-size:40px;margin-bottom:8px;">🎉</div>
+      <h2 style="font-family:Georgia,serif;color:white;font-size:26px;margin:0 0 8px;font-weight:normal;">
+        You're in, ${MOCK.customerName.split(' ')[0]}.
+      </h2>
+      <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
+        Your spot is locked. Your beef is coming.
+      </p>
+    </div>
+    <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
+      We've got your deposit and your reservation is officially on the books. This is real, ranch-direct beef raised right here in Colorado Springs — no grocery store, no middleman. Just our cattle, our butcher, and your freezer.
+    </p>
     ${orderCard([
-      { label: 'Size', value: MOCK.purchaseType === 'half' ? 'Half Beef' : 'Whole Beef' },
-      { label: 'Animal Type', value: 'Grass-Fed Beef' },
+      { label: 'Order Type', value: 'Half Beef' },
+      { label: 'Animal', value: 'May 2026 — Grass-Fed' },
       { label: 'Butcher Date', value: MOCK.butcherDate },
+      { label: 'Est. Ready', value: 'June 7, 2026' },
+      { label: 'Price/lb', value: MOCK.pricePerLb },
       { label: 'Deposit Paid', value: MOCK.depositAmount },
-      { label: 'Estimated Total', value: MOCK.totalEstimate },
-      { label: 'Price Per Lb', value: MOCK.pricePerLb },
     ])}
-    <p>Your next step is to fill out your cut sheet — that's where you tell the butcher exactly how you want your beef cut.</p>
-    ${ctaButton('Fill Out Your Cut Sheet', MOCK.cutSheetUrl)}
-    <p style="font-size:13px;color:#666;">
-      Questions? Reply to this email or call us at (719) 258-1777.
+    <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 16px;">
+      <strong style="color:#1A3D2B;">Your next step:</strong> Fill out your cut sheet — that's where you tell the butcher exactly how you want your beef cut. Steak thickness, roast size, ground beef ratio, all of it.
+    </p>
+    ${ctaButton('Build My Cut Sheet →', MOCK.cutSheetUrl)}
+    <p style="color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;text-align:center;margin-top:8px;">
+      This link is yours — bookmark it for easy access anytime.
     </p>
   `;
-  return buildEmailHtml(content, 'Your deposit is confirmed — you\'re on the list.');
+  return buildEmailHtml(content, 'Your spot is locked. Your beef is coming.');
 }
 
 function partnerInvite(): string {
