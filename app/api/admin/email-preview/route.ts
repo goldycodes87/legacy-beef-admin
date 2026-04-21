@@ -153,19 +153,31 @@ function depositConfirmation(): string {
 
 function partnerInvite(): string {
   const content = `
-    <h2 style="font-family:Georgia,serif;color:#1A3D2B;margin:0 0 8px;">
-      You've been invited to split a beef order.
-    </h2>
-    <p>A fellow beef lover has reserved a whole beef with Legacy Land & Cattle and invited you to split it with them.</p>
+    <div style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
+      <div style="font-size:40px;margin-bottom:8px;">🥩</div>
+      <h2 style="font-family:Georgia,serif;color:white;font-size:26px;margin:0 0 8px;font-weight:normal;">
+        Mike wants to split a beef with you.
+      </h2>
+      <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
+        Your spot is being held for 48 hours.
+      </p>
+    </div>
+    <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
+      Hey Sarah — Mike just reserved a Half Beef from Legacy Land & Cattle here in Colorado Springs and wants you to split it. That means ranch-direct, custom-cut beef in your freezer for months — at a better price than buying solo.
+    </p>
     ${orderCard([
-      { label: 'Split Type', value: 'Half Beef' },
+      { label: 'Your Share', value: 'Half Beef' },
       { label: 'Animal Type', value: 'Grass-Fed Beef' },
       { label: 'Butcher Date', value: MOCK.butcherDate },
       { label: 'Your Deposit', value: '$250.00' },
-      { label: 'Your Price Per Lb', value: MOCK.pricePerLb },
     ])}
-    <p>Your spot will be held for 48 hours. After that it will be released.</p>
-    ${ctaButton('Accept & Pay My Deposit', MOCK.accessUrl)}
+    <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:24px 0 16px;">
+      Your spot is held for <strong>48 hours</strong>. After that it will be released and Mike will need to find another partner or adjust their order.
+    </p>
+    ${ctaButton('Claim My Spot →', MOCK.accessUrl)}
+    <p style="color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;text-align:center;">
+      Questions? Call us at (719) 258-1777 or reply to this email.
+    </p>
   `;
   return buildEmailHtml(content, 'You\'ve been invited to split a beef order.');
 }
