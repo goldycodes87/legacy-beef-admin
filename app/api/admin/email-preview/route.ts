@@ -19,209 +19,265 @@ const MOCK = {
   email: 'orders@legacylandandcattleco.com',
 };
 
-function emailWrapper(contentHtml: string): string {
+function buildEmailHtml(content: string, preheader?: string): string {
   return `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
-    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .header { background: #2C1810; color: white; padding: 24px; text-align: center; }
-    .header h1 { margin: 0; font-size: 24px; }
-    .body { padding: 32px 24px; color: #333; line-height: 1.6; }
-    .body h2 { color: #2C1810; font-size: 18px; margin-top: 24px; margin-bottom: 12px; }
-    .body p { margin: 12px 0; }
-    .section { margin: 24px 0; padding: 16px; background: #f9f9f9; border-radius: 6px; }
-    .label { font-weight: 600; color: #2C1810; display: inline-block; min-width: 150px; }
-    .value { color: #555; }
-    .button { display: inline-block; padding: 12px 24px; background: #E85D24; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 16px 0; }
-    .button:hover { background: #d64c1f; }
-    .footer { background: #f9f9f9; padding: 24px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #eee; }
-  </style>
+  <title>Legacy Land & Cattle</title>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Legacy Land & Cattle</h1>
-      <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.9;">Premium Grass-Fed & Grass-Finished Beef</p>
-    </div>
-    <div class="body">
-      ${contentHtml}
-    </div>
-    <div class="footer">
-      <p>Legacy Land & Cattle LLC | El Paso County, Colorado</p>
-      <p>Phone: ${MOCK.phone} | Email: ${MOCK.email}</p>
-      <p style="margin-top: 16px; opacity: 0.7;">© 2026 Legacy Land & Cattle. All rights reserved.</p>
-    </div>
-  </div>
+<body style="background-color:#F5F0E8;margin:0;padding:20px;font-family:Arial,sans-serif;">
+  ${preheader ? `<div style="font-size:0;color:#ffffff;display:none;max-height:0;overflow:hidden;">${preheader}</div>` : ''}
+  <table role="presentation" style="width:100%;max-width:600px;margin:0 auto;">
+    <tr>
+      <td style="padding:20px;">
+        <table role="presentation" style="width:100%;background:white;border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#1A3D2B;padding:40px 20px;text-align:center;">
+              <img src="https://www.legacylandandcattleco.com/images/LLC_Logo_white.svg" 
+                alt="Legacy Land & Cattle" width="160" 
+                style="width:160px;height:auto;display:block;margin:0 auto 16px;" />
+              <p style="color:#C4A46B;font-size:12px;margin:0;
+                font-family:Arial,sans-serif;letter-spacing:1px;">
+                Ranch Direct · Colorado Springs, CO
+              </p>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding:40px;color:#0F0F0F;font-family:Arial,sans-serif;
+              font-size:15px;line-height:1.6;">
+              ${content}
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#F9F6F1;padding:30px 20px;
+              text-align:center;border-top:1px solid #E5E0D8;">
+              <p style="font-size:12px;color:#666;margin:0 0 8px;
+                font-family:Arial,sans-serif;">
+                <strong>Legacy Land & Cattle</strong><br>
+                6105 Burgess Rd, Colorado Springs, CO 80908
+              </p>
+              <p style="font-size:12px;color:#666;margin:0;
+                font-family:Arial,sans-serif;">
+                <a href="mailto:orders@legacylandandcattleco.com" 
+                  style="color:#E85D24;text-decoration:none;">
+                  orders@legacylandandcattleco.com
+                </a><br>
+                <a href="tel:+17192581777" 
+                  style="color:#E85D24;text-decoration:none;">
+                  (719) 258-1777
+                </a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 }
 
+function ctaButton(text: string, url: string): string {
+  return `<table role="presentation" style="margin:24px auto;">
+    <tr>
+      <td style="background-color:#E85D24;border-radius:10px;
+        text-align:center;padding:0;">
+        <a href="${url}" style="display:inline-block;padding:16px 36px;
+          color:white;font-family:Arial,sans-serif;font-size:16px;
+          font-weight:bold;text-decoration:none;border-radius:10px;">
+          ${text}
+        </a>
+      </td>
+    </tr>
+  </table>`;
+}
+
+function orderCard(fields: { label: string; value: string }[]): string {
+  return `<table role="presentation" style="width:100%;
+    background:#F9F6F1;border-radius:12px;
+    border:1px solid #E5E0D8;margin:20px 0;">
+    ${fields
+      .map(
+        (f) => `
+    <tr>
+      <td style="padding:12px 20px;border-bottom:1px solid #E5E0D8;
+        font-size:13px;color:#666;font-family:Arial,sans-serif;
+        width:40%;">${f.label}</td>
+      <td style="padding:12px 20px;border-bottom:1px solid #E5E0D8;
+        font-size:13px;font-weight:bold;color:#0F0F0F;
+        font-family:Arial,sans-serif;">${f.value}</td>
+    </tr>
+    `
+      )
+      .join('')}
+  </table>`;
+}
+
 function depositConfirmation(): string {
-  return emailWrapper(`
-    <h2>Deposit Received ✓</h2>
-    <p>Hi ${MOCK.customerName},</p>
-    <p>Thank you! We've received your deposit of <strong>${MOCK.depositAmount}</strong> for your ${MOCK.purchaseType} beef order.</p>
-    <div class="section">
-      <div><span class="label">Order Type:</span><span class="value">${MOCK.purchaseType === 'half' ? 'Half Beef' : 'Whole Beef'}</span></div>
-      <div><span class="label">Animal Type:</span><span class="value">Grass-Fed Beef</span></div>
-      <div><span class="label">Butcher Date:</span><span class="value">${MOCK.butcherDate}</span></div>
-      <div><span class="label">Estimated Total:</span><span class="value">${MOCK.totalEstimate}</span></div>
-    </div>
-    <p>Your session is ready. Log in to customize your cut sheet and track your order.</p>
-    <a href="${MOCK.accessUrl}" class="button">Access Your Order</a>
-    <p>Questions? Reply to this email or call us at ${MOCK.phone}.</p>
-    <p>—<br>The Team at Legacy Land & Cattle</p>
-  `);
+  const content = `
+    <h2 style="font-family:Georgia,serif;color:#1A3D2B;margin:0 0 8px;">
+      You're reserved, ${MOCK.customerName}.
+    </h2>
+    <p>Your deposit has been received and your spot is locked in. Here's a summary of your reservation:</p>
+    ${orderCard([
+      { label: 'Size', value: MOCK.purchaseType === 'half' ? 'Half Beef' : 'Whole Beef' },
+      { label: 'Animal Type', value: 'Grass-Fed Beef' },
+      { label: 'Butcher Date', value: MOCK.butcherDate },
+      { label: 'Deposit Paid', value: MOCK.depositAmount },
+      { label: 'Estimated Total', value: MOCK.totalEstimate },
+      { label: 'Price Per Lb', value: MOCK.pricePerLb },
+    ])}
+    <p>Your next step is to fill out your cut sheet — that's where you tell the butcher exactly how you want your beef cut.</p>
+    ${ctaButton('Fill Out Your Cut Sheet', MOCK.cutSheetUrl)}
+    <p style="font-size:13px;color:#666;">
+      Questions? Reply to this email or call us at (719) 258-1777.
+    </p>
+  `;
+  return buildEmailHtml(content, 'Your deposit is confirmed — you\'re on the list.');
 }
 
 function partnerInvite(): string {
-  return emailWrapper(`
-    <h2>Split Your Order & Save</h2>
-    <p>Hi ${MOCK.customerName},</p>
-    <p>You're invited to partner with another customer to split a beef order and save on costs.</p>
-    <div class="section">
-      <p><strong>Here's how it works:</strong></p>
-      <ul>
-        <li>You and your partner split one beef animal</li>
-        <li>Each customize your half independently</li>
-        <li>Save money with bulk pricing</li>
-      </ul>
-    </div>
-    <p>Interest someone in splitting? Share this link:</p>
-    <a href="${MOCK.accessUrl}" class="button">View Partnership Details</a>
-    <p>Partnership deadline: May 1, 2026. Confirm your partner by then to lock in pricing.</p>
-    <p>Questions? Let us know!</p>
-    <p>—<br>The Team at Legacy Land & Cattle</p>
-  `);
+  const content = `
+    <h2 style="font-family:Georgia,serif;color:#1A3D2B;margin:0 0 8px;">
+      You've been invited to split a beef order.
+    </h2>
+    <p>A fellow beef lover has reserved a whole beef with Legacy Land & Cattle and invited you to split it with them.</p>
+    ${orderCard([
+      { label: 'Split Type', value: 'Half Beef' },
+      { label: 'Animal Type', value: 'Grass-Fed Beef' },
+      { label: 'Butcher Date', value: MOCK.butcherDate },
+      { label: 'Your Deposit', value: '$250.00' },
+      { label: 'Your Price Per Lb', value: MOCK.pricePerLb },
+    ])}
+    <p>Your spot will be held for 48 hours. After that it will be released.</p>
+    ${ctaButton('Accept & Pay My Deposit', MOCK.accessUrl)}
+  `;
+  return buildEmailHtml(content, 'You\'ve been invited to split a beef order.');
 }
 
 function partnerDeadline(): string {
-  return emailWrapper(`
-    <h2>⏰ Partnership Deadline Approaching</h2>
-    <p>Hi ${MOCK.customerName},</p>
-    <p>You have a pending partnership request that expires in <strong>3 days</strong>.</p>
-    <div class="section">
-      <p>If you want to split with a partner, confirm by <strong>April 28, 2026</strong>.</p>
-      <p>If no partner is confirmed by then, your order will proceed as a solo ${MOCK.purchaseType} beef.</p>
-    </div>
-    <a href="${MOCK.accessUrl}" class="button">Review Partnership</a>
-    <p>—<br>The Team at Legacy Land & Cattle</p>
-  `);
+  const content = `
+    <h2 style="font-family:Georgia,serif;color:#E85D24;margin:0 0 8px;">
+      Your split partner hasn't paid yet.
+    </h2>
+    <p>You reserved a whole beef and invited a split partner. They have 24 hours remaining to pay their deposit or their spot will be released.</p>
+    ${orderCard([
+      { label: 'Butcher Date', value: MOCK.butcherDate },
+      { label: 'Deadline', value: 'In 24 hours' },
+    ])}
+    <p style="font-size:13px;color:#666;">
+      If they don't pay in time, you can find a new partner or convert to a half beef reservation.
+    </p>
+  `;
+  return buildEmailHtml(content, 'Your split partner hasn\'t paid yet — 24 hours left.');
 }
 
 function reminder10Day(): string {
-  return emailWrapper(`
-    <h2>📋 Cut Sheet Customization Reminder</h2>
-    <p>Hi ${MOCK.customerName},</p>
-    <p>You have <strong>10 days</strong> to customize your cut sheet before it auto-locks.</p>
-    <div class="section">
-      <p>Review and customize:</p>
-      <ul>
-        <li>Chuck, brisket, ribs, short loin options</li>
-        <li>Ground beef vs. steaks preferences</li>
-        <li>Special requests (thickness, packing, etc.)</li>
-      </ul>
-    </div>
-    <a href="${MOCK.cutSheetUrl}" class="button">Customize Your Cuts</a>
-    <p>No changes after the deadline. Make your selections count!</p>
-    <p>—<br>The Team at Legacy Land & Cattle</p>
-  `);
+  const content = `
+    <h2 style="font-family:Georgia,serif;color:#1A3D2B;margin:0 0 8px;">
+      Your cut sheet is due in 10 days.
+    </h2>
+    <p>Your butcher date is coming up. Make sure your cut sheet is complete before May 5, 2026 so we can get it to T-K Processing on time.</p>
+    ${ctaButton('Complete My Cut Sheet', MOCK.cutSheetUrl)}
+  `;
+  return buildEmailHtml(content, '10 days until your cut sheet is due.');
 }
 
 function reminder1Day(): string {
-  return emailWrapper(`
-    <h2>⚠️ Last Chance: Cut Sheet Customization</h2>
-    <p>Hi ${MOCK.customerName},</p>
-    <p>Your cut sheet customization closes <strong>tomorrow at midnight</strong>.</p>
-    <div class="section">
-      <p>After that, your order locks in and we move to butchering.</p>
-    </div>
-    <a href="${MOCK.cutSheetUrl}" class="button">Finalize Your Cuts Now</a>
-    <p>Any questions? Call us: ${MOCK.phone}</p>
-    <p>—<br>The Team at Legacy Land & Cattle</p>
-  `);
+  const content = `
+    <h2 style="font-family:Georgia,serif;color:#E85D24;margin:0 0 8px;">
+      Your cut sheet is due tomorrow.
+    </h2>
+    <p>This is your final reminder. Your cut sheet must be submitted by end of day tomorrow. After that it will be locked with our house defaults.</p>
+    ${ctaButton('Complete My Cut Sheet Now', MOCK.cutSheetUrl)}
+  `;
+  return buildEmailHtml(content, 'Last chance — cut sheet due tomorrow.');
 }
 
 function cutSheetLocked(): string {
-  return emailWrapper(`
-    <h2>✓ Your Cut Sheet is Locked</h2>
-    <p>Hi ${MOCK.customerName},</p>
-    <p>Your cut sheet customization has closed. Your preferences are finalized and we're ready to butcher.</p>
-    <div class="section">
-      <div><span class="label">Hanging Weight:</span><span class="value">${MOCK.hangingWeight}</span></div>
-      <div><span class="label">Price per Lb:</span><span class="value">${MOCK.pricePerLb}</span></div>
-      <div><span class="label">Estimated Balance:</span><span class="value">${MOCK.balanceDue}</span></div>
-    </div>
-    <p>Butchering begins on ${MOCK.butcherDate}. We'll update you when your beef is ready for pickup.</p>
-    <p>—<br>The Team at Legacy Land & Cattle</p>
-  `);
+  const content = `
+    <h2 style="font-family:Georgia,serif;color:#1A3D2B;margin:0 0 8px;">
+      Your cut sheet is locked and on its way.
+    </h2>
+    <p>We've received your cut sheet and it's been submitted to T-K Processing in Cañon City. Your beef will be cut exactly to your specifications.</p>
+    ${orderCard([
+      { label: 'Butcher Date', value: MOCK.butcherDate },
+      { label: 'Estimated Pickup', value: 'May 30 - June 7, 2026' },
+      { label: 'Hanging Weight', value: MOCK.hangingWeight },
+    ])}
+    <p>We'll be in touch when your beef is ready for pickup.</p>
+  `;
+  return buildEmailHtml(content, 'Your cut sheet has been submitted to the butcher.');
 }
 
-function autoLockNotice(): string {
-  return emailWrapper(`
-    <h2>🔒 Cut Sheet Auto-Locked</h2>
-    <p>Hi ${MOCK.customerName},</p>
-    <p>Your cut sheet customization deadline has passed. Your order has been auto-locked with default preferences.</p>
-    <div class="section">
-      <p>Your beef will be processed with:</p>
-      <ul>
-        <li>Standard thickness cuts</li>
-        <li>Ground beef: 80/20 blend</li>
-        <li>Standard packing</li>
-      </ul>
-    </div>
-    <p>Want to make changes? Contact us ASAP: ${MOCK.phone}</p>
-    <p>—<br>The Team at Legacy Land & Cattle</p>
-  `);
+function autoLock(): string {
+  const content = `
+    <h2 style="font-family:Georgia,serif;color:#E85D24;margin:0 0 8px;">
+      Your cut sheet has been locked.
+    </h2>
+    <p>Your cut sheet deadline passed without a submission, so we've locked it with our Legacy House Cut — a well-rounded selection that works great for most families.</p>
+    <p>If you have questions about your cuts, contact us before the butcher date.</p>
+  `;
+  return buildEmailHtml(content, 'Your cut sheet has been locked with house defaults.');
 }
 
 function beefReady(): string {
-  return emailWrapper(`
-    <h2>🥩 Your Beef is Ready!</h2>
-    <p>Hi ${MOCK.customerName},</p>
-    <p>Great news! Your beef has been butchered and is ready for pickup.</p>
-    <div class="section">
-      <div><span class="label">Pickup Date:</span><span class="value">${MOCK.pickupDate}</span></div>
-      <div><span class="label">Location:</span><span class="value">Legacy Land & Cattle, El Paso County, CO</span></div>
-      <div><span class="label">Balance Due:</span><span class="value">${MOCK.balanceDue}</span></div>
-    </div>
-    <a href="${MOCK.accessUrl}" class="button">Schedule Your Pickup</a>
-    <p>Please bring a cooler. We'll have your beef ready and packaged for you.</p>
-    <p>—<br>The Team at Legacy Land & Cattle</p>
-  `);
+  const content = `
+    <h2 style="font-family:Georgia,serif;color:#1A3D2B;margin:0 0 8px;">
+      Your beef is ready, ${MOCK.customerName}.
+    </h2>
+    <p>Your beef has been cut, vacuum-sealed, and labeled. It's waiting for you at the ranch.</p>
+    ${orderCard([
+      { label: 'Hanging Weight', value: MOCK.hangingWeight },
+      { label: 'Price Per Lb', value: MOCK.pricePerLb },
+      { label: 'Balance Due', value: MOCK.balanceDue },
+      { label: 'Pickup Location', value: 'El Paso County, CO' },
+    ])}
+    <p>Schedule your pickup using the link below. You can pay your remaining balance online or at pickup — cash, check, or card accepted.</p>
+    ${ctaButton('Schedule My Pickup', MOCK.accessUrl)}
+  `;
+  return buildEmailHtml(content, 'Your beef is ready — time to schedule pickup.');
 }
 
 function pickupConfirmed(): string {
-  return emailWrapper(`
-    <h2>✓ Pickup Confirmed</h2>
-    <p>Hi ${MOCK.customerName},</p>
-    <p>Your pickup is confirmed for <strong>${MOCK.pickupDate}</strong>.</p>
-    <div class="section">
-      <p>We have your ${MOCK.purchaseType} beef ready to go. Bring a cooler and we'll handle the rest.</p>
-    </div>
-    <p>See you soon!</p>
-    <p>—<br>The Team at Legacy Land & Cattle</p>
-  `);
+  const content = `
+    <h2 style="font-family:Georgia,serif;color:#1A3D2B;margin:0 0 8px;">
+      Pickup confirmed.
+    </h2>
+    <p>You're all set. Here are your pickup details:</p>
+    ${orderCard([
+      { label: 'Date & Time', value: MOCK.pickupDate },
+      { label: 'Location', value: 'Legacy Land & Cattle' },
+      { label: 'Address', value: '6105 Burgess Rd, Colorado Springs, CO 80908' },
+      { label: 'Balance Due', value: MOCK.balanceDue },
+    ])}
+    <p>Bring a cooler or we can help you load straight into your vehicle. See you then.</p>
+  `;
+  return buildEmailHtml(content, 'Pickup confirmed — see you then.');
 }
 
 function balancePayment(): string {
-  return emailWrapper(`
-    <h2>💰 Balance Payment Received</h2>
-    <p>Hi ${MOCK.customerName},</p>
-    <p>Thank you! We've received your balance payment of <strong>${MOCK.balanceDue}</strong>.</p>
-    <div class="section">
-      <div><span class="label">Deposit:</span><span class="value">${MOCK.depositAmount}</span></div>
-      <div><span class="label">Balance:</span><span class="value">${MOCK.balanceDue}</span></div>
-      <div><span class="label">Total Paid:</span><span class="value">${MOCK.totalEstimate}</span></div>
-    </div>
-    <p>You're all set! Your order is complete. We'll confirm your pickup date shortly.</p>
-    <a href="${MOCK.accessUrl}" class="button">View Your Order</a>
-    <p>—<br>The Team at Legacy Land & Cattle</p>
-  `);
+  const content = `
+    <h2 style="font-family:Georgia,serif;color:#1A3D2B;margin:0 0 8px;">
+      Payment received. Thank you.
+    </h2>
+    <p>Your balance payment has been received. Here's your final receipt:</p>
+    ${orderCard([
+      { label: 'Size', value: MOCK.purchaseType === 'half' ? 'Half Beef' : 'Whole Beef' },
+      { label: 'Hanging Weight', value: MOCK.hangingWeight },
+      { label: 'Price Per Lb', value: MOCK.pricePerLb },
+      { label: 'Deposit Paid', value: MOCK.depositAmount },
+      { label: 'Balance Paid', value: MOCK.balanceDue },
+      { label: 'Total Paid', value: MOCK.totalEstimate },
+    ])}
+    <p>See you at pickup.</p>
+  `;
+  return buildEmailHtml(content, 'Balance payment received — you\'re all set.');
 }
 
 export async function GET(req: NextRequest) {
@@ -248,7 +304,7 @@ export async function GET(req: NextRequest) {
       html = cutSheetLocked();
       break;
     case 'auto_lock':
-      html = autoLockNotice();
+      html = autoLock();
       break;
     case 'beef_ready':
       html = beefReady();
