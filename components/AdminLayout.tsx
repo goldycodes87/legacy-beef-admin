@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: '/payments', label: 'Payments', icon: '💳' },
   { href: '/coupons', label: 'Coupons', icon: '🏷️' },
   { href: '/notifications', label: 'Notifications', icon: '🔔' },
+  { href: '/email-preview', label: 'Email Preview', icon: '✉️' },
   { href: '/settings', label: 'Prices & Settings', icon: '💲' },
   { href: '/pickup-windows', label: 'Pickup Windows', icon: '📅' },
   { href: '/pickup-schedule', label: 'Pickup Schedule', icon: '🗓️' },
@@ -19,7 +20,7 @@ const NAV_LINKS = [
 
 interface AdminLayoutProps {
   children: React.ReactNode;
-  title: string;
+  title?: string;
 }
 
 export default function AdminLayout({ children, title }: AdminLayoutProps) {
@@ -74,9 +75,11 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-auto">
-        <header className="bg-white border-b border-brand-gray-light px-8 py-4">
-          <h2 className="font-display text-2xl font-bold text-brand-dark">{title}</h2>
-        </header>
+        {title && (
+          <header className="bg-white border-b border-brand-gray-light px-8 py-4">
+            <h2 className="font-display text-2xl font-bold text-brand-dark">{title}</h2>
+          </header>
+        )}
         <div className="flex-1 p-8">
           {children}
         </div>
