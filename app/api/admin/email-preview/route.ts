@@ -118,6 +118,84 @@ function orderCard(fields: { label: string; value: string }[]): string {
   </table>`;
 }
 
+interface HangingWeightEmailParams {
+  firstName: string;
+  purchaseLabel: string;
+  hangingWeight: number;
+  pricePerLb: number;
+  totalCost: number;
+  depositPaid: number;
+  balanceDue: number;
+  payLink: string;
+}
+
+function buildHangingWeightEmail(p: HangingWeightEmailParams): string {
+  const COLORS = {
+    GREEN: '#1A3D2B',
+    ORANGE: '#E85D24',
+    DARK: '#0F0F0F',
+    GOLD: '#C4A46B',
+  };
+
+  const orderRows = [
+    { label: 'Order', value: p.purchaseLabel },
+    { label: 'Hanging Weight', value: `${p.hangingWeight} lbs` },
+    { label: 'Price Per Lb', value: `$${p.pricePerLb.toFixed(2)}/lb` },
+    { label: 'Total Cost', value: `$${p.totalCost.toFixed(2)}` },
+    { label: 'Deposit Paid', value: `-$${p.depositPaid.toFixed(2)}` },
+    { label: 'Balance Due', value: `$${p.balanceDue.toFixed(2)}`, highlight: true },
+  ];
+
+  const rows = orderRows
+    .map(
+      (r) => `
+    <tr>
+      <td style="padding:12px 20px;border-bottom:1px solid #E5E0D8;font-size:13px;color:#666;font-family:Arial,sans-serif;width:45%;">
+        ${r.label}
+      </td>
+      <td style="padding:12px 20px;border-bottom:1px solid #E5E0D8;font-size:13px;font-weight:${r.highlight ? 'bold' : 'normal'};color:${r.highlight ? COLORS.ORANGE : COLORS.DARK};font-family:Arial,sans-serif;">
+        ${r.value}
+      </td>
+    </tr>
+    `
+    )
+    .join('');
+
+  return `<div style="background:linear-gradient(135deg,${COLORS.GREEN} 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
+    <div style="font-size:40px;margin-bottom:8px;">⚖️</div>
+    <h2 style="font-family:Georgia,serif;color:white;font-size:24px;margin:0 0 8px;font-weight:normal;">
+      Your hanging weight is in, ${p.firstName}.
+    </h2>
+    <p style="color:${COLORS.GOLD};font-size:14px;margin:0;font-family:Arial,sans-serif;">
+      Here's your final balance.
+    </p>
+  </div>
+  <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
+    Your beef has been harvested and weighed. This is the final hanging weight — the number your balance is calculated from. Everything looks great.
+  </p>
+  <table role="presentation" style="width:100%;background:#F9F6F1;border-radius:12px;border:1px solid #E5E0D8;margin:0 0 24px;">
+    ${rows}
+  </table>
+  <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
+    You can pay your balance now online, or bring payment when you pick up your beef — cash, check, or card all work.
+  </p>
+  <table role="presentation" style="width:100%;margin:0 0 12px;">
+    <tr><td style="padding:0 0 12px;">
+      <a href="${p.payLink}" style="display:block;background:${COLORS.ORANGE};color:white;text-align:center;padding:16px 24px;border-radius:10px;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;text-decoration:none;">
+        Pay My Balance Now →
+      </a>
+    </td></tr>
+    <tr><td>
+      <a href="${p.payLink}" style="display:block;background:#F5F0E8;color:${COLORS.GREEN};text-align:center;padding:16px 24px;border-radius:10px;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;text-decoration:none;border:2px solid ${COLORS.GREEN};">
+        I'll Pay at Pickup
+      </a>
+    </td></tr>
+  </table>
+  <p style="color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;text-align:center;margin-top:16px;">
+    Questions? Call us at (719) 258-1777 or reply to this email.
+  </p>`;
+}
+
 function depositConfirmation(): string {
   const content = `
     <div style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
@@ -302,6 +380,20 @@ function balancePayment(): string {
   return buildEmailHtml(content, 'Balance payment received — you\'re all set.');
 }
 
+function hangingWeight(): string {
+  const content = buildHangingWeightEmail({
+    firstName: 'Mike',
+    purchaseLabel: 'Half Beef',
+    hangingWeight: 238,
+    pricePerLb: 8.25,
+    totalCost: 1963.50,
+    depositPaid: 500,
+    balanceDue: 1463.50,
+    payLink: MOCK.accessUrl,
+  });
+  return buildEmailHtml(content, 'Your hanging weight is in — here\'s your balance');
+}
+
 export async function GET(req: NextRequest) {
   const type = req.nextUrl.searchParams.get('type') || 'deposit_confirmation';
 
@@ -336,6 +428,9 @@ export async function GET(req: NextRequest) {
       break;
     case 'balance_payment':
       html = balancePayment();
+      break;
+    case 'hanging_weight':
+      html = hangingWeight();
       break;
     default:
       html = depositConfirmation();
