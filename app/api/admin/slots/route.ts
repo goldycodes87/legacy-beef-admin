@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     const sessionIds = (sessions || []).map((s: any) => s.id);
     const { data: paidDeposits } = await supabase
       .from('payments')
-      .select('session_id')
+      .select('session_id, amount_cents')
       .in('session_id', sessionIds)
       .eq('type', 'deposit')
       .eq('status', 'paid');
@@ -83,8 +83,8 @@ export async function GET(request: NextRequest) {
         deposit_paid: paidSessionIds.has(session.id),
         cut_sheet_complete: session.cut_sheet_complete,
         created_at: session.created_at,
-        price_per_lb: session.animals?.price_per_lb || null,
-        deposit_amount_cents: paidSessionIds.has(session.id) ? (session.purchase_type === "whole" ? 85000 : session.purchase_type === "half" ? 50000 : 25000) : 0,
+        price_per_lb: session.price_per_lb || session.animals?.price_per_lb || null,
+        deposit_amount_cents: paidDeposits?.find(p => p.session_id === session.id)?.amount_cents || 0,
         admin_notes: session.admin_notes || null,
         hanging_weight_lbs: session.hanging_weight_lbs || null,
         balance_paid: session.balance_paid || false,

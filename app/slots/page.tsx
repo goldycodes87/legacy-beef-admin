@@ -37,6 +37,7 @@ interface Reservation {
   balance_paid?: boolean;
   balance_due?: number;
   balance_payment_method?: string;
+  animals?: { price_per_lb?: number };
 }
 
 interface AnimalGroup {
@@ -331,12 +332,12 @@ export default function SlotsPage() {
                                 {hangingWeights[session.id] && (
                                   <p className="text-sm text-brand-gray">
                                     Balance Due: <span className="font-bold text-brand-dark">
-                                      ${((parseFloat(hangingWeights[session.id]) * (session.price_per_lb ?? 8.25)) - (session.deposit_amount_cents ?? 0) / 100).toFixed(2)}
+                                      ${((parseFloat(hangingWeights[session.id]) * (session.price_per_lb ?? session.animals?.price_per_lb ?? 8.00)) - (session.deposit_amount_cents || 0) / 100).toFixed(2)}
                                     </span>
                                   </p>
                                 )}
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); handleSaveHangingWeight(session.id, session.price_per_lb ?? 8.25, session.deposit_amount_cents ?? 0); }}
+                                  onClick={(e) => { e.stopPropagation(); handleSaveHangingWeight(session.id, session.price_per_lb ?? session.animals?.price_per_lb ?? 8.00, session.deposit_amount_cents || 0); }}
                                   disabled={!hangingWeights[session.id] || savingWeight === session.id}
                                   className="px-4 py-2 bg-brand-orange text-white rounded-lg text-sm font-semibold disabled:opacity-50"
                                 >
