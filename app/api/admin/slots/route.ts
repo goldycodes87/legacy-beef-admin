@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
       .select(`
         id,
         purchase_type,
+        is_splitting,
         status,
         cut_sheet_complete,
         created_at,
@@ -84,7 +85,15 @@ export async function GET(request: NextRequest) {
         cut_sheet_complete: session.cut_sheet_complete,
         created_at: session.created_at,
         price_per_lb: session.price_per_lb || session.animals?.price_per_lb || null,
-        deposit_amount_cents: paidDeposits?.find(p => p.session_id === session.id)?.amount_cents || 0,
+        deposit_amount_cents: paidDeposits?.find(p => p.session_id === session.id)?.amount_cents || (() => {
+          const t = session.purchase_type;
+          const s = session.is_splitting;
+          if (t === 'whole' && !s) return 85000;
+          if (t === 'whole' && s) return 50000;
+          if (t === 'half' && s) return 25000;
+          if (t === 'half') return 50000;
+          return 25000;
+        })(),
         admin_notes: session.admin_notes || null,
         hanging_weight_lbs: session.hanging_weight_lbs || null,
         balance_paid: session.balance_paid || false,
