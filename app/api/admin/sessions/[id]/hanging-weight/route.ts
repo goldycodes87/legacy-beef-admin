@@ -131,12 +131,13 @@ function buildHangingWeightEmail(p: HangingWeightEmailParams): string {
       cash, check, or card all work.
     </p>
     ${ctaButton('Pay My Balance Now \u2192', p.payLink)}
-    <a href="${p.payLink}" style="display:block;background:#F5F0E8;color:#1A3D2B;
-      text-align:center;padding:16px 24px;border-radius:10px;font-family:Arial,sans-serif;
-      font-size:15px;font-weight:bold;text-decoration:none;border:2px solid #1A3D2B;
-      margin:12px 0 8px;">
-      I'll Pay at Pickup
-    </a>
+    <table role="presentation" style="margin:12px auto 0;width:100%;max-width:100%;"><tr><td style="text-align:center;">
+      <a href="${p.payLink}" style="display:inline-block;background:#F5F0E8;color:#1A3D2B;
+        font-family:Arial,sans-serif;font-size:15px;font-weight:bold;padding:16px 40px;
+        border-radius:10px;text-decoration:none;border:2px solid #1A3D2B;">
+        I'll Pay at Pickup
+      </a>
+    </td></tr></table>
     <p style="color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;text-align:center;margin-top:16px;">
       Questions? Call us at (719) 258-1777 or reply to this email.
     </p>
