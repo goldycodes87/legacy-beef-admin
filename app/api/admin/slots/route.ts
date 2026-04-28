@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
         cut_sheet_complete: session.cut_sheet_complete,
         created_at: session.created_at,
         price_per_lb: session.price_per_lb || session.animals?.price_per_lb || null,
-        deposit_amount_cents: paidDeposits?.find(p => p.session_id === session.id)?.amount_cents || (() => {
+        deposit_amount_cents: (() => {
           const t = session.purchase_type;
           const s = session.is_splitting;
           if (t === 'whole' && !s) return 85000;
