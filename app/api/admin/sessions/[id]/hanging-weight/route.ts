@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { emailBase, ctaButton, orderCard } from '@/lib/email-templates';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.legacylandandcattleco.com';
 
@@ -102,112 +103,43 @@ interface HangingWeightEmailParams {
 }
 
 function buildHangingWeightEmail(p: HangingWeightEmailParams): string {
-  const COLORS = {
-    GREEN: '#1A3D2B',
-    ORANGE: '#E85D24',
-    DARK: '#0F0F0F',
-    GOLD: '#C4A46B',
-  };
-
-  const orderRows = [
-    { label: 'Order', value: p.purchaseLabel },
-    { label: 'Hanging Weight', value: `${p.hangingWeight} lbs` },
-    { label: 'Price Per Lb', value: `$${p.pricePerLb.toFixed(2)}/lb` },
-    { label: 'Total Cost', value: `$${p.totalCost.toFixed(2)}` },
-    { label: 'Deposit Paid', value: `-$${p.depositPaid.toFixed(2)}` },
-    { label: 'Balance Due', value: `$${p.balanceDue.toFixed(2)}`, highlight: true },
-  ];
-
-  const rows = orderRows
-    .map(
-      (r) => `
-    <tr>
-      <td style="padding:12px 20px;border-bottom:1px solid #E5E0D8;font-size:13px;color:#666;font-family:Arial,sans-serif;width:45%;">
-        ${r.label}
-      </td>
-      <td style="padding:12px 20px;border-bottom:1px solid #E5E0D8;font-size:13px;font-weight:${r.highlight ? 'bold' : 'normal'};color:${r.highlight ? COLORS.ORANGE : COLORS.DARK};font-family:Arial,sans-serif;">
-        ${r.value}
-      </td>
-    </tr>
-    `
-    )
-    .join('');
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Your Hanging Weight</title>
-</head>
-<body style="background-color:#F5F0E8;margin:0;padding:20px;font-family:Arial,sans-serif;">
-  <table role="presentation" style="width:100%;max-width:600px;margin:0 auto;">
-    <tr><td style="padding:20px;">
-      <table role="presentation" style="width:100%;background:white;border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;">
-        <tr>
-          <td style="background-color:${COLORS.GREEN};padding:40px 20px;text-align:center;">
-            <img src="https://www.legacylandandcattleco.com/images/LLC_Logo_white.svg" alt="Legacy Land & Cattle" width="160" style="width:160px;height:auto;display:block;margin:0 auto 16px;" />
-            <p style="color:${COLORS.GOLD};font-size:12px;margin:0;font-family:Arial,sans-serif;letter-spacing:1px;">
-              Ranch Direct · Colorado Springs, CO
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:40px;color:${COLORS.DARK};font-family:Arial,sans-serif;font-size:15px;line-height:1.6;">
-            <div style="background:linear-gradient(135deg,${COLORS.GREEN} 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
-              <div style="font-size:40px;margin-bottom:8px;">⚖️</div>
-              <h2 style="font-family:Georgia,serif;color:white;font-size:24px;margin:0 0 8px;font-weight:normal;">
-                Your hanging weight is in, ${p.firstName}.
-              </h2>
-              <p style="color:${COLORS.GOLD};font-size:14px;margin:0;font-family:Arial,sans-serif;">
-                Here's your final balance.
-              </p>
-            </div>
-            <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
-              Your beef has been harvested and weighed. This is the final hanging weight — the number your balance is calculated from. Everything looks great.
-            </p>
-            <table role="presentation" style="width:100%;background:#F9F6F1;border-radius:12px;border:1px solid #E5E0D8;margin:0 0 24px;">
-              ${rows}
-            </table>
-            <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
-              You can pay your balance now online, or bring payment when you pick up your beef — cash, check, or card all work.
-            </p>
-            <table role="presentation" style="width:100%;margin:0 0 12px;">
-              <tr><td style="padding:0 0 12px;">
-                <a href="${p.payLink}" style="display:block;background:${COLORS.ORANGE};color:white;text-align:center;padding:16px 24px;border-radius:10px;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;text-decoration:none;">
-                  Pay My Balance Now →
-                </a>
-              </td></tr>
-              <tr><td>
-                <a href="${p.payLink}" style="display:block;background:#F5F0E8;color:${COLORS.GREEN};text-align:center;padding:16px 24px;border-radius:10px;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;text-decoration:none;border:2px solid ${COLORS.GREEN};">
-                  I'll Pay at Pickup
-                </a>
-              </td></tr>
-            </table>
-            <p style="color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;text-align:center;margin-top:16px;">
-              Questions? Call us at (719) 258-1777 or reply to this email.
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="background-color:#F9F6F1;padding:30px 20px;text-align:center;border-top:1px solid #E5E0D8;">
-            <p style="font-size:12px;color:#666;margin:0 0 8px;font-family:Arial,sans-serif;">
-              <strong>Legacy Land & Cattle</strong><br>
-              Colorado Springs, CO
-            </p>
-            <p style="font-size:12px;color:#666;margin:0;font-family:Arial,sans-serif;">
-              <a href="mailto:orders@legacylandandcattleco.com" style="color:${COLORS.ORANGE};text-decoration:none;">
-                orders@legacylandandcattleco.com
-              </a><br>
-              <a href="tel:+17192581777" style="color:${COLORS.ORANGE};text-decoration:none;">
-                (719) 258-1777
-              </a>
-            </p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+  const content = `
+    <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;">
+    <tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
+      <div style="font-size:40px;margin-bottom:8px;">&#9878;</div>
+      <h2 style="font-family:Georgia,serif;color:white;font-size:24px;margin:0 0 8px;font-weight:normal;">
+        Your hanging weight is in, ${p.firstName}.
+      </h2>
+      <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;">
+        Here's your final balance.
+      </p>
+    </td></tr></table>
+    <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
+      Your beef has been harvested and weighed. This is the final hanging weight —
+      the number your balance is calculated from. Everything looks great.
+    </p>
+    ${orderCard([
+      { label: 'Order', value: p.purchaseLabel },
+      { label: 'Hanging Weight', value: `${p.hangingWeight} lbs` },
+      { label: 'Price Per Lb', value: `$${p.pricePerLb.toFixed(2)}/lb` },
+      { label: 'Total Cost', value: `$${p.totalCost.toFixed(2)}` },
+      { label: 'Deposit Paid', value: `-$${p.depositPaid.toFixed(2)}` },
+      { label: 'Balance Due', value: `$${p.balanceDue.toFixed(2)}` },
+    ])}
+    <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
+      You can pay your balance now online, or bring payment at pickup —
+      cash, check, or card all work.
+    </p>
+    ${ctaButton('Pay My Balance Now \u2192', p.payLink)}
+    <a href="${p.payLink}" style="display:block;background:#F5F0E8;color:#1A3D2B;
+      text-align:center;padding:16px 24px;border-radius:10px;font-family:Arial,sans-serif;
+      font-size:15px;font-weight:bold;text-decoration:none;border:2px solid #1A3D2B;
+      margin:12px 0 8px;">
+      I'll Pay at Pickup
+    </a>
+    <p style="color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;text-align:center;margin-top:16px;">
+      Questions? Call us at (719) 258-1777 or reply to this email.
+    </p>
+  `;
+  return emailBase(content, `Your hanging weight is in, ${p.firstName} — here's your balance`);
 }
