@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
+import { emailBase, ctaButton, orderCard } from '@/lib/email-templates';
 
 const MOCK = {
   customerName: 'Sarah Johnson',
@@ -19,110 +20,11 @@ const MOCK = {
   email: 'orders@legacylandandcattleco.com',
 };
 
-function buildEmailHtml(content: string, preheader?: string): string {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Legacy Land & Cattle</title>
-</head>
-<body style="background-color:#F5F0E8;margin:0;padding:20px;font-family:Arial,sans-serif;">
-  ${preheader ? `<div style="font-size:0;color:#ffffff;display:none;max-height:0;overflow:hidden;">${preheader}</div>` : ''}
-  <table role="presentation" style="width:100%;max-width:600px;margin:0 auto;">
-    <tr>
-      <td style="padding:20px;">
-        <table role="presentation" style="width:100%;background:white;border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;">
-          <!-- Header -->
-          <tr>
-            <td style="background-color:#1A3D2B;padding:40px 20px;text-align:center;">
-              <img src="https://www.legacylandandcattleco.com/images/LLC_Logo_white.svg" 
-                alt="Legacy Land & Cattle" width="160" 
-                style="width:160px;height:auto;display:block;margin:0 auto 16px;" />
-              <p style="color:#C4A46B;font-size:12px;margin:0;
-                font-family:Arial,sans-serif;letter-spacing:1px;">
-                Ranch Direct · Colorado Springs, CO
-              </p>
-            </td>
-          </tr>
-          <!-- Content -->
-          <tr>
-            <td style="padding:40px;color:#0F0F0F;font-family:Arial,sans-serif;
-              font-size:15px;line-height:1.6;">
-              ${content}
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="background-color:#F9F6F1;padding:30px 20px;
-              text-align:center;border-top:1px solid #E5E0D8;">
-              <p style="font-size:12px;color:#666;margin:0 0 8px;
-                font-family:Arial,sans-serif;">
-                <strong>Legacy Land & Cattle</strong><br>
-                Colorado Springs, CO
-              </p>
-              <p style="font-size:12px;color:#666;margin:0;
-                font-family:Arial,sans-serif;">
-                <a href="mailto:orders@legacylandandcattleco.com" 
-                  style="color:#E85D24;text-decoration:none;">
-                  orders@legacylandandcattleco.com
-                </a><br>
-                <a href="tel:+17192581777" 
-                  style="color:#E85D24;text-decoration:none;">
-                  (719) 258-1777
-                </a>
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-}
-
-function ctaButton(text: string, url: string): string {
-  return `<table role="presentation" style="margin:24px auto;">
-    <tr>
-      <td style="background-color:#E85D24;border-radius:10px;
-        text-align:center;padding:0;">
-        <a href="${url}" style="display:inline-block;padding:16px 36px;
-          color:white;font-family:Arial,sans-serif;font-size:16px;
-          font-weight:bold;text-decoration:none;border-radius:10px;">
-          ${text}
-        </a>
-      </td>
-    </tr>
-  </table>`;
-}
-
-function orderCard(fields: { label: string; value: string }[]): string {
-  return `<table role="presentation" style="width:100%;
-    background:#F9F6F1;border-radius:12px;
-    border:1px solid #E5E0D8;margin:20px 0;">
-    ${fields
-      .map(
-        (f) => `
-    <tr>
-      <td style="padding:12px 20px;border-bottom:1px solid #E5E0D8;
-        font-size:13px;color:#666;font-family:Arial,sans-serif;
-        width:40%;">${f.label}</td>
-      <td style="padding:12px 20px;border-bottom:1px solid #E5E0D8;
-        font-size:13px;font-weight:bold;color:#0F0F0F;
-        font-family:Arial,sans-serif;">${f.value}</td>
-    </tr>
-    `
-      )
-      .join('')}
-  </table>`;
-}
-
 
 
 function depositConfirmation(): string {
   const content = `
-    <div style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
+    <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;"><tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
       <div style="font-size:40px;margin-bottom:8px;">🎉</div>
       <h2 style="font-family:Georgia,serif;color:white;font-size:26px;margin:0 0 8px;font-weight:normal;">
         You're in, ${MOCK.customerName.split(' ')[0]}.
@@ -130,7 +32,7 @@ function depositConfirmation(): string {
       <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
         Your spot is locked. Your beef is coming.
       </p>
-    </div>
+    </td></tr></table>
     <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
       We've got your deposit and your reservation is officially on the books. This is real, ranch-direct beef raised right here in Colorado Springs — no grocery store, no middleman. Just our cattle, our butcher, and your freezer.
     </p>
@@ -150,12 +52,12 @@ function depositConfirmation(): string {
       This link is yours — bookmark it for easy access anytime.
     </p>
   `;
-  return buildEmailHtml(content, 'Your spot is locked. Your beef is coming.');
+  return emailBase(content, 'Your spot is locked. Your beef is coming.');
 }
 
 function partnerInvite(): string {
   const content = `
-    <div style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
+    <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;"><tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
       <div style="font-size:40px;margin-bottom:8px;">🥩</div>
       <h2 style="font-family:Georgia,serif;color:white;font-size:26px;margin:0 0 8px;font-weight:normal;">
         Mike wants to split a beef with you.
@@ -163,7 +65,7 @@ function partnerInvite(): string {
       <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
         Your spot is being held for 48 hours.
       </p>
-    </div>
+    </td></tr></table>
     <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
       Hey Sarah — Mike just reserved a Half Beef from Legacy Land & Cattle here in Colorado Springs and wants you to split it. That means ranch-direct, custom-cut beef in your freezer for months — at a better price than buying solo.
     </p>
@@ -181,12 +83,12 @@ function partnerInvite(): string {
       Questions? Call us at (719) 258-1777 or reply to this email.
     </p>
   `;
-  return buildEmailHtml(content, 'You\'ve been invited to split a beef order.');
+  return emailBase(content, 'You\'ve been invited to split a beef order.');
 }
 
 function partnerDeadline(): string {
   const content = `
-    <div style="background:linear-gradient(135deg,#92400e 0%,#b45309 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
+    <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;"><tr><td bgcolor="#92400e" style="background:linear-gradient(135deg,#92400e 0%,#b45309 100%);border-radius:12px;padding:28px 24px;text-align:center;">
       <div style="font-size:40px;margin-bottom:8px;">⏰</div>
       <h2 style="font-family:Georgia,serif;color:white;font-size:24px;margin:0 0 8px;font-weight:normal;">
         Heads up, Sarah.
@@ -194,7 +96,7 @@ function partnerDeadline(): string {
       <p style="color:#fde68a;font-size:14px;margin:0;font-family:Arial,sans-serif;">
         Mike hasn't reserved their spot yet.
       </p>
-    </div>
+    </td></tr></table>
     <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 20px;">
       You reserved a Whole Beef and invited Mike to split it with you. They haven't paid their deposit yet — you may want to give them a quick call or text to let them know their spot won't last forever.
     </p>
@@ -232,12 +134,12 @@ function partnerDeadline(): string {
       Questions? Call us at (719) 258-1777 or reply to this email.
     </p>
   `;
-  return buildEmailHtml(content, 'Mike hasn\'t claimed their spot yet.');
+  return emailBase(content, 'Mike hasn\'t claimed their spot yet.');
 }
 
 function reminder10Day(): string {
   const content = `
-    <div style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
+    <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;"><tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
       <div style="font-size:40px;margin-bottom:8px;">✂️</div>
       <h2 style="font-family:Georgia,serif;color:white;font-size:24px;margin:0 0 8px;font-weight:normal;">
         Time to build your cut sheet, Sarah.
@@ -245,7 +147,7 @@ function reminder10Day(): string {
       <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
         Butcher date: May 15, 2026
       </p>
-    </div>
+    </td></tr></table>
     <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
       We know life gets busy — but this is the fun part. Tell us exactly how you want your beef cut: steaks, roasts, ground beef, stew meat, bones for broth. It's all yours.
     </p>
@@ -262,12 +164,12 @@ function reminder10Day(): string {
       Questions? Call us at (719) 258-1777 or reply to this email.
     </p>
   `;
-  return buildEmailHtml(content, 'Time to build your cut sheet.');
+  return emailBase(content, 'Time to build your cut sheet.');
 }
 
 function reminder1Day(): string {
   const content = `
-    <div style="background:linear-gradient(135deg,#92400e 0%,#b45309 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
+    <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;"><tr><td bgcolor="#92400e" style="background:linear-gradient(135deg,#92400e 0%,#b45309 100%);border-radius:12px;padding:28px 24px;text-align:center;">
       <div style="font-size:40px;margin-bottom:8px;">⏰</div>
       <h2 style="font-family:Georgia,serif;color:white;font-size:24px;margin:0 0 8px;font-weight:normal;">
         Last call, Sarah.
@@ -275,7 +177,7 @@ function reminder1Day(): string {
       <p style="color:#fde68a;font-size:14px;margin:0;font-family:Arial,sans-serif;">
         Your cut sheet locks tomorrow.
       </p>
-    </div>
+    </td></tr></table>
     <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
       Tomorrow we hand your cut sheet to T-K Processing in Cañon City. After that, any changes become complicated (and expensive). Make sure you're happy with your selections.
     </p>
@@ -289,12 +191,12 @@ function reminder1Day(): string {
       Happy with your defaults? No action needed — we'll lock everything tomorrow at 10 AM.
     </p>
   `;
-  return buildEmailHtml(content, 'Last chance to update your cut sheet.');
+  return emailBase(content, 'Last chance to update your cut sheet.');
 }
 
 function cutSheetLocked(): string {
   const content = `
-    <div style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
+    <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;"><tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
       <div style="font-size:40px;margin-bottom:8px;">✅</div>
       <h2 style="font-family:Georgia,serif;color:white;font-size:24px;margin:0 0 8px;font-weight:normal;">
         Your cut sheet is done, Sarah.
@@ -302,7 +204,7 @@ function cutSheetLocked(): string {
       <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
         We've got your cutting instructions.
       </p>
-    </div>
+    </td></tr></table>
     <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
       You just made the most important decision of this whole process — and we've got every detail. Your cut sheet is locked and will be hand-delivered to T-K Processing in Cañon City before your butcher date.
     </p>
@@ -324,12 +226,12 @@ function cutSheetLocked(): string {
       Questions before May 15, 2026? Reply to this email and we'll do our best to accommodate.
     </p>
   `;
-  return buildEmailHtml(content, 'Your cut sheet is locked.');
+  return emailBase(content, 'Your cut sheet is locked.');
 }
 
 function autoLock(): string {
   const content = `
-    <div style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
+    <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;"><tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
       <div style="font-size:40px;margin-bottom:8px;">🏠</div>
       <h2 style="font-family:Georgia,serif;color:white;font-size:24px;margin:0 0 8px;font-weight:normal;">
         We've got you covered, Sarah.
@@ -337,7 +239,7 @@ function autoLock(): string {
       <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
         Your cut sheet is locked and on its way.
       </p>
-    </div>
+    </td></tr></table>
     <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
       Life gets busy — we get it. Since you didn't build a custom cut sheet, we've locked in our Legacy House Cut for your beef. It's chef-approved and maximizes your variety.
     </p>
@@ -353,12 +255,12 @@ function autoLock(): string {
       Have a special request before May 15, 2026? Reply to this email and we'll do our best to accommodate.
     </p>
   `;
-  return buildEmailHtml(content, 'Your cut sheet is locked with Legacy House Cut.');
+  return emailBase(content, 'Your cut sheet is locked with Legacy House Cut.');
 }
 
 function beefReady(): string {
   const content = `
-    <div style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
+    <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;"><tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
       <div style="font-size:40px;margin-bottom:8px;">🥩</div>
       <h2 style="font-family:Georgia,serif;color:white;font-size:24px;margin:0 0 8px;font-weight:normal;">
         Your beef is ready, Sarah!
@@ -366,7 +268,7 @@ function beefReady(): string {
       <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
         Cut, vacuum-sealed, labeled, and waiting for you.
       </p>
-    </div>
+    </td></tr></table>
     <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
       It's here. Your beef has been cut to your specifications and is sitting in our freezer, ready for pickup. We're excited for you to get it home and get cooking.
     </p>
@@ -406,12 +308,12 @@ function beefReady(): string {
     </div>
     ${ctaButton('Schedule My Pickup →', MOCK.accessUrl)}
   `;
-  return buildEmailHtml(content, 'Your beef is ready for pickup!');
+  return emailBase(content, 'Your beef is ready for pickup!');
 }
 
 function pickupConfirmed(): string {
   const content = `
-    <div style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
+    <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;"><tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
       <div style="font-size:40px;margin-bottom:8px;">📅</div>
       <h2 style="font-family:Georgia,serif;color:white;font-size:24px;margin:0 0 8px;font-weight:normal;">
         Pickup confirmed, Sarah!
@@ -419,7 +321,7 @@ function pickupConfirmed(): string {
       <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
         We'll see you Saturday.
       </p>
-    </div>
+    </td></tr></table>
     <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
       You're on the schedule. Here are your pickup details — save this email or add it to your calendar.
     </p>
@@ -444,12 +346,12 @@ function pickupConfirmed(): string {
       Need to reschedule? Call us at (719) 258-1777.
     </p>
   `;
-  return buildEmailHtml(content, 'Your pickup is confirmed!');
+  return emailBase(content, 'Your pickup is confirmed!');
 }
 
 function balancePayment(): string {
   const content = `
-    <div style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
+    <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;"><tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
       <div style="font-size:40px;margin-bottom:8px;">💳</div>
       <h2 style="font-family:Georgia,serif;color:white;font-size:24px;margin:0 0 8px;font-weight:normal;">
         You're all paid up, Sarah.
@@ -457,7 +359,7 @@ function balancePayment(): string {
       <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
         Balance paid in full. Nothing left to do but show up.
       </p>
-    </div>
+    </td></tr></table>
     <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
       Your balance payment has been received and processed. All payments are complete. You're all set for pickup.
     </p>
@@ -476,12 +378,12 @@ function balancePayment(): string {
       Questions? Call us at (719) 258-1777.
     </p>
   `;
-  return buildEmailHtml(content, 'Your balance payment is complete.');
+  return emailBase(content, 'Your balance payment is complete.');
 }
 
 function hangingWeight(): string {
   const content = `
-    <div style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;margin:0 0 28px;">
+    <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;"><tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
       <div style="font-size:40px;margin-bottom:8px;">⚖️</div>
       <h2 style="font-family:Georgia,serif;color:white;font-size:24px;margin:0 0 8px;font-weight:normal;">
         Your hanging weight is in, Sarah.
@@ -489,7 +391,7 @@ function hangingWeight(): string {
       <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
         Here's your final balance.
       </p>
-    </div>
+    </td></tr></table>
     <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
       Your beef has been harvested and weighed. This is the final hanging weight — the number your balance is calculated from. Everything looks great.
     </p>
@@ -512,7 +414,7 @@ function hangingWeight(): string {
       Questions? Call us at (719) 258-1777 or reply to this email.
     </p>
   `;
-  return buildEmailHtml(content, 'Your hanging weight is in — here\'s your balance');
+  return emailBase(content, 'Your hanging weight is in — here\'s your balance');
 }
 
 export async function GET(req: NextRequest) {

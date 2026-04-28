@@ -14,6 +14,7 @@ const EMAIL_TYPES = [
   { id: 'beef_ready', label: 'Beef Ready for Pickup' },
   { id: 'pickup_confirmed', label: 'Pickup Confirmed' },
   { id: 'balance_payment', label: 'Balance Payment Receipt' },
+  { id: 'hanging_weight', label: 'Hanging Weight Notification' },
 ];
 
 export default function EmailPreview() {
