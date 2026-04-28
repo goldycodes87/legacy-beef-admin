@@ -23,9 +23,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { data: session } = await supabase
     .from('sessions')
     .select(`
-      id, purchase_type, access_token,
+      id, purchase_type, access_token, price_per_lb,
       customers (id, name, email),
-      animals (name, butcher_date, price_per_lb),
+      animals (name, butcher_date),
       payments (amount_cents, type, status)
     `)
     .eq('id', id)
@@ -42,12 +42,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (customer && animal) {
       const firstName = customer.name?.split(' ')[0] ?? 'there';
-      const pricePerLb = parseFloat(animal.price_per_lb) || 0;
+      const pricePerLb = parseFloat((session as any).price_per_lb) || parseFloat(animal?.price_per_lb) || 0;
       const totalCost = hanging_weight_lbs * pricePerLb;
-      const depositPayment = payments.find(
-        (p: any) => p.type === 'deposit' && p.status === 'paid'
-      );
-      const depositPaid = (depositPayment?.amount_cents || 0) / 100;
+      const depositMap: Record<string, number> = {
+        whole: 850,
+        half: 500,
+        quarter: 250,
+      };
+      const depositPaid = depositMap[(session as any).purchase_type] || 500;
       const balanceDue = balance_due || Math.max(0, totalCost - depositPaid);
 
       const purchaseLabel =
