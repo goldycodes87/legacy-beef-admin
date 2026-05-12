@@ -47,6 +47,7 @@ export async function DELETE(
       .from('sessions')
       .select('id')
       .eq('animal_id', id)
+      .not('status', 'in', '(cancelled,picked_up)')
       .limit(1);
     if (sessions && sessions.length > 0) {
       return NextResponse.json({ error: 'Cannot delete — reservations exist for this animal' }, { status: 409 });
