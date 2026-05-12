@@ -212,22 +212,43 @@ export default function AnimalsPage() {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Update each animal record individually
-      for (const animal of editModal.animals) {
-        let newCount = 0;
-        if (animal.animal_type === 'grass_fed') newCount = editForm.grass_fed_count;
-        if (animal.animal_type === 'grain_finished') newCount = editForm.grain_finished_count;
-        if (animal.animal_type === 'wagyu') newCount = editForm.wagyu_count;
+      const types = [
+        { type: 'grass_fed', count: editForm.grass_fed_count },
+        { type: 'grain_finished', count: editForm.grain_finished_count },
+        { type: 'wagyu', count: editForm.wagyu_count },
+      ];
 
-        await fetch(`/api/admin/animals/${animal.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            total_animals: newCount,
-            butcher_date: editForm.butcher_date,
-            estimated_ready_date: editForm.estimated_ready_date,
-          }),
-        });
+      for (const { type, count } of types) {
+        const existing = editModal.animals.find(a => a.animal_type === type);
+        if (existing) {
+          if (count === 0) {
+            // Delete the record if zeroed out and no active sessions
+            await fetch(`/api/admin/animals/${existing.id}`, { method: 'DELETE' });
+          } else {
+            // Update existing record
+            await fetch(`/api/admin/animals/${existing.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                total_animals: count,
+                butcher_date: editForm.butcher_date,
+                estimated_ready_date: editForm.estimated_ready_date,
+              }),
+            });
+          }
+        } else if (count > 0) {
+          // Create new animal type record for this date
+          await fetch('/api/admin/animals', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              animal_type: type,
+              total_animals: count,
+              butcher_date: editForm.butcher_date,
+              estimated_ready_date: editForm.estimated_ready_date,
+            }),
+          });
+        }
       }
       setEditModal({ open: false, date: '', animals: [] });
       loadAnimals();
