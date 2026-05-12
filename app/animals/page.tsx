@@ -238,18 +238,10 @@ export default function AnimalsPage() {
 
   const handleDelete = async (animal: Animal) => {
     // Check for active sessions first
-    const res = await fetch(`/api/admin/cut-sheets`);
-    const allSessions = await res.json();
-    const activeSessions = allSessions.filter(
-      (s: any) => s.animals?.[0]?.id === animal.id &&
-        s.status !== 'cancelled' &&
-        s.status !== 'picked_up'
-    );
-
-    if (activeSessions.length > 0) {
-      alert(
-        `Cannot delete — ${activeSessions.length} active reservation(s) on this date. Archive instead.`
-      );
+    const res = await fetch(`/api/admin/animals/${animal.id}/reservations`);
+    const data = await res.json();
+    if (data.count > 0) {
+      alert(`Cannot delete — ${data.count} active reservation(s) exist. Archive instead.`);
       return;
     }
 

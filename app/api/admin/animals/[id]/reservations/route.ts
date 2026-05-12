@@ -20,7 +20,8 @@ export async function GET(
     const { count } = await supabase
       .from('sessions')
       .select('*', { count: 'exact', head: true })
-      .eq('animal_id', id);
+      .eq('animal_id', id)
+      .not('status', 'in', '("cancelled","picked_up")');
     return NextResponse.json({ count: count || 0 });
   } catch (err) {
     return NextResponse.json({ count: 0 });
