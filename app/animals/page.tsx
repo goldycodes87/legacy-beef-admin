@@ -645,12 +645,15 @@ export default function AnimalsPage() {
               <div>
                 <label className="block text-sm font-semibold text-brand-dark mb-2">Head Count by Type</label>
                 <div className="space-y-2">
-                  {editModal.animals.map((animal) => {
-                    const key = animal.animal_type === 'grass_fed' ? 'grass_fed_count' : animal.animal_type === 'grain_finished' ? 'grain_finished_count' : 'wagyu_count';
-                    const label = animal.animal_type === 'grass_fed' ? '🌿 Grass-Fed' : animal.animal_type === 'grain_finished' ? '🌾 Grain-Finished' : '⭐ Wagyu';
-                    const minValue = Math.ceil(animal.units_used);
+                  {[
+                    { type: 'grass_fed', key: 'grass_fed_count', label: '🌿 Grass-Fed' },
+                    { type: 'grain_finished', key: 'grain_finished_count', label: '🌾 Grain-Finished' },
+                    { type: 'wagyu', key: 'wagyu_count', label: '⭐ Wagyu' },
+                  ].map(({ type, key, label }) => {
+                    const existing = editModal.animals.find(a => a.animal_type === type);
+                    const minValue = existing ? Math.ceil(existing.units_used) : 0;
                     return (
-                      <div key={animal.id} className="flex items-center gap-3">
+                      <div key={type} className="flex items-center gap-3">
                         <span className="w-36 text-sm text-brand-dark">{label}</span>
                         <input
                           type="number"
