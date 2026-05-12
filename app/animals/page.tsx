@@ -237,11 +237,20 @@ export default function AnimalsPage() {
   };
 
   const handleDelete = async (animal: Animal) => {
-    // Check for active sessions first
-    const res = await fetch(`/api/admin/animals/${animal.id}/reservations`);
-    const data = await res.json();
-    if (data.count > 0) {
-      alert(`Cannot delete — ${data.count} active reservation(s) exist. Archive instead.`);
+    let hasReservations = false;
+    try {
+      const res = await fetch(`/api/admin/animals/${animal.id}/reservations`);
+      if (res.ok) {
+        const data = await res.json();
+        hasReservations = (data.count || 0) > 0;
+      }
+    } catch {
+      // Fetch failed, treat as 0 reservations
+      hasReservations = false;
+    }
+
+    if (hasReservations) {
+      alert('Cannot delete — active reservation(s) exist. Archive instead.');
       return;
     }
 
@@ -263,12 +272,16 @@ export default function AnimalsPage() {
   };
 
   const handleDeleteDate = async (date: string, dateAnimals: Animal[]) => {
-    // Check for reservations across all animals on this date
     const hasReservations = await Promise.all(
       dateAnimals.map(async (animal) => {
-        const res = await fetch(`/api/admin/animals/${animal.id}/reservations`);
-        const data = await res.json();
-        return data.count > 0;
+        try {
+          const res = await fetch(`/api/admin/animals/${animal.id}/reservations`);
+          if (!res.ok) return false;
+          const data = await res.json();
+          return (data.count || 0) > 0;
+        } catch {
+          return false;
+        }
       })
     );
 
