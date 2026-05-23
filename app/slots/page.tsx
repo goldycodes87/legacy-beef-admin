@@ -61,6 +61,7 @@ export default function SlotsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [depositModal, setDepositModal] = useState<{ open: boolean; sessionId: string; customerName: string; } | null>(null);
   const [depositForm, setDepositForm] = useState<{ method: string; checkNumber: string; }>({ method: 'check', checkNumber: '' });
+  const [discountForm, setDiscountForm] = useState<Record<string, { type: string; value: string; note: string }>>({});
 
   const handleSaveAdminNotes = async (sessionId: string, notes: string) => {
     await fetch(`/api/admin/sessions/${sessionId}/notes`, {
@@ -422,6 +423,89 @@ export default function SlotsPage() {
                                   onClick={(e) => e.stopPropagation()}
                                   className="flex-1 px-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
                                 />
+                              </div>
+                              <div className="mt-4 border-t border-gray-100 pt-4">
+                                <p className="text-sm font-semibold text-brand-dark mb-2">
+                                  Discount (applied to balance due)
+                                </p>
+                                <div className="flex gap-2 items-start flex-wrap">
+                                  <select
+                                    value={discountForm[session.id]?.type || 'fixed'}
+                                    onChange={(e) => setDiscountForm({ 
+                                      ...discountForm, 
+                                      [session.id]: { 
+                                        ...discountForm[session.id], 
+                                        type: e.target.value 
+                                      }
+                                    })}
+                                    className="px-3 py-2 border border-brand-gray-light rounded-lg text-sm"
+                                  >
+                                    <option value="fixed">$ Fixed</option>
+                                    <option value="percent">% Percent</option>
+                                  </select>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    placeholder={discountForm[session.id]?.type === 'percent' ? 'e.g. 10' : 'e.g. 50'}
+                                    value={discountForm[session.id]?.value || ''}
+                                    onChange={(e) => setDiscountForm({ 
+                                      ...discountForm, 
+                                      [session.id]: { 
+                                        ...discountForm[session.id], 
+                                        value: e.target.value 
+                                      }
+                                    })}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-28 px-3 py-2 border border-brand-gray-light rounded-lg text-sm"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="Note (shows in email)"
+                                    value={discountForm[session.id]?.note || ''}
+                                    onChange={(e) => setDiscountForm({ 
+                                      ...discountForm, 
+                                      [session.id]: { 
+                                        ...discountForm[session.id], 
+                                        note: e.target.value 
+                                      }
+                                    })}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex-1 min-w-48 px-3 py-2 border border-brand-gray-light rounded-lg text-sm"
+                                  />
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      const form = discountForm[session.id];
+                                      if (!form?.value) return;
+                                      let discountAmount = parseFloat(form.value);
+                                      if (form.type === 'percent') {
+                                        discountAmount = (session.balance_due || 0) * (discountAmount / 100);
+                                      }
+                                      await fetch(`/api/admin/sessions/${session.id}/discount`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                          discount_amount: discountAmount,
+                                          discount_note: form.note || null,
+                                        }),
+                                      });
+                                      loadSlots();
+                                    }}
+                                    className="px-4 py-2 bg-brand-orange text-white text-sm rounded-lg font-semibold hover:bg-brand-orange-hover"
+                                  >
+                                    Apply Discount
+                                  </button>
+                                </div>
+                                {(session as any).discount_amount > 0 && (
+                                  <div className="mt-2 text-sm text-green-700 font-semibold">
+                                    ✓ Discount applied: -${(session as any).discount_amount?.toFixed(2)}
+                                    {(session as any).discount_note && 
+                                      <span className="text-gray-500 font-normal ml-2">
+                                        "{(session as any).discount_note}"
+                                      </span>
+                                    }
+                                  </div>
+                                )}
                               </div>
                             </td>
                           </tr>

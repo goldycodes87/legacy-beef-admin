@@ -24,7 +24,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { data: session } = await supabase
     .from('sessions')
     .select(`
-      id, purchase_type, is_splitting, access_token, price_per_lb,
+      id, purchase_type, is_splitting, access_token, price_per_lb, discount_amount, discount_note,
       customers (id, name, email),
       animals (name, butcher_date),
       payments (amount_cents, type, status)
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const t = (session as any).purchase_type;
       const s = (session as any).is_splitting;
       const depositPaid = (t === 'whole' && !s) ? 850 : (t === 'whole' && s) ? 500 : (t === 'half' && s) ? 250 : (t === 'half') ? 500 : 250;
-      const balanceDue = balance_due || Math.max(0, totalCost - depositPaid);
+      const balanceDue = balance_due || Math.max(0, totalCost - depositPaid - ((session as any).discount_amount || 0));
 
       const purchaseLabel =
         (session as any).purchase_type === 'whole'
@@ -71,6 +71,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         depositPaid,
         balanceDue,
         payLink,
+        discountAmount: (session as any).discount_amount || 0,
+        discountNote: (session as any).discount_note || null,
       });
 
       try {
@@ -100,6 +102,8 @@ interface HangingWeightEmailParams {
   depositPaid: number;
   balanceDue: number;
   payLink: string;
+  discountAmount: number;
+  discountNote: string | null;
 }
 
 function buildHangingWeightEmail(p: HangingWeightEmailParams): string {
@@ -124,6 +128,10 @@ function buildHangingWeightEmail(p: HangingWeightEmailParams): string {
       { label: 'Price Per Lb', value: `$${p.pricePerLb.toFixed(2)}/lb` },
       { label: 'Total Cost', value: `$${p.totalCost.toFixed(2)}` },
       { label: 'Deposit Paid', value: `-$${p.depositPaid.toFixed(2)}` },
+      ...(p.discountAmount > 0 ? [{ 
+        label: p.discountNote ? `Discount — ${p.discountNote}` : 'Discount', 
+        value: `-$${p.discountAmount.toFixed(2)}` 
+      }] : []),
       { label: 'Balance Due', value: `$${p.balanceDue.toFixed(2)}` },
     ])}
     <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">

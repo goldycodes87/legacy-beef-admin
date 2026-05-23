@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
         balance_payment_method,
         price_per_lb,
         intended_payment_method,
+        discount_amount,
+        discount_note,
         customers (name, email, phone),
         animals (id, name, butcher_date, price_per_lb)
       `)
@@ -67,6 +69,8 @@ export async function GET(request: NextRequest) {
         payment_method: paidDeposits?.find((p: any) => p.session_id === s.id)?.method || null,
         check_number: paidDeposits?.find((p: any) => p.session_id === s.id)?.check_number || null,
         intended_payment_method: s.intended_payment_method || null,
+        discount_amount: s.discount_amount || 0,
+        discount_note: s.discount_note || null,
       }));
       return NextResponse.json(flat);
     }
@@ -106,6 +110,8 @@ export async function GET(request: NextRequest) {
         payment_method: paidDeposits?.find((p: any) => p.session_id === session.id)?.method || null,
         check_number: paidDeposits?.find((p: any) => p.session_id === session.id)?.check_number || null,
         intended_payment_method: session.intended_payment_method || null,
+        discount_amount: session.discount_amount || 0,
+        discount_note: session.discount_note || null,
       });
       return acc;
     }, {});
