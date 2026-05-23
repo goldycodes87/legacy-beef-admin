@@ -55,6 +55,7 @@ export default function SlotsPage() {
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const [hangingWeights, setHangingWeights] = useState<Record<string, string>>({});
   const [savingWeight, setSavingWeight] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const handleSaveAdminNotes = async (sessionId: string, notes: string) => {
     await fetch(`/api/admin/sessions/${sessionId}/notes`, {
@@ -166,11 +167,26 @@ export default function SlotsPage() {
   };
 
   const statusColors: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-800',
+    draft: 'bg-yellow-100 text-yellow-800',
     deposit_paid: 'bg-green-100 text-green-800',
     locked: 'bg-blue-100 text-blue-800',
     processing: 'bg-amber-100 text-amber-800',
     beef_ready: 'bg-green-100 text-green-800',
+  };
+
+  const getFilteredSlots = () => {
+    const filtered: Record<string, AnimalGroup> = {};
+    for (const [animalName, group] of Object.entries(slots)) {
+      const filteredSessions = group.sessions.filter(s => {
+        if (statusFilter === 'confirmed') return s.status !== 'draft';
+        if (statusFilter === 'draft') return s.status === 'draft';
+        return true;
+      });
+      if (filteredSessions.length > 0) {
+        filtered[animalName] = { ...group, sessions: filteredSessions };
+      }
+    }
+    return filtered;
   };
 
   return (
@@ -180,8 +196,24 @@ export default function SlotsPage() {
       ) : Object.keys(slots).length === 0 ? (
         <p className="text-brand-gray">No reservations yet</p>
       ) : (
-        <div className="space-y-8">
-          {Object.entries(slots).map(([animalName, group]) => (
+        <div>
+          <div className="flex gap-2 mb-6">
+            {['all', 'confirmed', 'draft'].map((f) => (
+              <button
+                key={f}
+                onClick={() => setStatusFilter(f)}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                  statusFilter === f
+                    ? 'bg-brand-orange text-white'
+                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {f === 'all' ? 'All' : f === 'confirmed' ? 'Confirmed' : 'Drafts'}
+              </button>
+            ))}
+          </div>
+          <div className="space-y-8">
+            {Object.entries(getFilteredSlots()).map(([animalName, group]) => (
             <div key={animalName}>
               <h3 className="font-display font-bold text-lg text-brand-dark mb-4">
                 {group.animal?.name ?? "Unknown"} • Butcher {group.animal?.butcher_date ? new Date(group.animal.butcher_date).toLocaleDateString() : "TBD"}
@@ -251,7 +283,7 @@ export default function SlotsPage() {
                           </td>
                           <td className="px-6 py-4">
                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[session.status] || 'bg-gray-100'}`}>
-                              {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+                              {session.status === 'draft' ? 'Awaiting Payment' : session.status === 'deposit_paid' ? 'Confirmed' : session.status === 'locked' ? 'Cut Sheet Locked' : session.status === 'beef_ready' ? 'Beef Ready' : session.status === 'picked_up' ? 'Picked Up' : session.status.charAt(0).toUpperCase() + session.status.slice(1)}
                             </span>
                           </td>
                           <td className="px-6 py-4 text-sm text-brand-gray">
@@ -367,7 +399,8 @@ export default function SlotsPage() {
                 </div>
               )}
             </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
