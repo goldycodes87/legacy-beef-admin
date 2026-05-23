@@ -37,6 +37,7 @@ interface Reservation {
   balance_paid?: boolean;
   balance_due?: number;
   balance_payment_method?: string;
+  payment_method?: string;
   animals?: { price_per_lb?: number };
 }
 
@@ -282,9 +283,16 @@ export default function SlotsPage() {
                             )}
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[session.status] || 'bg-gray-100'}`}>
-                              {session.status === 'draft' ? 'Awaiting Payment' : session.status === 'deposit_paid' ? 'Confirmed' : session.status === 'locked' ? 'Cut Sheet Locked' : session.status === 'beef_ready' ? 'Beef Ready' : session.status === 'picked_up' ? 'Picked Up' : session.status.charAt(0).toUpperCase() + session.status.slice(1)}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[session.status] || 'bg-gray-100'}`}>
+                                {session.status === 'draft' ? 'Awaiting Payment' : session.status === 'deposit_paid' ? 'Confirmed' : session.status === 'locked' ? 'Cut Sheet Locked' : session.status === 'beef_ready' ? 'Beef Ready' : session.status === 'picked_up' ? 'Picked Up' : session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+                              </span>
+                              {session.status === 'deposit_paid' && session.payment_method === 'cash_check' && (
+                                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                                  Cash/Check Due
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4 text-sm text-brand-gray">
                             {new Date(session.created_at).toLocaleDateString()}
