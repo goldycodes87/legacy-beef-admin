@@ -64,7 +64,7 @@ function ReservationsTable({ animalId }: { animalId: string }) {
 
   return (
     <div className="mb-4">
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto -mx-4 px-4">
       <table className="w-full text-sm">
         <thead className="bg-white border-b">
           <tr>

@@ -253,7 +253,7 @@ export default function CustomersPage() {
         {filtered.length === 0 ? (
           <div className="text-center py-12 text-gray-500">No customers yet</div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-4 px-4">
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>

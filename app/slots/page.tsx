@@ -229,7 +229,8 @@ export default function SlotsPage() {
                 <p className="text-sm text-brand-gray">No reservations yet</p>
               ) : (
                 <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                  <table className="w-full">
+                  <div className="overflow-x-auto -mx-4 px-4">
+                    <table className="w-full">
                     <thead className="bg-brand-gray-light border-b border-brand-gray-light">
                       <tr>
                         <th className="text-left px-6 py-3 font-semibold text-sm">Customer</th>
@@ -514,6 +515,7 @@ export default function SlotsPage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
             </div>

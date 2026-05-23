@@ -113,7 +113,8 @@ export default function PaymentsPage() {
 
       {/* Payments Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
+        <div className="overflow-x-auto -mx-4 px-4">
+          <table className="w-full">
           <thead>
             <tr className="bg-gray-100 border-b">
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Customer</th>
@@ -181,6 +182,7 @@ export default function PaymentsPage() {
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
     </div>
     </AdminLayout>
