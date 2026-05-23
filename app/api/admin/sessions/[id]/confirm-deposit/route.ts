@@ -9,7 +9,7 @@ export async function POST(
   try {
     const supabase = getSupabaseAdmin();
     const { id } = await params;
-    const { method } = await request.json();
+    const { method, check_number } = await request.json();
 
     // Load session
     const { data: session } = await supabase
@@ -35,6 +35,7 @@ export async function POST(
       amount_cents: depositCents,
       status: 'paid',
       paid_at: new Date().toISOString(),
+      check_number: check_number || null,
     });
 
     // Update session status

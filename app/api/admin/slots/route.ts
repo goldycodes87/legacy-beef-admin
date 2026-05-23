@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const sessionIds = (sessions || []).map((s: any) => s.id);
     const { data: paidDeposits } = await supabase
       .from('payments')
-      .select('session_id, amount_cents, method')
+      .select('session_id, amount_cents, method, check_number')
       .in('session_id', sessionIds)
       .eq('type', 'deposit')
       .eq('status', 'paid');
@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
         admin_notes: s.admin_notes || null,
         hanging_weight_lbs: s.hanging_weight_lbs || null,
         payment_method: paidDeposits?.find((p: any) => p.session_id === s.id)?.method || null,
+        check_number: paidDeposits?.find((p: any) => p.session_id === s.id)?.check_number || null,
         intended_payment_method: s.intended_payment_method || null,
       }));
       return NextResponse.json(flat);
@@ -103,6 +104,7 @@ export async function GET(request: NextRequest) {
         balance_due: session.balance_due || 0,
         balance_payment_method: session.balance_payment_method || null,
         payment_method: paidDeposits?.find((p: any) => p.session_id === session.id)?.method || null,
+        check_number: paidDeposits?.find((p: any) => p.session_id === session.id)?.check_number || null,
         intended_payment_method: session.intended_payment_method || null,
       });
       return acc;

@@ -39,6 +39,7 @@ interface Reservation {
   balance_payment_method?: string;
   payment_method?: string;
   intended_payment_method?: string | null;
+  check_number?: string | null;
   animals?: { price_per_lb?: number };
 }
 
@@ -58,6 +59,8 @@ export default function SlotsPage() {
   const [hangingWeights, setHangingWeights] = useState<Record<string, string>>({});
   const [savingWeight, setSavingWeight] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [depositModal, setDepositModal] = useState<{ open: boolean; sessionId: string; customerName: string; } | null>(null);
+  const [depositForm, setDepositForm] = useState<{ method: string; checkNumber: string; }>({ method: 'check', checkNumber: '' });
 
   const handleSaveAdminNotes = async (sessionId: string, notes: string) => {
     await fetch(`/api/admin/sessions/${sessionId}/notes`, {
@@ -259,20 +262,22 @@ export default function SlotsPage() {
                           <td className="px-6 py-4 text-sm">
                             <div className="flex flex-col gap-1">
                               {session.deposit_paid ? (
-                                <span className="text-green-600 font-semibold text-xs">
-                                  ✓ {session.payment_method === 'check' ? 'Check' : session.payment_method === 'cash' ? 'Cash' : session.payment_method === 'echeck' ? 'eCheck' : 'Card'}
-                                </span>
+                                <div className="flex flex-col">
+                                  <span className="text-green-600 font-semibold text-xs">
+                                    ✓ {session.payment_method === 'check' ? 'Check' : session.payment_method === 'cash' ? 'Cash' : session.payment_method === 'echeck' ? 'eCheck' : 'Card'}
+                                  </span>
+                                  {session.payment_method === 'check' && session.check_number && (
+                                    <span className="text-gray-500 text-xs">
+                                      #{session.check_number}
+                                    </span>
+                                  )}
+                                </div>
                               ) : !session.deposit_paid && (session.intended_payment_method === 'check' || session.intended_payment_method === 'cash') ? (
                                 <button
-                                  onClick={async (e) => {
+                                  onClick={(e) => {
                                     e.stopPropagation();
-                                    if (!confirm(`Mark deposit as received for ${session.customer_name}?`)) return;
-                                    await fetch(`/api/admin/sessions/${session.id}/confirm-deposit`, {
-                                      method: 'POST',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({ method: session.intended_payment_method || session.payment_method }),
-                                    });
-                                    loadSlots();
+                                    setDepositForm({ method: session.intended_payment_method || 'check', checkNumber: '' });
+                                    setDepositModal({ open: true, sessionId: session.id, customerName: session.customer_name });
                                   }}
                                   className="px-2 py-1 bg-green-600 text-white text-xs rounded-lg font-semibold hover:bg-green-700"
                                 >
@@ -477,6 +482,70 @@ export default function SlotsPage() {
           onConfirm={confirmModal.onConfirm}
           onCancel={() => setConfirmModal({ open: false, message: '', onConfirm: () => {} })}
         />
+      )}
+
+      {depositModal?.open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h3 className="font-bold text-lg text-brand-dark mb-4">
+              Confirm Deposit — {depositModal.customerName}
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-brand-dark mb-1">
+                  Payment Method
+                </label>
+                <select
+                  value={depositForm.method}
+                  onChange={(e) => setDepositForm({ ...depositForm, method: e.target.value })}
+                  className="w-full px-4 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                >
+                  <option value="check">Check</option>
+                  <option value="cash">Cash</option>
+                </select>
+              </div>
+              {depositForm.method === 'check' && (
+                <div>
+                  <label className="block text-sm font-semibold text-brand-dark mb-1">
+                    Check Number
+                  </label>
+                  <input
+                    type="text"
+                    value={depositForm.checkNumber}
+                    onChange={(e) => setDepositForm({ ...depositForm, checkNumber: e.target.value })}
+                    placeholder="e.g. 1042"
+                    className="w-full px-4 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={async () => {
+                  await fetch(`/api/admin/sessions/${depositModal.sessionId}/confirm-deposit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      method: depositForm.method,
+                      check_number: depositForm.checkNumber || null,
+                    }),
+                  });
+                  setDepositModal(null);
+                  loadSlots();
+                }}
+                className="flex-1 bg-brand-orange hover:bg-brand-orange-hover text-white py-2 rounded-lg font-semibold"
+              >
+                Confirm Payment
+              </button>
+              <button
+                onClick={() => setDepositModal(null)}
+                className="flex-1 bg-brand-gray-light text-brand-dark py-2 rounded-lg font-semibold"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </AdminLayout>
   );
