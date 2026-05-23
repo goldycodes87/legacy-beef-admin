@@ -417,6 +417,29 @@ function hangingWeight(): string {
   return emailBase(content, 'Your hanging weight is in — here\'s your balance');
 }
 
+function lostCart(): string {
+  const content = `
+    <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;">
+    <tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
+    <div style="font-size:40px;margin-bottom:8px;">🐄</div>
+    <h2 style="font-family:Georgia,serif;color:white;font-size:26px;margin:0 0 8px;font-weight:normal;">
+    Your spot is being held, ${MOCK.customerName.split(' ')[0]}.
+    </h2>
+    <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
+    Complete your deposit to lock it in.
+    </p>
+    </td></tr></table>
+    <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
+    You started a reservation for a Half Beef from Legacy Land & Cattle. We've held your spot for 24 hours — complete your deposit now to lock it in before it's released.
+    </p>
+    ${ctaButton('Complete My Reservation →', MOCK.accessUrl)}
+    <p style="color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;text-align:center;margin-top:8px;">
+    This link expires in 24 hours. Questions? Call (719) 258-1777.
+    </p>
+  `;
+  return emailBase(content, 'Your spot is held for 24 hours — complete your deposit to lock it in.');
+}
+
 export async function GET(req: NextRequest) {
   const type = req.nextUrl.searchParams.get('type') || 'deposit_confirmation';
 
@@ -454,6 +477,9 @@ export async function GET(req: NextRequest) {
       break;
     case 'hanging_weight':
       html = hangingWeight();
+      break;
+    case 'lost_cart':
+      html = lostCart();
       break;
     default:
       html = depositConfirmation();

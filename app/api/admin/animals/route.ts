@@ -71,6 +71,55 @@ export async function POST(request: NextRequest) {
         .select();
 
       if (error) throw error;
+
+      // Notify wagyu waitlist
+      if (animal_type === 'wagyu' && total_animals > 0) {
+        const { data: waitlist } = await supabase
+          .from('waitlist')
+          .select('*')
+          .eq('animal_type', 'wagyu')
+          .eq('status', 'waiting');
+
+        if (waitlist && waitlist.length > 0) {
+          const { Resend } = await import('resend');
+          const resend = new Resend(process.env.RESEND_API_KEY);
+          const { emailBase, ctaButton } = await import('@/lib/email-templates');
+          
+          for (const entry of waitlist) {
+            const firstName = entry.customer_name.split(' ')[0];
+            const content = `
+              <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;">
+              <tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
+              <div style="font-size:40px;margin-bottom:8px;">⭐</div>
+              <h2 style="font-family:Georgia,serif;color:white;font-size:26px;margin:0 0 8px;font-weight:normal;">
+              Wagyu is available, ${firstName}.
+              </h2>
+              <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
+              You're first in line — spots are limited.
+              </p>
+              </td></tr></table>
+              <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
+              Good news — we just added a Wagyu butcher date. You're on our priority list, which means you get first access before we open it to the public. These spots go fast — reserve yours now.
+              </p>
+              ${ctaButton('Reserve My Wagyu Now →', 'https://www.legacylandandcattleco.com/select-animal')}
+              <p style="color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;text-align:center;margin-top:8px;">
+              Questions? Call us at (719) 258-1777 or reply to this email.
+              </p>
+            `;
+            try {
+              await resend.emails.send({
+                from: 'Legacy Land & Cattle <orders@legacylandandcattleco.com>',
+                to: entry.email,
+                subject: `${firstName}, Wagyu beef is now available — you're first in line`,
+                html: emailBase(content, 'Wagyu is available — you have first access.'),
+              });
+            } catch (emailErr) {
+              console.error('Wagyu waitlist email error:', emailErr);
+            }
+          }
+        }
+      }
+
       return NextResponse.json(data[0], { status: 201 });
     }
 

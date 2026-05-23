@@ -15,6 +15,7 @@ const EMAIL_TYPES = [
   { id: 'pickup_confirmed', label: 'Pickup Confirmed' },
   { id: 'balance_payment', label: 'Balance Payment Receipt' },
   { id: 'hanging_weight', label: 'Hanging Weight Notification' },
+  { id: 'lost_cart', label: 'Lost Cart (Draft Reminder)' },
 ];
 
 export default function EmailPreview() {

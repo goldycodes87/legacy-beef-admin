@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: '/coupons', label: 'Coupons', icon: '🏷️' },
   { href: '/notifications', label: 'Notifications', icon: '🔔' },
   { href: '/email-preview', label: 'Email Preview', icon: '✉️' },
+  { href: '/wagyu-waitlist', label: 'Wagyu Waitlist', icon: '⭐' },
   { href: '/settings', label: 'Prices & Settings', icon: '💲' },
   { href: '/pickup-windows', label: 'Pickup Windows', icon: '📅' },
   { href: '/pickup-schedule', label: 'Pickup Schedule', icon: '🗓️' },
