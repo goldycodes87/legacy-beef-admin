@@ -38,6 +38,7 @@ interface Reservation {
   balance_due?: number;
   balance_payment_method?: string;
   payment_method?: string;
+  intended_payment_method?: string | null;
   animals?: { price_per_lb?: number };
 }
 
@@ -261,7 +262,7 @@ export default function SlotsPage() {
                                 <span className="text-green-600 font-semibold text-xs">
                                   ✓ {session.payment_method === 'check' ? 'Check' : session.payment_method === 'cash' ? 'Cash' : session.payment_method === 'echeck' ? 'eCheck' : 'Card'}
                                 </span>
-                              ) : session.payment_method === 'check' || session.payment_method === 'cash' ? (
+                              ) : !session.deposit_paid && (session.intended_payment_method === 'check' || session.intended_payment_method === 'cash') ? (
                                 <button
                                   onClick={async (e) => {
                                     e.stopPropagation();
@@ -269,7 +270,7 @@ export default function SlotsPage() {
                                     await fetch(`/api/admin/sessions/${session.id}/confirm-deposit`, {
                                       method: 'POST',
                                       headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({ method: session.payment_method }),
+                                      body: JSON.stringify({ method: session.intended_payment_method || session.payment_method }),
                                     });
                                     loadSlots();
                                   }}

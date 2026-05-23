@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         balance_due,
         balance_payment_method,
         price_per_lb,
+        intended_payment_method,
         customers (name, email, phone),
         animals (id, name, butcher_date, price_per_lb)
       `)
@@ -64,6 +65,7 @@ export async function GET(request: NextRequest) {
         admin_notes: s.admin_notes || null,
         hanging_weight_lbs: s.hanging_weight_lbs || null,
         payment_method: paidDeposits?.find((p: any) => p.session_id === s.id)?.method || null,
+        intended_payment_method: s.intended_payment_method || null,
       }));
       return NextResponse.json(flat);
     }
@@ -101,6 +103,7 @@ export async function GET(request: NextRequest) {
         balance_due: session.balance_due || 0,
         balance_payment_method: session.balance_payment_method || null,
         payment_method: paidDeposits?.find((p: any) => p.session_id === session.id)?.method || null,
+        intended_payment_method: session.intended_payment_method || null,
       });
       return acc;
     }, {});
