@@ -256,11 +256,31 @@ export default function SlotsPage() {
                           </td>
                           <td className="px-6 py-4 text-sm capitalize">{session.purchase_type}</td>
                           <td className="px-6 py-4 text-sm">
-                            {session.deposit_paid ? (
-                              <span className="text-green-600 font-semibold">✓</span>
-                            ) : (
-                              <span className="text-red-600 font-semibold">✗</span>
-                            )}
+                            <div className="flex flex-col gap-1">
+                              {session.deposit_paid ? (
+                                <span className="text-green-600 font-semibold text-xs">
+                                  ✓ {session.payment_method === 'check' ? 'Check' : session.payment_method === 'cash' ? 'Cash' : session.payment_method === 'echeck' ? 'eCheck' : 'Card'}
+                                </span>
+                              ) : session.payment_method === 'check' || session.payment_method === 'cash' ? (
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (!confirm(`Mark deposit as received for ${session.customer_name}?`)) return;
+                                    await fetch(`/api/admin/sessions/${session.id}/confirm-deposit`, {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ method: session.payment_method }),
+                                    });
+                                    loadSlots();
+                                  }}
+                                  className="px-2 py-1 bg-green-600 text-white text-xs rounded-lg font-semibold hover:bg-green-700"
+                                >
+                                  Mark Paid
+                                </button>
+                              ) : (
+                                <span className="text-red-500 font-semibold text-xs">✗ Unpaid</span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4 text-sm">
                             {session.cut_sheet_complete ? (
