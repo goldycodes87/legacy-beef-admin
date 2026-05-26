@@ -326,7 +326,23 @@ export default function SlotsPage() {
                             {new Date(session.created_at).toLocaleDateString()}
                           </td>
                           <td className="px-6 py-4 text-sm">
-                            <div className="flex gap-3">
+                            <div className="flex gap-3 flex-wrap">
+                              {session.status === 'draft' && session.intended_payment_method === 'card' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const link = `https://www.legacylandandcattleco.com/payment?session_id=${session.id}`;
+                                    navigator.clipboard.writeText(link).then(() => {
+                                      alert(`Payment link copied!\n\n${link}`);
+                                    }).catch(() => {
+                                      prompt('Copy this payment link:', link);
+                                    });
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 font-semibold text-sm"
+                                >
+                                  💳 Payment Link
+                                </button>
+                              )}
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleMoveOpen(session); }}
                                 className="text-brand-orange hover:text-brand-orange-hover font-semibold"
