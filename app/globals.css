@@ -11,8 +11,163 @@
 }
 
 :root {
-  --background: #FDF8F3;
-  --foreground: #1C1712;
+  /* Brand palette */
+  --bergbat-red:          #C8102E;
+  --bergbat-red-hover:    #DC2444;
+  --bergbat-red-active:   #A20D26;
+  --bergbat-gold:         #C4A46B;
+  --bergbat-gold-hover:   #D8C28B;
+  --bergbat-gold-active:  #9F8653;
+
+  --splitgrip-blue:        #3b82f6;
+  --splitgrip-blue-hover:  #60a5fa;
+  --splitgrip-blue-active: #2563eb;
+
+  /* Status palette */
+  --green-500:   #10B981;
+  --green-400:   #10B981;
+  --amber-500:   #F59E0B;
+  --amber-400:   #F59E0B;
+  --red-500:     #EF4444;
+  --red-400:     #EF4444;
+  --blue-500:    #3B82F6;
+  --blue-400:    #3B82F6;
+  --purple-500:  #8B5CF6;
+  --purple-400:  #8B5CF6;
+  --gray-400:    #6B7280;
+  --gray-500:    #6B7280;
+  --gray-600:    #4B5563;
+
+  /* Surfaces */
+  --surface-0: #0F0F0F;
+  --surface-1: #1a1a1a;
+  --surface-2: #242424;
+  --surface-3: #2e2e2e;
+
+  --bg-input:        #141414;
+  --bg-input-focus:  #1A1A1A;
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border:        rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Text */
+  --text:            #F5F5F5;
+  --text-secondary:  #9CA3AF;
+  --text-muted:      #6B7280;
+  --text-disabled:   #374151;
+  --text-on-accent:  #ffffff;
+
+  /* Semantic role tokens */
+  --success-fg:      var(--green-400);
+  --success-bg:      rgba(16, 185, 129, 0.12);
+  --success-border:  rgba(16, 185, 129, 0.20);
+
+  --warning-fg:      var(--amber-400);
+  --warning-bg:      rgba(245, 158, 11, 0.12);
+  --warning-border:  rgba(245, 158, 11, 0.20);
+
+  --danger-fg:       var(--red-400);
+  --danger-bg:       rgba(239, 68, 68, 0.12);
+  --danger-border:   rgba(239, 68, 68, 0.20);
+
+  --info-fg:         var(--blue-400);
+  --info-bg:         rgba(59, 130, 246, 0.12);
+  --info-border:     rgba(59, 130, 246, 0.20);
+
+  --neutral-fg:      var(--gray-400);
+  --neutral-bg:      rgba(107, 114, 128, 0.12);
+  --neutral-border:  rgba(107, 114, 128, 0.20);
+
+  --purple-fg:       var(--purple-400);
+  --purple-bg:       rgba(139, 92, 246, 0.12);
+  --purple-border:   rgba(139, 92, 246, 0.20);
+
+  --gold-fg:         #C4A46B;
+  --gold-bg:         rgba(196, 164, 107, 0.12);
+  --gold-border:     rgba(196, 164, 107, 0.20);
+
+  --status-production: var(--blue-400);
+  --status-shipped:    var(--green-400);
+  --status-ready:      var(--amber-400);
+  --status-removed:    var(--gray-400);
+  --status-on-deck:    var(--purple-400);
+
+  --payment-paid:      var(--green-400);
+  --payment-unpaid:    var(--red-400);
+  --payment-invoiced:  var(--amber-400);
+
+  /* Radii */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.7);
+
+  /* Layout */
+  --sidebar-w:        15rem;
+  --page-max-default: 80rem;
+  --page-max-wide:    96rem;
+  --page-max-narrow:  64rem;
+  --page-max-form:    40rem;
+
+  /* Transitions */
+  --transition-fast:   150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow:   300ms ease;
+
+  /* Font stacks */
+  --font-display:
+    var(--font-barlow-condensed, "Barlow Condensed"),
+    "Oswald", "Bebas Neue", "Impact",
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-ui:
+    var(--font-inter, "Inter"),
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:
+    var(--font-jetbrains-mono, "JetBrains Mono"), "IBM Plex Mono",
+    ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-jost: var(--font-inter, "Inter");
+
+  /* Legacy aliases */
+  --bb-black:         var(--surface-0);
+  --bb-dark:          var(--surface-1);
+  --bb-card:          var(--surface-2);
+  --bb-border:        var(--border);
+  --bb-border-light:  var(--border-strong);
+  --bb-red:           var(--bergbat-red);
+  --bb-red-hover:     var(--bergbat-red-hover);
+  --bb-gold:          var(--bergbat-gold);
+  --bb-text:          var(--text);
+  --bb-text-secondary:var(--text-secondary);
+  --bb-text-muted:    var(--text-muted);
+
+  --background: var(--surface-0);
+  --foreground: var(--text);
+}
+
+:root,
+[data-theme="bergbat"] {
+  --accent:          #E85D24;
+  --accent-hover:    #f1783a;
+  --accent-active:   #cf501f;
+  --accent-soft:     rgba(232, 93, 36, 0.12);
+  --accent-border:   rgba(232, 93, 36, 0.20);
+  --accent-on:       #ffffff;
+}
+[data-theme="splitgrip"] {
+  --accent:          var(--splitgrip-blue);
+  --accent-hover:    var(--splitgrip-blue-hover);
+  --accent-active:   var(--splitgrip-blue-active);
+  --accent-soft:     rgba(59, 130, 246, 0.14);
+  --accent-border:   rgba(59, 130, 246, 0.35);
+  --accent-on:       #ffffff;
 }
 
 body {

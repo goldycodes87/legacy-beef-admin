@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { IconButton } from './ui';
 
 const NAV_LINKS = [
   { href: '/', label: 'Dashboard', icon: '📊' },
@@ -55,38 +56,50 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
   };
 
   return (
-    <div className="flex min-h-screen bg-brand-warm">
-      {/* Overlay */}
+    <div
+      className="flex min-h-screen"
+      style={{ background: 'var(--surface-0)', color: 'var(--text)' }}
+    >
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          className="fixed inset-0 z-30 lg:hidden"
+          style={{ background: 'rgba(0,0,0,0.55)' }}
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
       <aside
         id="admin-sidebar"
         className={`
-          fixed top-0 left-0 h-full w-72 bg-brand-dark text-white
-          flex flex-col z-40 transform transition-transform duration-300
-          lg:relative lg:translate-x-0 lg:w-64 lg:shrink-0
+          fixed top-0 left-0 h-full flex flex-col z-40 transform transition-transform duration-300
+          lg:relative lg:translate-x-0 lg:shrink-0
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
+        style={{
+          width: 'var(--sidebar-w)',
+          background: 'var(--surface-1)',
+          borderRight: '1px solid var(--border)',
+        }}
       >
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+        <div
+          className="p-6 flex items-center justify-between"
+          style={{ borderBottom: '1px solid var(--border-subtle)' }}
+        >
           <div>
-            <h1 className="font-display text-xl font-bold leading-tight">
-              Legacy Land<br />&amp; Cattle
+            <p className="type-app-title" style={{ color: 'var(--accent)' }}>
+              Legacy Land
+            </p>
+            <h1 className="type-page-subtitle font-medium" style={{ color: 'var(--text)' }}>
+              Beef Admin Panel
             </h1>
-            <p className="text-xs text-white/50 mt-1">Admin Portal</p>
           </div>
-          <button
+          <IconButton
+            aria-label="Close navigation"
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-white/70 hover:text-white p-1"
+            className="lg:hidden"
           >
             ✕
-          </button>
+          </IconButton>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {NAV_LINKS.map((link) => {
@@ -95,48 +108,59 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
+                className={[
+                  'flex items-center gap-3 px-3 py-3 rounded-md text-sm font-semibold transition-colors border-l-2',
                   isActive
-                    ? 'bg-brand-orange text-white'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
-                }`}
+                    ? 'bg-[color:var(--surface-2)] border-l-[color:var(--accent)] text-[color:var(--text)]'
+                    : 'border-l-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] hover:border-l-[color:var(--border-strong)]',
+                ].join(' ')}
               >
                 <span className="text-lg">{link.icon}</span>
-                {link.label}
+                <span className="truncate">{link.label}</span>
               </Link>
             );
           })}
         </nav>
-        <div className="p-4 border-t border-white/10">
+        <div
+          className="p-4"
+          style={{ borderTop: '1px solid var(--border-subtle)' }}
+        >
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-sm font-semibold transition-colors border border-transparent hover:border-[color:var(--border)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text)]"
+            style={{
+              color: 'var(--text-muted)',
+              background: 'transparent',
+            }}
           >
-            <span>🚪</span>
+            <span aria-hidden>🚪</span>
             Logout
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-auto min-w-0">
-        {/* Top bar */}
-        <header className="bg-white border-b border-brand-gray-light px-4 py-3 flex items-center gap-4 sticky top-0 z-20">
-          <button
+        <header
+          className="flex items-center gap-3 px-4 py-3 sticky top-0 z-20"
+          style={{
+            background: 'var(--surface-1)',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          <IconButton
             id="sidebar-toggle"
+            aria-label="Open navigation"
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 text-brand-dark"
+            className="lg:hidden"
           >
             <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="3" y1="6" x2="17" y2="6" />
               <line x1="3" y1="12" x2="17" y2="12" />
               <line x1="3" y1="18" x2="17" y2="18" />
             </svg>
-          </button>
+          </IconButton>
           {title && (
-            <h2 className="font-display text-xl font-bold text-brand-dark truncate">
-              {title}
-            </h2>
+            <h2 className="type-page-title truncate">{title}</h2>
           )}
         </header>
         <div className="flex-1 p-4 lg:p-8">

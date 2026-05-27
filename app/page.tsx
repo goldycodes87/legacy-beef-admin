@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
+import { PageHeader, Panel, StatCard } from '@/components/ui';
 
 interface DashboardData {
   total_animals: number;
@@ -47,18 +48,22 @@ export default function DashboardPage() {
 
   return (
     <AdminLayout title="Dashboard">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {CARDS.map((card) => (
-          <div
-            key={card.key}
-            className="bg-white rounded-2xl shadow-sm p-6"
-          >
-            <p className="text-4xl font-bold text-brand-orange">
-              {loading ? '...' : data?.[card.key as keyof DashboardData] ?? 0}
-            </p>
-            <p className="text-sm text-brand-gray mt-1">{card.label}</p>
+      <PageHeader
+        title="Dashboard"
+        subtitle="Operational snapshot for the ranch"
+      />
+      <div className="space-y-6">
+        <Panel surface="1" padding="md">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {CARDS.map((card) => (
+              <StatCard
+                key={card.key}
+                label={card.label}
+                value={loading ? '...' : data?.[card.key as keyof DashboardData] ?? 0}
+              />
+            ))}
           </div>
-        ))}
+        </Panel>
       </div>
     </AdminLayout>
   );
