@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { emailBase, ctaButton, orderCard } from '@/lib/email-templates';
+import { sendPushNotification } from '@/lib/push';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.legacylandandcattleco.com';
 
@@ -74,6 +75,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         discountAmount: (session as any).discount_amount || 0,
         discountNote: (session as any).discount_note || null,
       });
+
+      await sendPushNotification(
+        '⚖️ Hanging Weight Entered',
+        `${purchaseLabel} — ${hanging_weight_lbs} lbs — Balance: $${balanceDue.toFixed(2)}`,
+        '/slots'
+      );
 
       try {
         const { Resend } = await import('resend');

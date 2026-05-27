@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { sendPushNotification } from '@/lib/push';
 
 export async function POST(
   request: NextRequest,
@@ -77,6 +78,7 @@ export async function POST(
 
           const t = (fullSession as any).purchase_type;
           const purchaseLabel = t === 'whole' ? 'Whole Beef' : t === 'half' ? 'Half Beef' : 'Quarter Beef';
+          const customerName = customer.name || 'Customer';
 
           const formatDate = (d: string | null) => d
             ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -150,6 +152,12 @@ export async function POST(
             sent_at: new Date().toISOString(),
             status: 'sent',
           });
+
+          await sendPushNotification(
+            '💰 Deposit Received',
+            `${purchaseLabel} deposit confirmed for ${customerName}`,
+            '/slots'
+          );
         } catch (emailErr) {
           console.error('Deposit confirmation email error:', emailErr);
         }
