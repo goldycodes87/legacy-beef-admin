@@ -524,6 +524,22 @@ export default function SlotsPage() {
                                   </div>
                                 )}
                               </div>
+                              <div className="mt-4 pt-4 border-t border-gray-100">
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    await fetch(`/api/admin/sessions/${session.id}/send-cut-sheet-email`, {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                    });
+                                    alert('Cut sheet email sent to ' + session.customer_name);
+                                    loadSlots();
+                                  }}
+                                  className="px-4 py-2 bg-brand-orange text-white text-sm rounded-lg font-semibold hover:bg-brand-orange-hover"
+                                >
+                                  📧 Send Cut Sheet Email
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         )}
