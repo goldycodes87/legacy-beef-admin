@@ -7,12 +7,12 @@ function ConfirmModal({ message, onConfirm, onCancel }: { message: string, onCon
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-        <p className="text-brand-dark font-semibold mb-6 text-center">{message}</p>
+        <p className="text-white font-semibold mb-6 text-center">{message}</p>
         <div className="flex gap-3">
           <button onClick={onConfirm} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-semibold">
             Yes, Delete
           </button>
-          <button onClick={onCancel} className="flex-1 bg-brand-gray-light text-brand-dark py-2 rounded-lg font-semibold">
+          <button onClick={onCancel} className="flex-1 bg-brand-gray-light text-white py-2 rounded-lg font-semibold">
             Cancel
           </button>
         </div>
@@ -221,14 +221,14 @@ export default function SlotsPage() {
           <div className="space-y-8">
             {Object.entries(getFilteredSlots()).map(([animalName, group]) => (
             <div key={animalName}>
-              <h3 className="font-display font-bold text-lg text-brand-dark mb-4">
+              <h3 className="font-display font-bold text-lg text-white mb-4">
                 {group.animal?.name ?? "Unknown"} • Butcher {group.animal?.butcher_date ? new Date(group.animal.butcher_date).toLocaleDateString() : "TBD"}
               </h3>
 
               {group.sessions.length === 0 ? (
                 <p className="text-sm text-brand-gray">No reservations yet</p>
               ) : (
-                <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                <div className="rounded-2xl shadow-sm overflow-hidden bg-gray-900 text-white">
                   <div className="overflow-x-auto -mx-4 px-4">
                     <table className="w-full">
                     <thead className="bg-brand-gray-light border-b border-brand-gray-light">
@@ -403,7 +403,7 @@ export default function SlotsPage() {
                           <tr key={session.id + '-expand'}>
                             <td colSpan={7} className="px-6 py-4 bg-brand-warm border-b border-brand-gray-light">
                               <div className="flex items-center gap-4">
-                                <p className="text-sm font-semibold text-brand-dark">Hanging Weight (lbs):</p>
+                                <p className="text-sm font-semibold text-white">Hanging Weight (lbs):</p>
                                 <input
                                   type="number"
                                   placeholder="e.g. 385"
@@ -415,7 +415,7 @@ export default function SlotsPage() {
                                 />
                                 {hangingWeights[session.id] && (
                                   <p className="text-sm text-brand-gray">
-                                    Balance Due: <span className="font-bold text-brand-dark">
+                                    Balance Due: <span className="font-bold text-white">
                                       ${((parseFloat(hangingWeights[session.id]) * (session.price_per_lb ?? session.animals?.price_per_lb ?? 8.00)) - (session.deposit_amount_cents || 0) / 100).toFixed(2)}
                                     </span>
                                   </p>
@@ -429,7 +429,7 @@ export default function SlotsPage() {
                                 </button>
                               </div>
                               <div className="flex items-center gap-4 mt-3">
-                                <p className="text-sm font-semibold text-brand-dark whitespace-nowrap">
+                                <p className="text-sm font-semibold text-white whitespace-nowrap">
                                   Admin Notes:
                                 </p>
                                 <input
@@ -442,7 +442,7 @@ export default function SlotsPage() {
                                 />
                               </div>
                               <div className="mt-4 border-t border-gray-100 pt-4">
-                                <p className="text-sm font-semibold text-brand-dark mb-2">
+                                <p className="text-sm font-semibold text-white mb-2">
                                   Discount (applied to balance due)
                                 </p>
                                 <div className="flex gap-2 items-start flex-wrap">
@@ -569,7 +569,7 @@ export default function SlotsPage() {
               </button>
               <button
                 onClick={() => setMoveModal({ open: false, session: null })}
-                className="flex-1 bg-brand-gray-light text-brand-dark py-2 rounded-lg font-semibold"
+                className="flex-1 bg-brand-gray-light text-white py-2 rounded-lg font-semibold"
               >
                 Cancel
               </button>
@@ -589,12 +589,12 @@ export default function SlotsPage() {
       {depositModal?.open && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-            <h3 className="font-bold text-lg text-brand-dark mb-4">
+            <h3 className="font-bold text-lg text-white mb-4">
               Confirm Deposit — {depositModal.customerName}
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-brand-dark mb-1">
+                <label className="block text-sm font-semibold text-white mb-1">
                   Payment Method
                 </label>
                 <select
@@ -608,7 +608,7 @@ export default function SlotsPage() {
               </div>
               {depositForm.method === 'check' && (
                 <div>
-                  <label className="block text-sm font-semibold text-brand-dark mb-1">
+                  <label className="block text-sm font-semibold text-white mb-1">
                     Check Number
                   </label>
                   <input
@@ -641,7 +641,7 @@ export default function SlotsPage() {
               </button>
               <button
                 onClick={() => setDepositModal(null)}
-                className="flex-1 bg-brand-gray-light text-brand-dark py-2 rounded-lg font-semibold"
+                className="flex-1 bg-brand-gray-light text-white py-2 rounded-lg font-semibold"
               >
                 Cancel
               </button>
