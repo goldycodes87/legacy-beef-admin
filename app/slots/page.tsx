@@ -246,7 +246,7 @@ export default function SlotsPage() {
                     <tbody>
                       {group.sessions.map((session) => (
                         <React.Fragment key={session.id}>
-                        <tr className="border-b border-brand-gray-light hover:bg-brand-warm cursor-pointer" onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)}>
+                        <tr className="border-b cursor-pointer hover:opacity-80" style={{borderColor:"var(--border)"}} onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)}>
                           <td className="px-6 py-4 font-semibold">
                             {session.customer_name}
                             {session.status === 'beef_ready' && !(session as any).pickup_appointment && (
@@ -401,7 +401,7 @@ export default function SlotsPage() {
                         </tr>
                         {expandedSession === session.id && (
                           <tr key={session.id + '-expand'}>
-                            <td colSpan={7} className="px-6 py-4 bg-brand-warm border-b border-brand-gray-light">
+                            <td colSpan={7} className="px-6 py-4 border-b text-white" style={{background:"var(--surface-2)",borderColor:"var(--border)"}}>
                               <div className="flex items-center gap-4">
                                 <p className="text-sm font-semibold text-white">Hanging Weight (lbs):</p>
                                 <input
