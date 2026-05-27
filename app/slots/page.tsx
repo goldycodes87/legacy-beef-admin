@@ -231,7 +231,7 @@ export default function SlotsPage() {
                 <div className="rounded-2xl shadow-sm overflow-hidden bg-gray-900 text-white">
                   <div className="overflow-x-auto -mx-4 px-4">
                     <table className="w-full">
-                    <thead className="bg-brand-gray-light border-b border-brand-gray-light">
+                    <thead className="border-b text-gray-400" style={{background:"var(--surface-2)",borderColor:"var(--border)"}}>
                       <tr>
                         <th className="text-left px-6 py-3 font-semibold text-sm">Customer</th>
                         <th className="text-left px-6 py-3 font-semibold text-sm">Size</th>
