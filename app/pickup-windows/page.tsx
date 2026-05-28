@@ -115,59 +115,68 @@ export default function PickupWindowsPage() {
       </div>
 
       {showForm && (
-        <div ref={formRef} className="bg-gray-100 p-4 rounded-lg mb-6 space-y-3">
-          <h2 className="font-semibold text-lg">{editingId ? 'Edit Pickup Window' : 'New Pickup Window'}</h2>
+        <div
+          ref={formRef}
+          className="p-4 rounded-lg mb-6 space-y-3 border"
+          style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+        >
+          <h2 className="font-semibold text-lg text-white">{editingId ? 'Edit Pickup Window' : 'New Pickup Window'}</h2>
 
           <div>
-            <label className="block text-sm font-semibold mb-1">Label</label>
+            <label className="block text-sm font-semibold mb-1 text-gray-200">Label</label>
             <input
               type="text"
               placeholder="e.g., Morning Pickup, Evening Slot"
               value={formData.label}
               onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-              className="w-full px-3 py-2 border rounded"
+              className="w-full px-3 py-2 rounded bg-transparent text-white"
+              style={{ borderColor: 'var(--border)' }}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-1">Pickup Date</label>
+            <label className="block text-sm font-semibold mb-1 text-gray-200">Pickup Date</label>
             <input
               type="date"
               value={formData.pickup_date}
               onChange={(e) => setFormData({ ...formData, pickup_date: e.target.value })}
-              className="w-full px-3 py-2 border rounded"
+              className="w-full px-3 py-2 rounded bg-transparent text-white"
+              style={{ borderColor: 'var(--border)' }}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-semibold mb-1">Start Time</label>
+              <label className="block text-sm font-semibold mb-1 text-gray-200">Start Time</label>
               <input
                 type="time"
                 value={formData.start_time}
                 onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                className="px-3 py-2 border rounded w-full"
+                className="px-3 py-2 rounded w-full bg-transparent text-white"
+                style={{ borderColor: 'var(--border)' }}
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-1">End Time</label>
+              <label className="block text-sm font-semibold mb-1 text-gray-200">End Time</label>
               <input
                 type="time"
                 value={formData.end_time}
                 onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                className="px-3 py-2 border rounded w-full"
+                className="px-3 py-2 rounded w-full bg-transparent text-white"
+                style={{ borderColor: 'var(--border)' }}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-1">Max customers (leave 999 for unlimited)</label>
+            <label className="block text-sm font-semibold mb-1 text-gray-200">Max customers (leave 999 for unlimited)</label>
             <input
               type="number"
               placeholder="999"
               value={formData.max_slots}
               onChange={(e) => setFormData({ ...formData, max_slots: parseInt(e.target.value) })}
-              className="w-full px-3 py-2 border rounded"
+              className="w-full px-3 py-2 rounded bg-transparent text-white"
+              style={{ borderColor: 'var(--border)' }}
             />
           </div>
 
@@ -184,7 +193,7 @@ export default function PickupWindowsPage() {
                 setEditingId(null);
                 setFormData({ label: '', pickup_date: '', start_time: '', end_time: '', max_slots: 999 });
               }}
-              className="flex-1 px-4 py-2 bg-gray-400 text-white rounded"
+              className="flex-1 px-4 py-2 bg-white/10 text-white rounded"
             >
               Cancel
             </button>
@@ -193,34 +202,37 @@ export default function PickupWindowsPage() {
       )}
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse border border-gray-300">
+        <table
+          className="w-full border-collapse border"
+          style={{ borderColor: 'var(--border)' }}
+        >
           <thead>
-            <tr className="bg-gray-200">
-              <th className="border px-4 py-2 text-left">Date</th>
-              <th className="border px-4 py-2 text-left">Time</th>
-              <th className="border px-4 py-2 text-left">Label</th>
-              <th className="border px-4 py-2 text-left">Max Slots</th>
-              <th className="border px-4 py-2 text-left">Active</th>
-              <th className="border px-4 py-2 text-left">Actions</th>
+            <tr style={{ background: 'var(--surface-2)' }}>
+              <th className="border px-4 py-2 text-left text-white" style={{ borderColor: 'var(--border)' }}>Date</th>
+              <th className="border px-4 py-2 text-left text-white" style={{ borderColor: 'var(--border)' }}>Time</th>
+              <th className="border px-4 py-2 text-left text-white" style={{ borderColor: 'var(--border)' }}>Label</th>
+              <th className="border px-4 py-2 text-left text-white" style={{ borderColor: 'var(--border)' }}>Max Slots</th>
+              <th className="border px-4 py-2 text-left text-white" style={{ borderColor: 'var(--border)' }}>Active</th>
+              <th className="border px-4 py-2 text-left text-white" style={{ borderColor: 'var(--border)' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {windows.map((w) => (
-              <tr key={w.id} className="hover:bg-gray-100">
-                <td className="border px-4 py-2">{format(new Date(w.pickup_date), 'EEE, MMM d')}</td>
-                <td className="border px-4 py-2">
+              <tr key={w.id} className="hover:bg-white/5">
+                <td className="border px-4 py-2 text-gray-200" style={{ borderColor: 'var(--border)' }}>{format(new Date(w.pickup_date), 'EEE, MMM d')}</td>
+                <td className="border px-4 py-2 text-gray-200" style={{ borderColor: 'var(--border)' }}>
                   {w.start_time} – {w.end_time}
                 </td>
-                <td className="border px-4 py-2">{w.label}</td>
-                <td className="border px-4 py-2">{w.max_slots}</td>
-                <td className="border px-4 py-2">
+                <td className="border px-4 py-2 text-white" style={{ borderColor: 'var(--border)' }}>{w.label}</td>
+                <td className="border px-4 py-2 text-gray-200" style={{ borderColor: 'var(--border)' }}>{w.max_slots}</td>
+                <td className="border px-4 py-2" style={{ borderColor: 'var(--border)' }}>
                   <input
                     type="checkbox"
                     checked={w.active}
                     onChange={() => handleToggleActive(w.id, w.active)}
                   />
                 </td>
-                <td className="border px-4 py-2">
+                <td className="border px-4 py-2" style={{ borderColor: 'var(--border)' }}>
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleEdit(w)}

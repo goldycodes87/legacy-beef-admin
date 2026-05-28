@@ -37,7 +37,7 @@ export default function PickupSchedulePage() {
   return (
     <AdminLayout title="Pickup Schedule">
       {Object.keys(grouped).length === 0 ? (
-        <p className="text-brand-gray">No pickup appointments scheduled yet.</p>
+        <p className="text-gray-300">No pickup appointments scheduled yet.</p>
       ) : (
         Object.entries(grouped).map(([key, apts]) => {
           const apt = apts[0];
@@ -46,29 +46,32 @@ export default function PickupSchedulePage() {
 
           return (
             <div key={key} className="mb-8">
-              <h2 className="text-xl font-bold mb-4">
+              <h2 className="text-xl font-bold mb-4 text-white">
                 {dateStr} • {timeStr} • {apt.pickup_windows.label}
               </h2>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-gray-300">
+                <table
+                  className="w-full border-collapse"
+                  style={{ borderColor: 'var(--border)' }}
+                >
                   <thead>
-                    <tr className="bg-gray-200">
-                      <th className="border px-4 py-2 text-left">Customer</th>
-                      <th className="border px-4 py-2 text-left">Type</th>
-                      <th className="border px-4 py-2 text-left">Pickup Person</th>
-                      <th className="border px-4 py-2 text-left">Phone</th>
+                    <tr style={{ background: 'var(--surface-2)' }}>
+                      <th className="border px-4 py-2 text-left text-gray-300" style={{ borderColor: 'var(--border)' }}>Customer</th>
+                      <th className="border px-4 py-2 text-left text-gray-300" style={{ borderColor: 'var(--border)' }}>Type</th>
+                      <th className="border px-4 py-2 text-left text-gray-300" style={{ borderColor: 'var(--border)' }}>Pickup Person</th>
+                      <th className="border px-4 py-2 text-left text-gray-300" style={{ borderColor: 'var(--border)' }}>Phone</th>
                     </tr>
                   </thead>
                   <tbody>
                     {apts.map((apt) => (
-                      <tr key={apt.id} className="hover:bg-gray-50">
-                        <td className="border px-4 py-2">{apt.customers.name}</td>
-                        <td className="border px-4 py-2 capitalize">{apt.sessions.purchase_type}</td>
-                        <td className="border px-4 py-2">
+                      <tr key={apt.id} className="hover:bg-white/5">
+                        <td className="border px-4 py-2 text-white" style={{ borderColor: 'var(--border)' }}>{apt.customers.name}</td>
+                        <td className="border px-4 py-2 capitalize text-gray-300" style={{ borderColor: 'var(--border)' }}>{apt.sessions.purchase_type}</td>
+                        <td className="border px-4 py-2 text-white" style={{ borderColor: 'var(--border)' }}>
                           {apt.is_alternate_pickup && '🚩 '}
                           {apt.pickup_person_name}
                         </td>
-                        <td className="border px-4 py-2">{apt.pickup_person_phone}</td>
+                        <td className="border px-4 py-2 text-gray-300" style={{ borderColor: 'var(--border)' }}>{apt.pickup_person_phone}</td>
                       </tr>
                     ))}
                   </tbody>

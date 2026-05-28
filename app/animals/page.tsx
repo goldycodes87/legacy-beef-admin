@@ -7,13 +7,20 @@ import Link from 'next/link';
 function ConfirmModal({ message, onConfirm, onCancel }: { message: string, onConfirm: () => void, onCancel: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-        <p className="text-brand-dark font-semibold mb-6 text-center">{message}</p>
+      <div
+        className="rounded-2xl p-6 w-full max-w-sm shadow-xl border"
+        style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+      >
+        <p className="text-white font-semibold mb-6 text-center">{message}</p>
         <div className="flex gap-3">
           <button onClick={onConfirm} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-semibold">
             Yes, Delete
           </button>
-          <button onClick={onCancel} className="flex-1 bg-brand-gray-light text-brand-dark py-2 rounded-lg font-semibold">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2 rounded-lg font-semibold text-white"
+            style={{ background: 'var(--surface-2)' }}
+          >
             Cancel
           </button>
         </div>
@@ -59,37 +66,37 @@ function ReservationsTable({ animalId }: { animalId: string }) {
     setReservations(Array.isArray(data) ? data : []);
   }
 
-  if (loadingRes) return <div className="text-sm text-gray-500">Loading...</div>;
+  if (loadingRes) return <div className="text-sm text-gray-400">Loading...</div>;
   if (reservations.length === 0) return null;
 
   return (
     <div className="mb-4">
     <div className="overflow-x-auto -mx-4 px-4">
       <table className="w-full text-sm">
-        <thead className="bg-white border-b">
+        <thead className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
           <tr>
-            <th className="px-4 py-2 text-left font-semibold text-gray-900">Customer Name</th>
-            <th className="px-4 py-2 text-left font-semibold text-gray-900">Email</th>
-            <th className="px-4 py-2 text-left font-semibold text-gray-900">Purchase Type</th>
-            <th className="px-4 py-2 text-left font-semibold text-gray-900">Deposit Paid</th>
-            <th className="px-4 py-2 text-left font-semibold text-gray-900">Status</th>
-            <th className="px-4 py-2 text-left font-semibold text-gray-900">Actions</th>
+            <th className="px-4 py-2 text-left font-semibold text-white">Customer Name</th>
+            <th className="px-4 py-2 text-left font-semibold text-white">Email</th>
+            <th className="px-4 py-2 text-left font-semibold text-white">Purchase Type</th>
+            <th className="px-4 py-2 text-left font-semibold text-white">Deposit Paid</th>
+            <th className="px-4 py-2 text-left font-semibold text-white">Status</th>
+            <th className="px-4 py-2 text-left font-semibold text-white">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y">
+        <tbody className="divide-y divide-[var(--border)]">
           {reservations.map(r => (
-            <tr key={r.id}>
-              <td className="px-4 py-2">{r.customer_name || '—'}</td>
-              <td className="px-4 py-2 text-gray-500">{r.customer_email || '—'}</td>
-              <td className="px-4 py-2 capitalize">{r.purchase_type}</td>
+            <tr key={r.id} className="hover:bg-white/5">
+              <td className="px-4 py-2 text-white">{r.customer_name || '—'}</td>
+              <td className="px-4 py-2 text-gray-400">{r.customer_email || '—'}</td>
+              <td className="px-4 py-2 capitalize text-gray-300">{r.purchase_type}</td>
               <td className="px-4 py-2">
                 {r.deposit_paid ? (
-                  <span className="text-green-600 font-semibold">✓</span>
+                  <span className="text-green-300 font-semibold">✓</span>
                 ) : (
-                  <span className="text-red-600 font-semibold">✗</span>
+                  <span className="text-red-400 font-semibold">✗</span>
                 )}
               </td>
-              <td className="px-4 py-2 capitalize">{r.status}</td>
+              <td className="px-4 py-2 capitalize text-gray-300">{r.status}</td>
               <td className="px-4 py-2">
                 {r.status !== 'cancelled' && (
                   <button
@@ -349,7 +356,7 @@ export default function AnimalsPage() {
     <AdminLayout title="Butcher Dates">
       {/* Header row */}
       <div className="flex justify-between items-center mb-6">
-        <h2 className="font-display font-bold text-2xl">Butcher Dates</h2>
+        <h2 className="font-display font-bold text-2xl text-white">Butcher Dates</h2>
         <button
           onClick={() => setShowModal(true)}
           className="bg-brand-orange hover:bg-brand-orange-hover text-white px-4 py-2 rounded-lg font-semibold"
@@ -367,8 +374,9 @@ export default function AnimalsPage() {
             className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
               sortBy === s
                 ? 'bg-brand-orange text-white'
-                : 'bg-white text-brand-gray border border-brand-gray-light hover:border-brand-orange'
+                : 'text-gray-300 hover:bg-white/5'
             }`}
+            style={sortBy === s ? undefined : { borderColor: 'var(--border)', borderWidth: 1 }}
           >
             {s === 'soonest' ? 'Soonest First' : s === 'latest' ? 'Latest First' : s === 'animals' ? 'Most Animals' : 'Most Full'}
           </button>
@@ -384,17 +392,20 @@ export default function AnimalsPage() {
             onChange={(e) => setShowArchived(e.target.checked)}
             className="rounded"
           />
-          <span className="text-sm font-medium text-gray-700">Show Archived</span>
+          <span className="text-sm font-medium text-gray-300">Show Archived</span>
         </label>
       </div>
 
       {loading ? (
-        <p className="text-brand-gray">Loading...</p>
+        <p className="text-gray-300">Loading...</p>
       ) : sortedDates.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl">
+        <div
+          className="text-center py-20 rounded-2xl border"
+          style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+        >
           <p className="text-2xl mb-2">🐄</p>
-          <p className="font-semibold text-brand-dark">No butcher dates yet</p>
-          <p className="text-sm text-brand-gray mt-1">Click "+ Add Butcher Date" to get started</p>
+          <p className="font-semibold text-white">No butcher dates yet</p>
+          <p className="text-sm text-gray-400 mt-1">Click "+ Add Butcher Date" to get started</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -410,25 +421,29 @@ export default function AnimalsPage() {
             const formattedReady = readyDate ? new Date(readyDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—';
 
             return (
-              <div key={date} className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4">
+              <div
+                key={date}
+                className="rounded-2xl shadow-sm p-6 flex flex-col gap-4 border"
+                style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+              >
                 {/* Card header */}
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-display font-bold text-lg text-brand-dark">{formattedDate}</p>
-                    <p className="text-xs text-brand-gray mt-0.5">Est. Ready: {formattedReady}</p>
+                    <p className="font-display font-bold text-lg text-white">{formattedDate}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Est. Ready: {formattedReady}</p>
                   </div>
-                  <span className="text-xs font-semibold bg-brand-warm text-brand-dark px-2 py-1 rounded-full">
+                  <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: 'var(--surface-2)', color: '#F3F4F6' }}>
                     {totalHead} head total
                   </span>
                 </div>
 
                 {/* Overall capacity bar */}
                 <div>
-                  <div className="flex justify-between text-xs text-brand-gray mb-1">
+                  <div className="flex justify-between text-xs text-gray-400 mb-1">
                     <span>Capacity</span>
                     <span>{totalUnits.toFixed(1)} / {totalCapacity} units used</span>
                   </div>
-                  <div className="w-full bg-brand-gray-light rounded-full h-2 overflow-hidden">
+                  <div className="w-full rounded-full h-2 overflow-hidden" style={{ background: 'var(--surface-2)' }}>
                     <div className={`${barColor} h-full transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} />
                   </div>
                 </div>
@@ -443,11 +458,11 @@ export default function AnimalsPage() {
                       <div key={animal.id} className="flex items-center justify-between gap-3">
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typeBg}`}>{typeLabel}</span>
                         <div className="flex-1">
-                          <div className="w-full bg-brand-gray-light rounded-full h-1.5 overflow-hidden">
+                          <div className="w-full rounded-full h-1.5 overflow-hidden" style={{ background: 'var(--surface-2)' }}>
                             <div className="bg-brand-orange h-full" style={{ width: `${Math.min(typePct, 100)}%` }} />
                           </div>
                         </div>
-                        <span className="text-xs text-brand-gray whitespace-nowrap">{animal.units_used.toFixed(1)}/{animal.total_animals}</span>
+                        <span className="text-xs text-gray-300 whitespace-nowrap">{animal.units_used.toFixed(1)}/{animal.total_animals}</span>
                         <button
                           onClick={() => handleDelete(animal)}
                           className="text-red-400 hover:text-red-600 text-xs font-semibold"
@@ -461,7 +476,7 @@ export default function AnimalsPage() {
                 </div>
 
                 {/* Card footer */}
-                <div className="pt-2 border-t border-brand-gray-light flex gap-3">
+                <div className="pt-2 border-t flex gap-3" style={{ borderColor: 'var(--border)' }}>
                   <button
                     onClick={() => handleEditOpen(date, dateAnimals)}
                     className="flex-1 text-center text-sm font-semibold text-brand-orange hover:text-brand-orange-hover"
@@ -496,8 +511,11 @@ export default function AnimalsPage() {
 
                 {/* Expanded reservations panel */}
                 {expandedReservations === dateAnimals[0]?.id && (
-                  <div className="mt-4 bg-gray-50 rounded-lg p-4">
-                    <p className="font-semibold text-gray-900 mb-3">Reservations</p>
+                  <div
+                    className="mt-4 rounded-lg p-4 border"
+                    style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+                  >
+                    <p className="font-semibold text-white mb-3">Reservations</p>
                     {dateAnimals.map((animal) => (
                       <ReservationsTable key={animal.id} animalId={animal.id} />
                     ))}
@@ -511,14 +529,17 @@ export default function AnimalsPage() {
 
       {/* ADD modal — keep exactly as-is */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
-            <h3 className="font-display font-bold text-xl mb-4">Add Butcher Date</h3>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div
+            className="rounded-2xl p-6 w-full max-w-lg border"
+            style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+          >
+            <h3 className="font-display font-bold text-xl mb-4 text-white">Add Butcher Date</h3>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Butcher Date */}
               <div>
-                <label className="block text-sm font-semibold text-brand-dark mb-1">
+                <label className="block text-sm font-semibold text-white mb-1">
                   Butcher Date <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -529,62 +550,67 @@ export default function AnimalsPage() {
                     const ready = bd ? new Date(new Date(bd).getTime() + 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : '';
                     setFormData({ ...formData, butcher_date: bd, estimated_ready_date: ready });
                   }}
-                  className="w-full px-4 py-2 border border-brand-gray-light rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                  className="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)' }}
                   required
                 />
               </div>
 
               {/* Est. Ready Date */}
               <div>
-                <label className="block text-sm font-semibold text-brand-dark mb-1">
-                  Est. Ready Date <span className="text-brand-gray text-xs font-normal">(auto-fills +21 days)</span>
+                <label className="block text-sm font-semibold text-white mb-1">
+                  Est. Ready Date <span className="text-gray-400 text-xs font-normal">(auto-fills +21 days)</span>
                 </label>
                 <input
                   type="date"
                   value={formData.estimated_ready_date}
                   onChange={(e) => setFormData({ ...formData, estimated_ready_date: e.target.value })}
-                  className="w-full px-4 py-2 border border-brand-gray-light rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                  className="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)' }}
                 />
               </div>
 
               {/* Head count by type */}
               <div>
-                <label className="block text-sm font-semibold text-brand-dark mb-2">
+                <label className="block text-sm font-semibold text-white mb-2">
                   Head Count by Type <span className="text-red-500">*</span>
                 </label>
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
-                    <span className="w-32 text-sm text-brand-dark">🌿 Grass-Fed</span>
+                    <span className="w-32 text-sm text-white">🌿 Grass-Fed</span>
                     <input
                       type="number"
                       min="0"
                       value={formData.grass_fed_count}
                       onChange={(e) => setFormData({ ...formData, grass_fed_count: parseInt(e.target.value) || 0 })}
-                      className="w-24 px-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                      className="w-24 px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange bg-transparent text-white"
+                      style={{ borderColor: 'var(--border)' }}
                     />
-                    <span className="text-xs text-brand-gray">head</span>
+                    <span className="text-xs text-gray-400">head</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="w-32 text-sm text-brand-dark">🌾 Grain-Finished</span>
+                    <span className="w-32 text-sm text-white">🌾 Grain-Finished</span>
                     <input
                       type="number"
                       min="0"
                       value={formData.grain_finished_count}
                       onChange={(e) => setFormData({ ...formData, grain_finished_count: parseInt(e.target.value) || 0 })}
-                      className="w-24 px-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                      className="w-24 px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange bg-transparent text-white"
+                      style={{ borderColor: 'var(--border)' }}
                     />
-                    <span className="text-xs text-brand-gray">head</span>
+                    <span className="text-xs text-gray-400">head</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="w-32 text-sm text-brand-dark">⭐ Wagyu</span>
+                    <span className="w-32 text-sm text-white">⭐ Wagyu</span>
                     <input
                       type="number"
                       min="0"
                       value={formData.wagyu_count}
                       onChange={(e) => setFormData({ ...formData, wagyu_count: parseInt(e.target.value) || 0 })}
-                      className="w-24 px-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                      className="w-24 px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange bg-transparent text-white"
+                      style={{ borderColor: 'var(--border)' }}
                     />
-                    <span className="text-xs text-brand-gray">head</span>
+                    <span className="text-xs text-gray-400">head</span>
                   </div>
                 </div>
                 {formData.grass_fed_count + formData.grain_finished_count + formData.wagyu_count === 0 && (
@@ -603,7 +629,8 @@ export default function AnimalsPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 bg-brand-gray-light text-brand-dark py-2 rounded-lg font-semibold"
+                  className="flex-1 py-2 rounded-lg font-semibold text-white"
+                  style={{ background: 'var(--surface-2)' }}
                 >
                   Cancel
                 </button>
@@ -615,12 +642,15 @@ export default function AnimalsPage() {
 
       {/* EDIT modal */}
       {editModal.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
-            <h3 className="font-display font-bold text-xl mb-4">Edit Butcher Date</h3>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div
+            className="rounded-2xl p-6 w-full max-w-lg border"
+            style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+          >
+            <h3 className="font-display font-bold text-xl mb-4 text-white">Edit Butcher Date</h3>
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-brand-dark mb-1">Butcher Date</label>
+                <label className="block text-sm font-semibold text-white mb-1">Butcher Date</label>
                 <input
                   type="date"
                   value={editForm.butcher_date}
@@ -629,21 +659,23 @@ export default function AnimalsPage() {
                     const ready = bd ? new Date(new Date(bd).getTime() + 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : '';
                     setEditForm({ ...editForm, butcher_date: bd, estimated_ready_date: ready });
                   }}
-                  className="w-full px-4 py-2 border border-brand-gray-light rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                  className="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)' }}
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-brand-dark mb-1">Est. Ready Date</label>
+                <label className="block text-sm font-semibold text-white mb-1">Est. Ready Date</label>
                 <input
                   type="date"
                   value={editForm.estimated_ready_date}
                   onChange={(e) => setEditForm({ ...editForm, estimated_ready_date: e.target.value })}
-                  className="w-full px-4 py-2 border border-brand-gray-light rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                  className="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)' }}
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-brand-dark mb-2">Head Count by Type</label>
+                <label className="block text-sm font-semibold text-white mb-2">Head Count by Type</label>
                 <div className="space-y-2">
                   {[
                     { type: 'grass_fed', key: 'grass_fed_count', label: '🌿 Grass-Fed' },
@@ -654,15 +686,16 @@ export default function AnimalsPage() {
                     const minValue = existing ? Math.ceil(existing.units_used) : 0;
                     return (
                       <div key={type} className="flex items-center gap-3">
-                        <span className="w-36 text-sm text-brand-dark">{label}</span>
+                        <span className="w-36 text-sm text-white">{label}</span>
                         <input
                           type="number"
                           min={minValue}
                           value={editForm[key as keyof typeof editForm]}
                           onChange={(e) => setEditForm({ ...editForm, [key]: parseInt(e.target.value) || 0 })}
-                          className="w-24 px-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                          className="w-24 px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange bg-transparent text-white"
+                          style={{ borderColor: 'var(--border)' }}
                         />
-                        <span className="text-xs text-brand-gray">head (min: {minValue} sold)</span>
+                        <span className="text-xs text-gray-400">head (min: {minValue} sold)</span>
                       </div>
                     );
                   })}
@@ -672,7 +705,7 @@ export default function AnimalsPage() {
                 <button type="submit" className="flex-1 bg-brand-orange hover:bg-brand-orange-hover text-white py-2 rounded-lg font-semibold">
                   Save Changes
                 </button>
-                <button type="button" onClick={() => setEditModal({ open: false, date: '', animals: [] })} className="flex-1 bg-brand-gray-light text-brand-dark py-2 rounded-lg font-semibold">
+                <button type="button" onClick={() => setEditModal({ open: false, date: '', animals: [] })} className="flex-1 py-2 rounded-lg font-semibold text-white" style={{ background: 'var(--surface-2)' }}>
                   Cancel
                 </button>
               </div>
@@ -689,9 +722,12 @@ export default function AnimalsPage() {
       )}
 
       {errorMessage && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-            <p className="text-brand-dark font-semibold mb-6 text-center">{errorMessage}</p>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div
+            className="rounded-2xl p-6 w-full max-w-sm shadow-xl border"
+            style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+          >
+            <p className="text-white font-semibold mb-6 text-center">{errorMessage}</p>
             <button
               onClick={() => setErrorMessage('')}
               className="w-full bg-brand-orange text-white py-2 rounded-lg font-semibold"
@@ -704,16 +740,20 @@ export default function AnimalsPage() {
 
       {/* Archive confirmation modal */}
       {archiveId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full">
-            <p className="text-lg font-semibold mb-4">Archive this butcher date?</p>
-            <p className="text-gray-600 mb-6">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div
+            className="rounded-lg p-6 max-w-sm w-full border"
+            style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+          >
+            <p className="text-lg font-semibold mb-4 text-white">Archive this butcher date?</p>
+            <p className="text-gray-300 mb-6">
               It will be hidden from the main view. Active reservations will block archival.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setArchiveId(null)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 font-medium hover:bg-gray-50"
+                className="flex-1 px-4 py-2 rounded text-white font-medium"
+                style={{ borderColor: 'var(--border)', borderWidth: 1 }}
               >
                 Cancel
               </button>

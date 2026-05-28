@@ -15,6 +15,7 @@ interface Session {
   customers: { id: string; name: string; email: string; phone: string } | null;
   animals: Array<{ id: string; name: string; butcher_date: string; estimated_ready_date: string; animal_type: string; price_per_lb: number }> | null;
   cut_sheet_answers: Array<{ section: string; answers: Record<string, unknown>; completed: boolean; custom_request: string; custom_request_status: string }>;
+  last_viewed_at?: string | null;
 }
 
 function formatPurchaseType(type: string): string {
@@ -152,11 +153,12 @@ export default function CutSheetsPage() {
             <button
               key={tab}
               onClick={() => setFilter(tab)}
-              className={`px-4 py-2 rounded-lg font-medium text-sm ${
+              className={`px-4 py-2 rounded-lg font-medium text-sm border ${
                 filter === tab
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'text-gray-300 hover:bg-white/5'
               }`}
+              style={filter === tab ? undefined : { background: 'var(--surface-1)', borderColor: 'var(--border)' }}
             >
               {tab === 'beef_ready' ? 'Beef Ready' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
@@ -174,7 +176,7 @@ export default function CutSheetsPage() {
             );
 
             return (
-              <div key={session.id} className="border border-gray-200 rounded-lg overflow-hidden">
+              <div key={session.id} className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border)' }}>
                 {/* Card Header */}
                 <div className="bg-gradient-to-r from-green-700 to-green-800 text-white p-4">
                   <div className="flex items-center justify-between mb-2">
@@ -203,11 +205,17 @@ export default function CutSheetsPage() {
                 </div>
 
                 {/* Card Body */}
-                <div className="p-4 space-y-4">
+                <div className="p-4 space-y-4" style={{ background: 'var(--surface-1)' }}>
+                  <div className="text-sm text-gray-300">
+                    Last Viewed:{' '}
+                    {session.last_viewed_at
+                      ? new Date(session.last_viewed_at).toLocaleString()
+                      : <span className="text-gray-400">Not yet opened</span>}
+                  </div>
                   {/* Progress or Buttons */}
                   {!session.cut_sheet_complete ? (
                     <div className="space-y-2">
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full rounded-full h-2" style={{ background: 'var(--surface-2)' }}>
                         <div
                           className="bg-blue-600 h-2 rounded-full transition-all"
                           style={{
@@ -230,13 +238,15 @@ export default function CutSheetsPage() {
                         onClick={() =>
                           setExpandedSheet(expandedSheet === session.id ? null : session.id)
                         }
-                        className="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded font-medium text-sm hover:bg-blue-200"
+                        className="flex-1 px-3 py-2 rounded font-medium text-sm"
+                        style={{ background: 'var(--surface-2)', color: 'white', border: '1px solid var(--border)' }}
                       >
                         {expandedSheet === session.id ? 'Hide' : 'View'} Full Cut Sheet
                       </button>
                       <button
                         onClick={() => handlePrintCutSheet(session.id)}
-                        className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded font-medium text-sm hover:bg-gray-200"
+                        className="flex-1 px-3 py-2 rounded font-medium text-sm text-white hover:bg-white/5"
+                        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
                       >
                         Print Cut Sheet
                       </button>
@@ -245,8 +255,8 @@ export default function CutSheetsPage() {
 
                   {/* Hanging Weight Section (show after butcher date passed) */}
                   {hasPassedButcher && (
-                    <div className="border-t pt-4">
-                      <p className="text-sm font-semibold text-gray-900 mb-3">Hanging Weight</p>
+                    <div className="border-t pt-4" style={{ borderColor: 'var(--border)' }}>
+                      <p className="text-sm font-semibold text-white mb-3">Hanging Weight</p>
                       <div className="flex gap-2">
                         <input
                           type="number"
@@ -258,7 +268,8 @@ export default function CutSheetsPage() {
                               [session.id]: parseFloat(e.target.value) || 0,
                             })
                           }
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
+                          className="flex-1 px-3 py-2 border rounded text-sm bg-transparent text-white"
+                          style={{ borderColor: 'var(--border)' }}
                         />
                         <button
                           onClick={() => handleSaveHangingWeight(session.id)}
@@ -269,7 +280,7 @@ export default function CutSheetsPage() {
                         </button>
                       </div>
                       {hangingWeights[session.id] && (
-                        <p className="mt-2 text-sm font-semibold text-green-700">
+                        <p className="mt-2 text-sm font-semibold text-green-400">
                           Balance Due: ${(hangingWeights[session.id] * (animal?.price_per_lb || 8) - session.deposit_amount).toFixed(2)}
                         </p>
                       )}
@@ -324,8 +335,8 @@ export default function CutSheetsPage() {
 
                 {/* Expanded Full Cut Sheet */}
                 {expandedSheet === session.id && (
-                  <div className="border-t bg-gray-50 p-4">
-                    <p className="font-semibold text-gray-900 mb-3">Full Cut Sheet</p>
+                  <div className="border-t p-4" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                    <p className="font-semibold text-white mb-3">Full Cut Sheet</p>
                     <table className="w-full">
                       <tbody>
                         {session.cut_sheet_answers
@@ -349,11 +360,11 @@ export default function CutSheetsPage() {
                             if (a.reason === 'round_not_steaks') details.push('N/A — Round not steaks');
 
                             return (
-                              <tr key={answer.section} className="border-b border-gray-100">
-                                <td className="py-3 px-4 font-semibold text-sm text-gray-800 w-40">
+                              <tr key={answer.section} className="border-b" style={{ borderColor: 'var(--border)' }}>
+                                <td className="py-3 px-4 font-semibold text-sm text-white w-40">
                                   {SECTION_DISPLAY_NAMES[answer.section] || answer.section}
                                 </td>
-                                <td className="py-3 px-4 text-sm text-gray-600">
+                                <td className="py-3 px-4 text-sm text-gray-300">
                                   {details.join(' · ') || '—'}
                                 </td>
                                 <td className="py-3 px-4 text-sm">
@@ -388,12 +399,13 @@ export default function CutSheetsPage() {
       {/* Confirm Modals */}
       {confirmApprove && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm">
-            <p className="text-lg font-semibold mb-4">Approve Custom Request?</p>
+          <div className="rounded-lg p-6 max-w-sm" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+            <p className="text-lg font-semibold text-white mb-4">Approve Custom Request?</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmApprove(null)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 font-medium hover:bg-gray-50"
+                className="flex-1 px-4 py-2 border rounded text-white font-medium hover:bg-white/5"
+                style={{ borderColor: 'var(--border)' }}
               >
                 Cancel
               </button>
@@ -412,12 +424,13 @@ export default function CutSheetsPage() {
 
       {confirmDeny && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm">
-            <p className="text-lg font-semibold mb-4">Deny Custom Request?</p>
+          <div className="rounded-lg p-6 max-w-sm" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+            <p className="text-lg font-semibold text-white mb-4">Deny Custom Request?</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmDeny(null)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 font-medium hover:bg-gray-50"
+                className="flex-1 px-4 py-2 border rounded text-white font-medium hover:bg-white/5"
+                style={{ borderColor: 'var(--border)' }}
               >
                 Cancel
               </button>
@@ -434,12 +447,13 @@ export default function CutSheetsPage() {
 
       {confirmReady && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm">
-            <p className="text-lg font-semibold mb-4">Mark Beef Ready?</p>
+          <div className="rounded-lg p-6 max-w-sm" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+            <p className="text-lg font-semibold text-white mb-4">Mark Beef Ready?</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmReady(null)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 font-medium hover:bg-gray-50"
+                className="flex-1 px-4 py-2 border rounded text-white font-medium hover:bg-white/5"
+                style={{ borderColor: 'var(--border)' }}
               >
                 Cancel
               </button>
@@ -456,12 +470,12 @@ export default function CutSheetsPage() {
 
       {editingSection && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
-            <h3 className="font-bold text-lg text-gray-900 mb-4">
+          <div className="rounded-2xl p-6 w-full max-w-lg shadow-xl" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+            <h3 className="font-bold text-lg text-white mb-4">
               Edit {SECTION_DISPLAY_NAMES[editingSection.section]}
             </h3>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 Raw answers (JSON) — edit carefully
               </label>
               <textarea
@@ -470,10 +484,11 @@ export default function CutSheetsPage() {
                   try { setEditAnswers(JSON.parse(e.target.value)); } catch {}
                 }}
                 rows={10}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                className="w-full border rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-orange bg-transparent text-white"
+                style={{ borderColor: 'var(--border)' }}
               />
             </div>
-            <p className="text-xs text-gray-500 mb-4">
+            <p className="text-xs text-gray-400 mb-4">
               Valid choice keys: choice, choices, thickness, tbone_thickness, strip_thickness, filet_thickness, steaks_per_pack, roast_weight, fat_pct, lbs_per_pack, pounds, pkg_size
             </p>
             <div className="flex gap-3">
@@ -498,7 +513,8 @@ export default function CutSheetsPage() {
               </button>
               <button
                 onClick={() => setEditingSection(null)}
-                className="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-semibold"
+                className="flex-1 border-2 py-3 rounded-xl font-semibold text-white hover:bg-white/5"
+                style={{ borderColor: 'var(--border)' }}
               >
                 Cancel
               </button>

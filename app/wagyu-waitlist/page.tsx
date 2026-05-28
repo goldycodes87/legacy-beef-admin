@@ -29,40 +29,43 @@ export default function WagyuWaitlist() {
     <AdminLayout title="Wagyu Waitlist">
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-brand-dark">Wagyu Waitlist</h1>
-          <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-semibold">
+          <h1 className="text-2xl font-bold text-white">Wagyu Waitlist</h1>
+          <span className="bg-purple-500/20 text-purple-200 px-3 py-1 rounded-full text-sm font-semibold">
             {entries.length} waiting
           </span>
         </div>
         {loading ? (
-          <p className="text-gray-500">Loading...</p>
+          <p className="text-gray-400">Loading...</p>
         ) : entries.length === 0 ? (
-          <p className="text-gray-500">No waitlist entries yet.</p>
+          <p className="text-gray-400">No waitlist entries yet.</p>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div
+            className="rounded-2xl shadow-sm overflow-hidden border"
+            style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+          >
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="border-b" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                 <tr>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Name</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Email</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Phone</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Size</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-300 uppercase">Name</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-300 uppercase">Email</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-300 uppercase">Phone</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-300 uppercase">Size</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-300 uppercase">Date</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-300 uppercase">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-[var(--border)]">
                 {entries.map(entry => (
-                  <tr key={entry.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium text-brand-dark">{entry.customer_name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{entry.email}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{entry.phone || '—'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600 capitalize">{entry.size_preference}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                  <tr key={entry.id} className="hover:bg-white/5">
+                    <td className="px-6 py-4 text-sm font-medium text-white">{entry.customer_name}</td>
+                    <td className="px-6 py-4 text-sm text-gray-300">{entry.email}</td>
+                    <td className="px-6 py-4 text-sm text-gray-300">{entry.phone || '—'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-300 capitalize">{entry.size_preference}</td>
+                    <td className="px-6 py-4 text-sm text-gray-300">
                       {new Date(entry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </td>
                     <td className="px-6 py-4">
-                      <span className="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 capitalize">
+                      <span className="px-2 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-200 capitalize">
                         {entry.status}
                       </span>
                     </td>

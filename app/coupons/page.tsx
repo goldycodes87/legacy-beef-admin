@@ -87,43 +87,46 @@ export default function CouponsPage() {
         </div>
 
         {coupons.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-400">
             No coupons yet — create your first one
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
+            <table
+              className="w-full border rounded-xl overflow-hidden"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <thead style={{ background: 'var(--surface-2)' }}>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Code</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Value</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Expires</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Used</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Active</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-white">Code</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-white">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-white">Value</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-white">Expires</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-white">Used</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-white">Active</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-white">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-[var(--border)]">
                 {coupons.map(c => {
                   const expired = isExpired(c.expires_at);
                   const active = !expired && !c.redeemed;
                   return (
-                    <tr key={c.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm font-semibold">{c.code}</td>
-                      <td className="px-6 py-4 text-sm">{c.type}</td>
-                      <td className="px-6 py-4 text-sm">
+                    <tr key={c.id} className="hover:bg-white/5">
+                      <td className="px-6 py-4 text-sm font-semibold text-white">{c.code}</td>
+                      <td className="px-6 py-4 text-sm text-gray-300">{c.type}</td>
+                      <td className="px-6 py-4 text-sm text-gray-300">
                         {c.type.includes('percent') ? `${c.value}%` : `$${c.value.toFixed(2)}`}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-gray-400">
                         {new Date(c.expires_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <span
                           className={`px-2 py-1 rounded text-xs font-medium ${
                             c.redeemed
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
+                              ? 'bg-green-500/20 text-green-300'
+                              : 'bg-white/10 text-white'
                           }`}
                         >
                           {c.redeemed ? 'Yes' : 'No'}
@@ -133,8 +136,8 @@ export default function CouponsPage() {
                         <span
                           className={`px-2 py-1 rounded text-xs font-medium ${
                             active
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
+                              ? 'bg-green-500/20 text-green-300'
+                              : 'bg-red-500/20 text-red-300'
                           }`}
                         >
                           {active ? 'Active' : 'Inactive'}
@@ -143,7 +146,7 @@ export default function CouponsPage() {
                       <td className="px-6 py-4 text-sm">
                         <button
                           onClick={() => setDeleteId(c.id)}
-                          className="text-red-600 hover:underline font-medium"
+                          className="text-red-400 hover:underline font-medium"
                         >
                           Delete
                         </button>
@@ -159,12 +162,15 @@ export default function CouponsPage() {
 
       {/* Create Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
-            <p className="text-lg font-semibold mb-4">Create Coupon</p>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div
+            className="rounded-lg p-6 max-w-sm w-full mx-4 border"
+            style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+          >
+            <p className="text-lg font-semibold mb-4 text-white">Create Coupon</p>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Code</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Code</label>
                 <input
                   type="text"
                   value={formData.code}
@@ -172,15 +178,17 @@ export default function CouponsPage() {
                     setFormData({ ...formData, code: e.target.value.toUpperCase() })
                   }
                   placeholder="e.g., SUMMER20"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)', borderWidth: 1 }}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Type</label>
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)', borderWidth: 1 }}
                 >
                   <option value="fixed_amount">Fixed Amount ($)</option>
                   <option value="percentage">Percentage (%)</option>
@@ -190,7 +198,7 @@ export default function CouponsPage() {
               </div>
               {(formData.type === 'fixed_amount' || formData.type === 'percentage') && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Value</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Value</label>
                   <input
                     type="number"
                     value={formData.value}
@@ -198,19 +206,21 @@ export default function CouponsPage() {
                       setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })
                     }
                     placeholder="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-transparent text-white"
+                    style={{ borderColor: 'var(--border)', borderWidth: 1 }}
                   />
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Expires At
                 </label>
                 <input
                   type="date"
                   value={formData.expires_at}
                   onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)', borderWidth: 1 }}
                 />
               </div>
               <label className="flex items-center gap-2">
@@ -220,13 +230,14 @@ export default function CouponsPage() {
                   onChange={(e) => setFormData({ ...formData, single_use: e.target.checked })}
                   className="rounded"
                 />
-                <span className="text-sm text-gray-700">Single Use</span>
+                <span className="text-sm text-gray-300">Single Use</span>
               </label>
             </div>
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 font-medium hover:bg-gray-50"
+                className="flex-1 px-4 py-2 rounded text-white font-medium"
+                style={{ borderColor: 'var(--border)', borderWidth: 1 }}
               >
                 Cancel
               </button>
@@ -244,14 +255,18 @@ export default function CouponsPage() {
 
       {/* Delete Modal */}
       {deleteId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm">
-            <p className="text-lg font-semibold mb-4">Delete Coupon?</p>
-            <p className="text-gray-600 mb-6">This action cannot be undone.</p>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div
+            className="rounded-lg p-6 max-w-sm w-full border"
+            style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+          >
+            <p className="text-lg font-semibold mb-4 text-white">Delete Coupon?</p>
+            <p className="text-gray-300 mb-6">This action cannot be undone.</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteId(null)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 font-medium hover:bg-gray-50"
+                className="flex-1 px-4 py-2 rounded text-white font-medium"
+                style={{ borderColor: 'var(--border)', borderWidth: 1 }}
               >
                 Cancel
               </button>

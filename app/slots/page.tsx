@@ -1,18 +1,26 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { PaymentForm, CreditCard } from 'react-square-web-payments-sdk';
 import AdminLayout from '@/components/AdminLayout';
 
 function ConfirmModal({ message, onConfirm, onCancel }: { message: string, onConfirm: () => void, onCancel: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+      <div
+        className="rounded-2xl p-6 w-full max-w-sm shadow-xl"
+        style={{ background: 'var(--surface-1)' }}
+      >
         <p className="text-white font-semibold mb-6 text-center">{message}</p>
         <div className="flex gap-3">
           <button onClick={onConfirm} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-semibold">
             Yes, Delete
           </button>
-          <button onClick={onCancel} className="flex-1 bg-brand-gray-light text-white py-2 rounded-lg font-semibold">
+          <button
+            onClick={onCancel}
+            className="flex-1 text-white py-2 rounded-lg font-semibold"
+            style={{ background: 'var(--surface-2)' }}
+          >
             Cancel
           </button>
         </div>
@@ -56,6 +64,7 @@ export default function SlotsPage() {
   const [selectedAnimalId, setSelectedAnimalId] = useState('');
   const [confirmModal, setConfirmModal] = useState<{open: boolean, message: string, onConfirm: () => void}>({open: false, message: '', onConfirm: () => {}});
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
+  const [manualChargeSession, setManualChargeSession] = useState<Reservation | null>(null);
   const [hangingWeights, setHangingWeights] = useState<Record<string, string>>({});
   const [savingWeight, setSavingWeight] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -208,11 +217,16 @@ export default function SlotsPage() {
               <button
                 key={f}
                 onClick={() => setStatusFilter(f)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition border ${
                   statusFilter === f
                     ? 'bg-brand-orange text-white'
-                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                    : 'text-gray-300 hover:bg-white/5'
                 }`}
+                style={
+                  statusFilter === f
+                    ? undefined
+                    : { background: 'var(--surface-1)', borderColor: 'var(--border)' }
+                }
               >
                 {f === 'all' ? 'All' : f === 'confirmed' ? 'Confirmed' : 'Drafts'}
               </button>
@@ -343,6 +357,14 @@ export default function SlotsPage() {
                                   💳 Payment Link
                                 </button>
                               )}
+                              {session.status === 'draft' && session.intended_payment_method === 'card' && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setManualChargeSession(session); }}
+                                  className="text-brand-orange hover:text-brand-orange-hover font-semibold text-sm"
+                                >
+                                  💳 Charge Card
+                                </button>
+                              )}
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleMoveOpen(session); }}
                                 className="text-brand-orange hover:text-brand-orange-hover font-semibold"
@@ -411,7 +433,8 @@ export default function SlotsPage() {
                                   value={hangingWeights[session.id] !== undefined ? hangingWeights[session.id] : (session.hanging_weight_lbs ? String(session.hanging_weight_lbs) : '')}
                                   onChange={(e) => setHangingWeights({ ...hangingWeights, [session.id]: e.target.value })}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="w-32 px-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                                  className="w-32 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                                  style={{ borderColor: 'var(--border)' }}
                                 />
                                 {hangingWeights[session.id] && (
                                   <p className="text-sm text-brand-gray">
@@ -438,7 +461,8 @@ export default function SlotsPage() {
                                   defaultValue={session.admin_notes || ''}
                                   onBlur={(e) => handleSaveAdminNotes(session.id, e.target.value)}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="flex-1 px-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                                  className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                                  style={{ borderColor: 'var(--border)' }}
                                 />
                               </div>
                               <div className="mt-4 border-t border-gray-100 pt-4">
@@ -455,7 +479,8 @@ export default function SlotsPage() {
                                         type: e.target.value 
                                       }
                                     })}
-                                    className="px-3 py-2 border border-brand-gray-light rounded-lg text-sm"
+                                    className="px-3 py-2 border rounded-lg text-sm"
+                                    style={{ borderColor: 'var(--border)' }}
                                   >
                                     <option value="fixed">$ Fixed</option>
                                     <option value="percent">% Percent</option>
@@ -473,7 +498,8 @@ export default function SlotsPage() {
                                       }
                                     })}
                                     onClick={(e) => e.stopPropagation()}
-                                    className="w-28 px-3 py-2 border border-brand-gray-light rounded-lg text-sm"
+                                    className="w-28 px-3 py-2 border rounded-lg text-sm"
+                                    style={{ borderColor: 'var(--border)' }}
                                   />
                                   <input
                                     type="text"
@@ -487,7 +513,8 @@ export default function SlotsPage() {
                                       }
                                     })}
                                     onClick={(e) => e.stopPropagation()}
-                                    className="flex-1 min-w-48 px-3 py-2 border border-brand-gray-light rounded-lg text-sm"
+                                    className="flex-1 min-w-48 px-3 py-2 border rounded-lg text-sm"
+                                    style={{ borderColor: 'var(--border)' }}
                                   />
                                   <button
                                     onClick={async (e) => {
@@ -558,15 +585,19 @@ export default function SlotsPage() {
 
       {moveModal.open && moveModal.session && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h3 className="font-display font-bold text-xl mb-2">Move Reservation</h3>
-            <p className="text-sm text-brand-gray mb-4">
+          <div
+            className="rounded-2xl p-6 w-full max-w-md"
+            style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
+          >
+            <h3 className="font-display font-bold text-xl text-white mb-2">Move Reservation</h3>
+            <p className="text-sm text-gray-300 mb-4">
               Moving {moveModal.session.customer_name} ({moveModal.session.purchase_type}) to a new butcher date.
             </p>
             <select
               value={selectedAnimalId}
               onChange={(e) => setSelectedAnimalId(e.target.value)}
-              className="w-full px-4 py-2 border border-brand-gray-light rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-brand-orange"
+              className="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-brand-orange bg-transparent text-white"
+              style={{ borderColor: 'var(--border)' }}
             >
               <option value="">Select new butcher date...</option>
               {availableAnimals.map((animal) => (
@@ -585,7 +616,8 @@ export default function SlotsPage() {
               </button>
               <button
                 onClick={() => setMoveModal({ open: false, session: null })}
-                className="flex-1 bg-brand-gray-light text-white py-2 rounded-lg font-semibold"
+                className="flex-1 text-white py-2 rounded-lg font-semibold"
+                style={{ background: 'var(--surface-2)' }}
               >
                 Cancel
               </button>
@@ -604,7 +636,10 @@ export default function SlotsPage() {
 
       {depositModal?.open && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+          <div
+            className="rounded-2xl p-6 w-full max-w-sm shadow-xl"
+            style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
+          >
             <h3 className="font-bold text-lg text-white mb-4">
               Confirm Deposit — {depositModal.customerName}
             </h3>
@@ -616,7 +651,8 @@ export default function SlotsPage() {
                 <select
                   value={depositForm.method}
                   onChange={(e) => setDepositForm({ ...depositForm, method: e.target.value })}
-                  className="w-full px-4 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                  className="w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)' }}
                 >
                   <option value="check">Check</option>
                   <option value="cash">Cash</option>
@@ -632,7 +668,8 @@ export default function SlotsPage() {
                     value={depositForm.checkNumber}
                     onChange={(e) => setDepositForm({ ...depositForm, checkNumber: e.target.value })}
                     placeholder="e.g. 1042"
-                    className="w-full px-4 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                    className="w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange bg-transparent text-white"
+                    style={{ borderColor: 'var(--border)' }}
                   />
                 </div>
               )}
@@ -657,7 +694,8 @@ export default function SlotsPage() {
               </button>
               <button
                 onClick={() => setDepositModal(null)}
-                className="flex-1 bg-brand-gray-light text-white py-2 rounded-lg font-semibold"
+                className="flex-1 text-white py-2 rounded-lg font-semibold"
+                style={{ background: 'var(--surface-2)' }}
               >
                 Cancel
               </button>
@@ -665,6 +703,123 @@ export default function SlotsPage() {
           </div>
         </div>
       )}
+
+      {manualChargeSession && (
+        <ManualChargeModal
+          session={manualChargeSession}
+          onClose={() => setManualChargeSession(null)}
+          onSuccess={() => {
+            setManualChargeSession(null);
+            loadSlots();
+          }}
+        />
+      )}
     </AdminLayout>
+  );
+}
+
+function SquareChargeForm({
+  sessionId,
+  onSuccess,
+}: {
+  sessionId: string;
+  onSuccess: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
+
+  async function handleToken(token: any) {
+    if (!token?.token) {
+      setError('Card tokenization failed. Please try again.');
+      return;
+    }
+    setPaying(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/sessions/${sessionId}/charge-card`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source_id: token.token }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Payment failed. Please try again.');
+        setPaying(false);
+        return;
+      }
+      onSuccess();
+    } catch (err: any) {
+      setError(err.message || 'Payment failed');
+      setPaying(false);
+    }
+  }
+
+  return (
+    <div>
+      <PaymentForm
+        applicationId={process.env.NEXT_PUBLIC_SQUARE_APP_ID!}
+        locationId={process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID!}
+        cardTokenizeResponseReceived={handleToken}
+      >
+        <CreditCard
+          style={{
+            '.input-container': {
+              borderColor: '#E5E7EB',
+              borderRadius: '12px',
+            },
+            '.input-container.is-focus': {
+              borderColor: '#E85D24',
+            },
+            '.input-container.is-error': {
+              borderColor: '#EF4444',
+            },
+            input: {
+              color: '#111827',
+              fontSize: '15px',
+            },
+          }}
+        >
+          {paying ? 'Processing…' : 'Charge Card'}
+        </CreditCard>
+      </PaymentForm>
+      {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+    </div>
+  );
+}
+
+function ManualChargeModal({
+  session,
+  onClose,
+  onSuccess,
+}: {
+  session: any;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div
+        className="rounded-2xl p-6 w-full max-w-md"
+        style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
+      >
+        <h2 className="text-white font-semibold text-lg mb-2">
+          Charge Card — {session.customer_name}
+        </h2>
+        <p className="text-gray-400 text-sm mb-6">
+          {session.purchase_type} deposit
+        </p>
+        <SquareChargeForm
+          sessionId={session.id}
+          onSuccess={onSuccess}
+        />
+        <button
+          onClick={onClose}
+          className="mt-4 w-full py-2 rounded-lg text-white font-semibold hover:bg-white/5"
+          style={{ background: 'var(--surface-2)' }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }

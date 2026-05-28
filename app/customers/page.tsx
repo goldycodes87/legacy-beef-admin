@@ -232,21 +232,23 @@ export default function CustomersPage() {
         <div className="flex gap-2 mb-4">
           {(['active', 'archived', 'all'] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 rounded-full text-sm font-semibold capitalize transition-colors ${filter === f
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold capitalize transition-colors border ${filter === f
                 ? 'bg-brand-dark text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                : 'text-gray-300 hover:bg-white/5'}`}
+              style={filter === f ? undefined : { background: 'var(--surface-1)', borderColor: 'var(--border)' }}>
               {f === 'active' ? 'Active' : f === 'archived' ? 'Archived' : 'All'}
             </button>
           ))}
         </div>
         <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-600">{customers.length} customers total</p>
+          <p className="text-sm text-gray-300">{customers.length} customers total</p>
           <input
             type="text"
             placeholder="Search by name, email, or phone..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg w-80"
+            className="px-4 py-2 border rounded-lg w-80 bg-transparent text-white"
+            style={{ borderColor: 'var(--border)' }}
           />
         </div>
 
@@ -255,21 +257,21 @@ export default function CustomersPage() {
         ) : (
           <div className="overflow-x-auto -mx-4 px-4">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b">
+              <thead className="border-b" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Phone</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">City/State</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Orders</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Last Order</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-white">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-white">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-white">Phone</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-white">City/State</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-white">Orders</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-white">Last Order</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-white">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
                 {filtered.map(c => (
                   <>
-                    <tr key={c.id} className="hover:bg-gray-50">
+                    <tr key={c.id} className="hover:bg-white/5">
                       <td className="px-6 py-4 text-sm">
                         <div>
                           <p className="font-medium">{c.name}</p>
@@ -284,18 +286,18 @@ export default function CustomersPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{c.email}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{c.phone}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{c.city}, {c.state}</td>
+                      <td className="px-6 py-4 text-sm text-gray-300">{c.email}</td>
+                      <td className="px-6 py-4 text-sm text-gray-300">{c.phone}</td>
+                      <td className="px-6 py-4 text-sm text-gray-300">{c.city}, {c.state}</td>
                       <td className="px-6 py-4 text-sm font-medium">{getActiveSessions(c).length}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{lastOrder(c)}</td>
+                      <td className="px-6 py-4 text-sm text-gray-300">{lastOrder(c)}</td>
                       <td className="px-6 py-4 text-sm">
                         <div className="flex gap-2 flex-wrap">
                           <button
                             onClick={() =>
                               setExpandedCustomer(expandedCustomer === c.id ? null : c.id)
                             }
-                            className="text-blue-600 hover:underline font-medium"
+                            className="text-blue-300 hover:underline font-medium"
                           >
                             {expandedCustomer === c.id ? 'Hide' : 'View'}
                           </button>
@@ -308,7 +310,7 @@ export default function CustomersPage() {
                           <button
                             onClick={() => handleArchive(c)}
                             className={`text-sm font-semibold ${
-                              c.archived_at ? 'text-green-600 hover:text-green-800' : 'text-gray-500 hover:text-gray-700'
+                              c.archived_at ? 'text-green-400 hover:text-green-300' : 'text-gray-400 hover:text-gray-200'
                             }`}
                           >
                             {c.archived_at ? 'Unarchive' : 'Archive'}
@@ -342,35 +344,36 @@ export default function CustomersPage() {
                     </tr>
                     {expandedCustomer === c.id && (
                       <tr>
-                        <td colSpan={7} className="px-6 py-4 bg-gray-50">
+                        <td colSpan={7} className="px-6 py-4" style={{ background: 'var(--surface-2)' }}>
                           <div className="space-y-3">
-                            <p className="font-semibold text-gray-900">Sessions:</p>
+                            <p className="font-semibold text-white">Sessions:</p>
                             {getActiveSessions(c).map(s => (
                               <div
                                 key={s.id}
-                                className="bg-white border border-gray-200 rounded p-3 text-sm"
+                                className="border rounded p-3 text-sm"
+                                style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
                               >
                                 <p className="font-medium">
-                                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs mr-2">
+                                  <span className="bg-blue-900 text-blue-100 px-2 py-1 rounded text-xs mr-2">
                                     {s.purchase_type}
                                   </span>
                                   <span className="font-medium">
                                     {s.animals?.name || 'Unknown'}
                                   </span>
-                                  <span className="text-gray-500 text-xs ml-1">
+                                  <span className="text-gray-400 text-xs ml-1">
                                     • Butcher {s.animals?.butcher_date
                                       ? new Date(s.animals.butcher_date + 'T00:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})
                                       : 'TBD'}
                                   </span>
                                 </p>
-                                <p className="text-gray-600 mt-1">
+                                <p className="text-gray-300 mt-1">
                                   Status:{' '}
                                   <span className="font-semibold capitalize">{s.status}</span>
                                 </p>
-                                <p className="text-gray-600">
+                                <p className="text-gray-300">
                                   Deposit:{' '}
                                   {s.deposit_paid ? (
-                                    <span className="text-green-600 font-semibold">✓ Deposit Paid</span>
+                                    <span className="text-green-400 font-semibold">✓ Deposit Paid</span>
                                   ) : (
                                     <span className="text-red-500 font-semibold">✗ Deposit Pending</span>
                                   )}
@@ -390,73 +393,83 @@ export default function CustomersPage() {
       </div>
       {editingCustomer && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
-            <h2 className="text-xl font-bold mb-4">Edit Customer</h2>
+          <div
+            className="rounded-2xl p-6 max-w-sm w-full"
+            style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
+          >
+            <h2 className="text-xl font-bold text-white mb-4">Edit Customer</h2>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-semibold mb-1">Full Name</label>
+                <label className="block text-sm font-semibold text-white mb-1">Full Name</label>
                 <input
                   type="text"
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="w-full px-3 py-2 border rounded"
+                  className="w-full px-3 py-2 border rounded bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)' }}
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-1">Email</label>
+                <label className="block text-sm font-semibold text-white mb-1">Email</label>
                 <input
                   type="email"
                   value={editForm.email}
                   onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                  className="w-full px-3 py-2 border rounded"
+                  className="w-full px-3 py-2 border rounded bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)' }}
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-1">Phone</label>
+                <label className="block text-sm font-semibold text-white mb-1">Phone</label>
                 <input
                   type="tel"
                   value={editForm.phone}
                   onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                  className="w-full px-3 py-2 border rounded"
+                  className="w-full px-3 py-2 border rounded bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)' }}
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-1">Address</label>
+                <label className="block text-sm font-semibold text-white mb-1">Address</label>
                 <input
                   type="text"
                   value={editForm.address}
                   onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                  className="w-full px-3 py-2 border rounded"
+                  className="w-full px-3 py-2 border rounded bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)' }}
                 />
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-sm font-semibold mb-1">City</label>
+                  <label className="block text-sm font-semibold text-white mb-1">City</label>
                   <input
                     type="text"
                     value={editForm.city}
                     onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
-                    className="w-full px-3 py-2 border rounded"
+                    className="w-full px-3 py-2 border rounded bg-transparent text-white"
+                    style={{ borderColor: 'var(--border)' }}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-1">State</label>
+                  <label className="block text-sm font-semibold text-white mb-1">State</label>
                   <input
                     type="text"
                     value={editForm.state}
                     onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
-                    className="w-full px-3 py-2 border rounded"
+                    className="w-full px-3 py-2 border rounded bg-transparent text-white"
+                    style={{ borderColor: 'var(--border)' }}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-1">Zip</label>
+                  <label className="block text-sm font-semibold text-white mb-1">Zip</label>
                   <input
                     type="text"
                     value={editForm.zip}
                     onChange={(e) => setEditForm({ ...editForm, zip: e.target.value })}
-                    className="w-full px-3 py-2 border rounded"
+                    className="w-full px-3 py-2 border rounded bg-transparent text-white"
+                    style={{ borderColor: 'var(--border)' }}
                   />
                 </div>
               </div>
@@ -464,7 +477,8 @@ export default function CustomersPage() {
             <div className="flex gap-2 mt-6">
               <button
                 onClick={() => setEditingCustomer(null)}
-                className="flex-1 px-4 py-2 bg-gray-400 text-white rounded"
+                className="flex-1 px-4 py-2 text-white rounded hover:bg-white/5"
+                style={{ background: 'var(--surface-2)' }}
               >
                 Cancel
               </button>
@@ -481,15 +495,16 @@ export default function CustomersPage() {
 
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
-            <h2 className="text-xl font-bold mb-4 text-red-600">Delete Customer</h2>
-            <p className="text-gray-700 mb-6">
+          <div className="rounded-2xl p-6 max-w-sm w-full" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+            <h2 className="text-xl font-bold mb-4 text-red-400">Delete Customer</h2>
+            <p className="text-gray-300 mb-6">
               Delete <strong>{customers.find(c => c.id === deleteConfirm)?.name}</strong>? This cannot be undone.
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="flex-1 px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                className="flex-1 px-4 py-2 text-white rounded hover:bg-white/5"
+                style={{ background: 'var(--surface-2)' }}
               >
                 Cancel
               </button>
@@ -506,21 +521,22 @@ export default function CustomersPage() {
 
       {mergeModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-xl my-4">
-            <h2 className="text-xl font-bold mb-1">Merge Customers</h2>
-            <p className="text-sm text-gray-500 mb-4">
+          <div className="rounded-2xl p-6 max-w-2xl w-full shadow-xl my-4" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+            <h2 className="text-xl font-bold mb-1 text-white">Merge Customers</h2>
+            <p className="text-sm text-gray-300 mb-4">
               Choose which information to keep. All sessions from <strong> {mergeModal.customer.name}</strong> will move to the target customer.
             </p>
 
             {/* Target selector */}
             <div className="mb-5">
-              <label className="block text-sm font-semibold mb-1">
+              <label className="block text-sm font-semibold mb-1 text-white">
                 Merge into:
               </label>
               <select
                 value={mergeTargetId}
                 onChange={e => setMergeTargetId(e.target.value)}
-                className="w-full border rounded-xl px-4 py-2.5 text-sm"
+                className="w-full border rounded-xl px-4 py-2.5 text-sm bg-transparent text-white"
+                style={{ borderColor: 'var(--border)' }}
               >
                 <option value="">Select target customer...</option>
                 {customers
@@ -545,8 +561,8 @@ export default function CustomersPage() {
                 { key: 'address', label: 'Address', srcVal: `${source.address || ''} ${source.city || ''} ${source.state || ''}`.trim() || '—', tgtVal: `${target.address || ''} ${target.city || ''} ${target.state || ''}`.trim() || '—' },
               ];
               return (
-                <div className="border rounded-xl overflow-hidden mb-5">
-                  <div className="grid grid-cols-3 bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-500">
+                <div className="border rounded-xl overflow-hidden mb-5" style={{ borderColor: 'var(--border)' }}>
+                  <div className="grid grid-cols-3 px-4 py-2 text-xs font-semibold text-gray-300" style={{ background: 'var(--surface-2)' }}>
                     <div>Field</div>
                     <div className="text-center">
                       {source.name} (source)
@@ -556,8 +572,8 @@ export default function CustomersPage() {
                     </div>
                   </div>
                   {fields.map(f => (
-                    <div key={f.key} className="grid grid-cols-3 px-4 py-3 border-t items-center text-sm">
-                      <div className="font-semibold text-gray-700">
+                    <div key={f.key} className="grid grid-cols-3 px-4 py-3 border-t items-center text-sm" style={{ borderColor: 'var(--border)' }}>
+                      <div className="font-semibold text-white">
                         {f.label}
                       </div>
                       <div
@@ -565,7 +581,7 @@ export default function CustomersPage() {
                         className={`text-center cursor-pointer rounded-lg py-1.5 mx-2 transition-colors ${
                           mergeFieldChoices[f.key] === 'source'
                             ? 'bg-brand-orange text-white font-semibold'
-                            : 'hover:bg-orange-50 text-gray-600'
+                            : 'hover:bg-white/5 text-gray-300'
                         }`}
                       >
                         {f.srcVal}
@@ -575,7 +591,7 @@ export default function CustomersPage() {
                         className={`text-center cursor-pointer rounded-lg py-1.5 mx-2 transition-colors ${
                           mergeFieldChoices[f.key] === 'target'
                             ? 'bg-brand-orange text-white font-semibold'
-                            : 'hover:bg-orange-50 text-gray-600'
+                            : 'hover:bg-white/5 text-gray-300'
                         }`}
                       >
                         {f.tgtVal}
@@ -592,7 +608,8 @@ export default function CustomersPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setMergeModal(null)}
-                className="flex-1 py-2.5 border rounded-xl text-sm"
+                className="flex-1 py-2.5 border rounded-xl text-sm text-white"
+                style={{ borderColor: 'var(--border)' }}
               >
                 Cancel
               </button>
@@ -609,19 +626,23 @@ export default function CustomersPage() {
       )}
 
       {linkModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
-            <h2 className="text-xl font-bold mb-2">Link {linkModal.customerName} to related customer</h2>
-            <p className="text-sm text-gray-600 mb-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div
+            className="rounded-2xl p-6 max-w-sm w-full border"
+            style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+          >
+            <h2 className="text-xl font-bold mb-2 text-white">Link {linkModal.customerName} to related customer</h2>
+            <p className="text-sm text-gray-300 mb-4">
               Link family members, friends, or frequent group buyers together for easy reference.
             </p>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold mb-2">Select customer to link</label>
+                <label className="block text-sm font-semibold mb-2 text-white">Select customer to link</label>
                 <select
                   value={linkTargetId}
                   onChange={(e) => setLinkTargetId(e.target.value)}
-                  className="w-full px-3 py-2 border rounded"
+                  className="w-full px-3 py-2 border rounded bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)' }}
                 >
                   <option value="">— Choose a customer —</option>
                   {customers
@@ -634,13 +655,14 @@ export default function CustomersPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-2">Relationship label</label>
+                <label className="block text-sm font-semibold mb-2 text-white">Relationship label</label>
                 <input
                   type="text"
                   placeholder="e.g., Spouse, Friend, Business Partner"
                   value={linkRelationship}
                   onChange={(e) => setLinkRelationship(e.target.value)}
-                  className="w-full px-3 py-2 border rounded"
+                  className="w-full px-3 py-2 border rounded bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)' }}
                 />
               </div>
             </div>
@@ -651,7 +673,8 @@ export default function CustomersPage() {
                   setLinkTargetId('');
                   setLinkRelationship('');
                 }}
-                className="flex-1 px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                className="flex-1 px-4 py-2 text-white rounded hover:bg-white/5"
+                style={{ background: 'var(--surface-2)' }}
               >
                 Cancel
               </button>

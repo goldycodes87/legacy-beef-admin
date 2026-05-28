@@ -73,21 +73,24 @@ export default function SettingsPage() {
   return (
     <AdminLayout title="Settings">
       <div className="max-w-2xl">
-        <div className="bg-white rounded-2xl shadow-sm p-8">
-          <h3 className="font-display font-bold text-xl text-brand-dark mb-1">Price Matrix</h3>
-          <p className="text-sm text-brand-gray mb-6">
+        <div
+          className="rounded-2xl shadow-sm p-8 border"
+          style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+        >
+          <h3 className="font-display font-bold text-xl text-white mb-1">Price Matrix</h3>
+          <p className="text-sm text-gray-300 mb-6">
             Set price per lb by animal type and size. Changes apply to new butcher dates only — existing reservations are not affected.
           </p>
 
           {loading ? (
-            <p className="text-brand-gray">Loading prices...</p>
+            <p className="text-gray-300">Loading prices...</p>
           ) : (
             <form onSubmit={handleSave}>
               {/* Table header */}
               <div className="grid grid-cols-4 gap-4 mb-3">
                 <div />
                 {['Whole', 'Half', 'Quarter'].map(size => (
-                  <p key={size} className="text-xs font-semibold text-brand-gray uppercase tracking-wider text-center">{size}</p>
+                  <p key={size} className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">{size}</p>
                 ))}
               </div>
 
@@ -95,17 +98,18 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 {ROWS.map(row => (
                   <div key={row.label} className="grid grid-cols-4 gap-4 items-center">
-                    <p className="text-sm font-semibold text-brand-dark">{row.label}</p>
+                    <p className="text-sm font-semibold text-white">{row.label}</p>
                     {[row.whole, row.half, row.quarter].map(key => (
                       <div key={key} className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-gray text-sm">$</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
                         <input
                           type="number"
                           step="0.01"
                           min="0"
                           value={prices[key as keyof PriceMatrix]}
                           onChange={(e) => setPrices(prev => ({ ...prev, [key]: e.target.value }))}
-                          className="w-full pl-7 pr-3 py-2 border border-brand-gray-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange text-center"
+                          className="w-full pl-7 pr-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange text-center bg-transparent text-white"
+                          style={{ borderColor: 'var(--border)' }}
                         />
                       </div>
                     ))}
@@ -114,9 +118,12 @@ export default function SettingsPage() {
               </div>
 
               {/* Note */}
-              <div className="mt-6 p-4 bg-brand-warm rounded-xl">
-                <p className="text-xs text-brand-gray">
-                  <span className="font-semibold text-brand-dark">Note:</span> These prices are used as defaults when creating new butcher dates. You can override individual animal prices when editing a butcher date.
+              <div
+                className="mt-6 p-4 rounded-xl"
+                style={{ background: 'var(--surface-2)' }}
+              >
+                <p className="text-xs text-gray-300">
+                  <span className="font-semibold text-white">Note:</span> These prices are used as defaults when creating new butcher dates. You can override individual animal prices when editing a butcher date.
                 </p>
               </div>
 
@@ -129,17 +136,20 @@ export default function SettingsPage() {
                 >
                   {saving ? 'Saving...' : 'Save Prices'}
                 </button>
-                {saved && <p className="text-green-600 font-semibold text-sm">✓ Prices saved successfully</p>}
-                {error && <p className="text-red-500 text-sm">{error}</p>}
+                {saved && <p className="text-green-400 font-semibold text-sm">✓ Prices saved successfully</p>}
+                {error && <p className="text-red-400 text-sm">{error}</p>}
               </div>
             </form>
           )}
         </div>
 
         {/* Future settings placeholder */}
-        <div className="bg-white rounded-2xl shadow-sm p-8 mt-6">
-          <h3 className="font-display font-bold text-xl text-brand-dark mb-1">More Settings</h3>
-          <p className="text-sm text-brand-gray">Additional settings coming soon — deposit amounts, notification preferences, and more.</p>
+        <div
+          className="rounded-2xl shadow-sm p-8 mt-6 border"
+          style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+        >
+          <h3 className="font-display font-bold text-xl text-white mb-1">More Settings</h3>
+          <p className="text-sm text-gray-300">Additional settings coming soon — deposit amounts, notification preferences, and more.</p>
         </div>
       </div>
     </AdminLayout>

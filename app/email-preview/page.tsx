@@ -43,12 +43,18 @@ export default function EmailPreview() {
 
   return (
     <AdminLayout title="Email Preview">
-      <div className="flex h-[calc(100vh-120px)] gap-0 bg-gray-50">
+      <div
+        className="flex h-[calc(100vh-120px)] gap-0"
+        style={{ background: 'var(--surface-2)' }}
+      >
         {/* Sidebar */}
-        <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-bold text-gray-900">Email Templates</h2>
-            <p className="text-xs text-gray-500 mt-1">Mock Data - Read-Only</p>
+        <div
+          className="w-64 overflow-y-auto border-r"
+          style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+        >
+          <div className="p-6 border-b" style={{ borderColor: 'var(--border)' }}>
+            <h2 className="text-lg font-bold text-white">Email Templates</h2>
+            <p className="text-xs text-gray-400 mt-1">Mock Data - Read-Only</p>
           </div>
           <div className="p-4 space-y-2">
             {EMAIL_TYPES.map((type) => (
@@ -58,7 +64,7 @@ export default function EmailPreview() {
                 className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition ${
                   selected === type.id
                     ? 'bg-brand-orange text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    : 'text-gray-300 hover:bg-white/5'
                 }`}
               >
                 {type.label}
@@ -68,9 +74,15 @@ export default function EmailPreview() {
         </div>
 
         {/* Preview Pane */}
-        <div className="flex-1 flex flex-col bg-white rounded-lg shadow-sm">
-          <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">Preview</h3>
+        <div
+          className="flex-1 flex flex-col rounded-lg shadow-sm border"
+          style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+        >
+          <div
+            className="border-b px-6 py-4 flex justify-between items-center"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <h3 className="text-lg font-semibold text-white">Preview</h3>
             <span className="inline-block px-3 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full">
               Mock Data
             </span>
@@ -78,7 +90,7 @@ export default function EmailPreview() {
           <div className="flex-1 p-6 overflow-auto">
             {loading ? (
               <div className="flex items-center justify-center h-full">
-                <p className="text-gray-500">Loading preview...</p>
+                <p className="text-gray-400">Loading preview...</p>
               </div>
             ) : (
               <iframe

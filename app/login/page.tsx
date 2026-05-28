@@ -35,22 +35,29 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-warm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{ background: 'var(--surface-2)' }}
+    >
+      <div
+        className="rounded-2xl shadow-lg p-8 w-full max-w-md border"
+        style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+      >
         <div className="text-center mb-8">
-          <h1 className="font-display text-3xl font-bold text-brand-dark">Legacy Land & Cattle</h1>
-          <p className="text-brand-gray mt-2">Admin Portal</p>
+          <h1 className="font-display text-3xl font-bold text-white">Legacy Land & Cattle</h1>
+          <p className="text-gray-300 mt-2">Admin Portal</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-brand-dark mb-1">Password</label>
+            <label className="block text-sm font-semibold text-white mb-1">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter admin password"
-              className="w-full px-4 py-3 border border-brand-gray-light rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
+              className="w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange bg-transparent text-white"
+              style={{ borderColor: 'var(--border)' }}
               required
             />
           </div>

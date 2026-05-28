@@ -8,7 +8,7 @@ export async function GET() {
     .from('sessions')
     .select(`
       id, purchase_type, status, cut_sheet_complete, cut_sheet_locked_at,
-      hanging_weight_lbs, balance_due, balance_paid, deposit_amount,
+      hanging_weight_lbs, balance_due, balance_paid, deposit_amount, last_viewed_at,
       customers(id, name, email, phone),
       animals(id, name, butcher_date, estimated_ready_date, animal_type, price_per_lb),
       cut_sheet_answers(section, answers, completed, locked, custom_request, custom_request_status)

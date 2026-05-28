@@ -122,16 +122,20 @@ export default function NotificationsPage() {
     <AdminLayout title="Notifications">
       <div className="space-y-8">
         {/* Send Notification Form */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <p className="text-lg font-semibold mb-4">Send Notification</p>
+        <div
+          className="rounded-lg p-6 border"
+          style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+        >
+          <p className="text-lg font-semibold mb-4 text-white">Send Notification</p>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Target</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Target</label>
                 <select
                   value={formData.target}
                   onChange={(e) => setFormData({ ...formData, target: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)', borderWidth: 1 }}
                 >
                   <option value="all">All customers with deposits</option>
                   <option value="pending_cut_sheets">Customers with pending cut sheets</option>
@@ -140,11 +144,12 @@ export default function NotificationsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Channel</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Channel</label>
                 <select
                   value={formData.channel}
                   onChange={(e) => setFormData({ ...formData, channel: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)', borderWidth: 1 }}
                 >
                   <option value="email">Email</option>
                   <option value="sms">SMS (placeholder)</option>
@@ -154,13 +159,14 @@ export default function NotificationsPage() {
 
             {formData.target === 'butcher_date' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Butcher Date
                 </label>
                 <select
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm"
+                  className="w-full rounded-xl px-3 py-2 text-sm bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)', borderWidth: 1 }}
                 >
                   <option value="">Select a butcher date...</option>
                   {butcherDates.map(a => (
@@ -180,13 +186,14 @@ export default function NotificationsPage() {
 
             {formData.target === 'customer' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Customer
                 </label>
                 <select
                   value={selectedCustomer}
                   onChange={(e) => setSelectedCustomer(e.target.value)}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm"
+                  className="w-full rounded-xl px-3 py-2 text-sm bg-transparent text-white"
+                  style={{ borderColor: 'var(--border)', borderWidth: 1 }}
                 >
                   <option value="">Select a customer...</option>
                   {customers.map(c => (
@@ -199,18 +206,19 @@ export default function NotificationsPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Subject</label>
               <input
                 type="text"
                 placeholder="Email subject line"
                 value={formData.subject}
                 onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 rounded-lg text-sm bg-transparent text-white"
+                style={{ borderColor: 'var(--border)', borderWidth: 1 }}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Message ({formData.message.length}/500)
               </label>
               <textarea
@@ -223,12 +231,13 @@ export default function NotificationsPage() {
                 }
                 placeholder="Type your message..."
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 rounded-lg text-sm bg-transparent text-white"
+                style={{ borderColor: 'var(--border)', borderWidth: 1 }}
               />
             </div>
 
             {successMessage && (
-              <div className="bg-green-50 border border-green-200 rounded p-3 text-sm text-green-800">
+              <div className="bg-green-500/10 border border-green-500/30 rounded p-3 text-sm text-green-200">
                 {successMessage}
               </div>
             )}
@@ -250,42 +259,45 @@ export default function NotificationsPage() {
         </div>
 
         {/* Notification History */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <p className="text-lg font-semibold mb-4">Notification History</p>
+        <div
+          className="rounded-lg p-6 border"
+          style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+        >
+          <p className="text-lg font-semibold mb-4 text-white">Notification History</p>
           {notifications.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">No notifications sent yet</div>
+            <div className="text-center py-8 text-gray-400">No notifications sent yet</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
+                <thead className="border-b" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                   <tr>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-900">Type</th>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-900">Channel</th>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-900">Customer</th>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-900">Status</th>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-900">Sent At</th>
+                    <th className="px-6 py-3 text-left font-semibold text-white">Type</th>
+                    <th className="px-6 py-3 text-left font-semibold text-white">Channel</th>
+                    <th className="px-6 py-3 text-left font-semibold text-white">Customer</th>
+                    <th className="px-6 py-3 text-left font-semibold text-white">Status</th>
+                    <th className="px-6 py-3 text-left font-semibold text-white">Sent At</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-[var(--border)]">
                   {notifications.map(n => (
-                    <tr key={n.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-3 font-medium capitalize">{n.type}</td>
-                      <td className="px-6 py-3 capitalize">{n.channel}</td>
-                      <td className="px-6 py-3">{n.sessions?.customers?.name || '—'}</td>
+                    <tr key={n.id} className="hover:bg-white/5">
+                      <td className="px-6 py-3 font-medium capitalize text-white">{n.type}</td>
+                      <td className="px-6 py-3 capitalize text-gray-300">{n.channel}</td>
+                      <td className="px-6 py-3 text-gray-200">{n.sessions?.customers?.name || '—'}</td>
                       <td className="px-6 py-3">
                         <span
                           className={`px-2 py-1 rounded text-xs font-semibold ${
                             n.status === 'queued'
-                              ? 'bg-gray-100 text-gray-800'
+                              ? 'bg-white/10 text-white'
                               : n.status === 'sent'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
+                                ? 'bg-green-500/20 text-green-300'
+                                : 'bg-red-500/20 text-red-300'
                           }`}
                         >
                           {n.status}
                         </span>
                       </td>
-                      <td className="px-6 py-3 text-gray-600">
+                      <td className="px-6 py-3 text-gray-400">
                         {new Date(n.sent_at).toLocaleString()}
                       </td>
                     </tr>
