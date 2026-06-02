@@ -83,7 +83,7 @@ export default function CutSheetsPage() {
     return true;
   });
 
-  const sessionRows = filtered.flatMap(session => {
+  const sessionRows = filtered.flatMap((session): Array<{ session: Session; half: 'A' | 'B' | null }> => {
     if (session.purchase_type === 'whole' && session.dual_cut_sheet) {
       return [
         { session, half: 'A' as const },
