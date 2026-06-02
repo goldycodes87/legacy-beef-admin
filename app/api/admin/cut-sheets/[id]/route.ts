@@ -39,12 +39,18 @@ export async function PUT(
 
   // Handle custom request approval/denial
   if (body.custom_request_action) {
-    const { section, action } = body.custom_request_action;
-    await supabase
+    const { section, action, half } = body.custom_request_action as { section: string; action: string; half?: string };
+    const query = supabase
       .from('cut_sheet_answers')
       .update({ custom_request_status: action })
       .eq('session_id', id)
       .eq('section', section);
+    if (half === 'A' || half === 'B') {
+      query.eq('half', half);
+    } else {
+      query.is('half', null);
+    }
+    await query;
     return NextResponse.json({ success: true });
   }
 

@@ -8,13 +8,18 @@ interface Session {
   status: string;
   cut_sheet_complete: boolean;
   cut_sheet_locked_at: string;
+  dual_cut_sheet?: boolean | null;
+  half_a_complete?: boolean;
+  half_b_complete?: boolean;
+  half_a_locked_at?: string | null;
+  half_b_locked_at?: string | null;
   hanging_weight_lbs: number | null;
   balance_due: number;
   balance_paid: boolean;
   deposit_amount: number;
   customers: { id: string; name: string; email: string; phone: string } | null;
   animals: Array<{ id: string; name: string; butcher_date: string; estimated_ready_date: string; animal_type: string; price_per_lb: number }> | null;
-  cut_sheet_answers: Array<{ section: string; answers: Record<string, unknown>; completed: boolean; custom_request: string; custom_request_status: string }>;
+  cut_sheet_answers: Array<{ section: string; answers: Record<string, unknown>; completed: boolean; custom_request: string; custom_request_status: string; half?: 'A' | 'B' | null; locked?: boolean }>;
   last_viewed_at?: string | null;
 }
 
@@ -52,10 +57,10 @@ export default function CutSheetsPage() {
   const [expandedSheet, setExpandedSheet] = useState<string | null>(null);
   const [hangingWeights, setHangingWeights] = useState<Record<string, number>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [confirmApprove, setConfirmApprove] = useState<{ sessionId: string; section: string } | null>(null);
-  const [confirmDeny, setConfirmDeny] = useState<{ sessionId: string; section: string } | null>(null);
+  const [confirmApprove, setConfirmApprove] = useState<{ sessionId: string; section: string; half?: 'A' | 'B' | null } | null>(null);
+  const [confirmDeny, setConfirmDeny] = useState<{ sessionId: string; section: string; half?: 'A' | 'B' | null } | null>(null);
   const [confirmReady, setConfirmReady] = useState<string | null>(null);
-  const [editingSection, setEditingSection] = useState<{sessionId: string, section: string, answers: Record<string,unknown>} | null>(null);
+  const [editingSection, setEditingSection] = useState<{sessionId: string, section: string, answers: Record<string,unknown>, half?: 'A' | 'B' | null} | null>(null);
   const [editAnswers, setEditAnswers] = useState<Record<string,unknown>>({});
   const [saving, setSaving] = useState(false);
 
@@ -78,8 +83,27 @@ export default function CutSheetsPage() {
     return true;
   });
 
-  const completedSections = (s: Session) =>
-    s.cut_sheet_answers.filter(a => a.completed).length;
+  const sessionRows = filtered.flatMap(session => {
+    if (session.purchase_type === 'whole' && session.dual_cut_sheet) {
+      return [
+        { session, half: 'A' as const },
+        { session, half: 'B' as const },
+      ];
+    }
+    return [{ session, half: null as const }];
+  });
+
+  const answersForHalf = (s: Session, half: 'A' | 'B' | null) =>
+    s.cut_sheet_answers.filter(a => {
+      const answerHalf = a.half ?? null;
+      if (s.dual_cut_sheet) {
+        return half ? answerHalf === half : false;
+      }
+      return answerHalf === null;
+    });
+
+  const completedSections = (s: Session, half: 'A' | 'B' | null) =>
+    answersForHalf(s, half).filter(a => a.completed).length;
 
   async function handleSaveHangingWeight(sessionId: string) {
     setSavingId(sessionId);
@@ -93,24 +117,24 @@ export default function CutSheetsPage() {
     load();
   }
 
-  async function handleApproveCustom(sessionId: string, section: string) {
+  async function handleApproveCustom(sessionId: string, section: string, half?: 'A' | 'B' | null) {
     await fetch(`/api/admin/cut-sheets/${sessionId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        custom_request_action: { section, action: 'approved' },
+        custom_request_action: { section, action: 'approved', half },
       }),
     });
     setConfirmApprove(null);
     load();
   }
 
-  async function handleDenyCustom(sessionId: string, section: string) {
+  async function handleDenyCustom(sessionId: string, section: string, half?: 'A' | 'B' | null) {
     await fetch(`/api/admin/cut-sheets/${sessionId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        custom_request_action: { section, action: 'denied' },
+        custom_request_action: { section, action: 'denied', half },
       }),
     });
     setConfirmDeny(null);
@@ -167,21 +191,29 @@ export default function CutSheetsPage() {
 
         {/* Cards */}
         <div className="space-y-4">
-          {filtered.map(session => {
+          {sessionRows.map(({ session, half }) => {
             const animal = Array.isArray(session.animals) ? session.animals[0] : session.animals;
             const butcherDate = animal?.butcher_date ? new Date(animal.butcher_date) : null;
+            const answersForRow = answersForHalf(session, half);
             const hasPassedButcher = butcherDate && butcherDate < new Date();
-            const hasPendingCustom = session.cut_sheet_answers.some(
+            const hasPendingCustom = answersForRow.some(
               a => a.custom_request && a.custom_request_status === 'pending'
             );
+            const rowKey = `${session.id}-${half || 'single'}`;
+            const halfLabel = half ? `Half ${half}` : null;
 
             return (
-              <div key={session.id} className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+              <div key={rowKey} className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border)' }}>
                 {/* Card Header */}
                 <div className="bg-gradient-to-r from-green-700 to-green-800 text-white p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
                       <span className="font-semibold text-lg">{session.customers?.name}</span>
+                      {halfLabel && (
+                        <span className="bg-white/20 px-2 py-1 rounded text-xs font-semibold">
+                          {halfLabel}
+                        </span>
+                      )}
                       <span className="bg-white/20 px-2 py-1 rounded text-xs font-semibold">
                         {formatPurchaseType(session.purchase_type)}
                       </span>
@@ -199,7 +231,7 @@ export default function CutSheetsPage() {
                       </span>
                     </div>
                     <span className="font-semibold">
-                      {completedSections(session)}/14 sections
+                      {completedSections(session, half)}/14 sections
                     </span>
                   </div>
                 </div>
@@ -219,7 +251,7 @@ export default function CutSheetsPage() {
                         <div
                           className="bg-blue-600 h-2 rounded-full transition-all"
                           style={{
-                            width: `${(completedSections(session) / 14) * 100}%`,
+                            width: `${(completedSections(session, half) / 14) * 100}%`,
                           }}
                         />
                       </div>
@@ -236,12 +268,12 @@ export default function CutSheetsPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() =>
-                          setExpandedSheet(expandedSheet === session.id ? null : session.id)
+                          setExpandedSheet(expandedSheet === rowKey ? null : rowKey)
                         }
                         className="flex-1 px-3 py-2 rounded font-medium text-sm"
                         style={{ background: 'var(--surface-2)', color: 'white', border: '1px solid var(--border)' }}
                       >
-                        {expandedSheet === session.id ? 'Hide' : 'View'} Full Cut Sheet
+                        {expandedSheet === rowKey ? 'Hide' : 'View'} Full Cut Sheet
                       </button>
                       <button
                         onClick={() => handlePrintCutSheet(session.id)}
@@ -298,7 +330,7 @@ export default function CutSheetsPage() {
                   {/* Custom Request Flags */}
                   {hasPendingCustom && (
                     <div className="border-t pt-4">
-                      {session.cut_sheet_answers
+                      {answersForRow
                         .filter(a => a.custom_request && a.custom_request_status === 'pending')
                         .map(answer => (
                           <div
@@ -306,13 +338,13 @@ export default function CutSheetsPage() {
                             className="bg-orange-50 border border-orange-200 rounded p-3 mb-3"
                           >
                             <p className="text-sm font-semibold text-orange-900 mb-2">
-                              ⚠️ Custom Request: {SECTION_DISPLAY_NAMES[answer.section]}
+                              ⚠️ Custom Request: {SECTION_DISPLAY_NAMES[answer.section]} {halfLabel ? `(${halfLabel})` : ''}
                             </p>
                             <p className="text-sm text-orange-800 mb-3">{answer.custom_request}</p>
                             <div className="flex gap-2">
                               <button
                                 onClick={() =>
-                                  setConfirmApprove({ sessionId: session.id, section: answer.section })
+                                  setConfirmApprove({ sessionId: session.id, section: answer.section, half })
                                 }
                                 className="flex-1 px-3 py-2 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700"
                               >
@@ -320,7 +352,7 @@ export default function CutSheetsPage() {
                               </button>
                               <button
                                 onClick={() =>
-                                  setConfirmDeny({ sessionId: session.id, section: answer.section })
+                                  setConfirmDeny({ sessionId: session.id, section: answer.section, half })
                                 }
                                 className="flex-1 px-3 py-2 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700"
                               >
@@ -334,12 +366,12 @@ export default function CutSheetsPage() {
                 </div>
 
                 {/* Expanded Full Cut Sheet */}
-                {expandedSheet === session.id && (
+                {expandedSheet === rowKey && (
                   <div className="border-t p-4" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                     <p className="font-semibold text-white mb-3">Full Cut Sheet</p>
                     <table className="w-full">
                       <tbody>
-                        {session.cut_sheet_answers
+                        {answersForRow
                           ?.sort((a: any, b: any) => SECTION_ORDER.indexOf(a.section) - SECTION_ORDER.indexOf(b.section))
                           .map((answer: any) => {
                             const a = answer.answers || {};
@@ -375,7 +407,7 @@ export default function CutSheetsPage() {
                                 <td className="py-3 px-4 text-right">
                                   <button
                                     onClick={() => {
-                                      setEditingSection({ sessionId: session.id, section: answer.section, answers: answer.answers });
+                                      setEditingSection({ sessionId: session.id, section: answer.section, answers: answer.answers, half });
                                       setEditAnswers(answer.answers);
                                     }}
                                     className="text-brand-orange text-xs font-semibold hover:underline"
@@ -400,7 +432,9 @@ export default function CutSheetsPage() {
       {confirmApprove && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="rounded-lg p-6 max-w-sm" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
-            <p className="text-lg font-semibold text-white mb-4">Approve Custom Request?</p>
+            <p className="text-lg font-semibold text-white mb-4">
+              Approve Custom Request? {confirmApprove.half ? `(Half ${confirmApprove.half})` : ''}
+            </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmApprove(null)}
@@ -411,7 +445,7 @@ export default function CutSheetsPage() {
               </button>
               <button
                 onClick={() =>
-                  handleApproveCustom(confirmApprove.sessionId, confirmApprove.section)
+                  handleApproveCustom(confirmApprove.sessionId, confirmApprove.section, confirmApprove.half)
                 }
                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded font-medium hover:bg-green-700"
               >
@@ -425,7 +459,9 @@ export default function CutSheetsPage() {
       {confirmDeny && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="rounded-lg p-6 max-w-sm" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
-            <p className="text-lg font-semibold text-white mb-4">Deny Custom Request?</p>
+            <p className="text-lg font-semibold text-white mb-4">
+              Deny Custom Request? {confirmDeny.half ? `(Half ${confirmDeny.half})` : ''}
+            </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmDeny(null)}
@@ -435,7 +471,7 @@ export default function CutSheetsPage() {
                 Cancel
               </button>
               <button
-                onClick={() => handleDenyCustom(confirmDeny.sessionId, confirmDeny.section)}
+                onClick={() => handleDenyCustom(confirmDeny.sessionId, confirmDeny.section, confirmDeny.half)}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded font-medium hover:bg-red-700"
               >
                 Deny
@@ -472,7 +508,7 @@ export default function CutSheetsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="rounded-2xl p-6 w-full max-w-lg shadow-xl" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
             <h3 className="font-bold text-lg text-white mb-4">
-              Edit {SECTION_DISPLAY_NAMES[editingSection.section]}
+              Edit {SECTION_DISPLAY_NAMES[editingSection.section]} {editingSection.half ? `(Half ${editingSection.half})` : ''}
             </h3>
             <div className="mb-4">
               <label className="block text-sm font-semibold text-white mb-2">
@@ -498,7 +534,7 @@ export default function CutSheetsPage() {
                   await fetch(`/api/admin/cut-sheets/${editingSection.sessionId}/section`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ section: editingSection.section, answers: editAnswers }),
+                    body: JSON.stringify({ section: editingSection.section, answers: editAnswers, half: editingSection.half }),
                   });
                   setSaving(false);
                   setEditingSection(null);
