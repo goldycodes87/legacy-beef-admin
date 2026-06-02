@@ -90,7 +90,7 @@ export default function CutSheetsPage() {
         { session, half: 'B' as const },
       ];
     }
-    return [{ session, half: null as const }];
+    return [{ session, half: null as 'A' | 'B' | null }];
   });
 
   const answersForHalf = (s: Session, half: 'A' | 'B' | null) =>
