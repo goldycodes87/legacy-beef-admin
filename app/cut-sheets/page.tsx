@@ -93,15 +93,30 @@ export default function CutSheetsPage() {
     return [{ session, half: null as 'A' | 'B' | null }];
   });
 
-  const answersForHalf = (s: Session, half: 'A' | 'B' | null) =>
-    s.cut_sheet_answers.filter(a => {
-      const answerHalf = a.half ?? null;
-      if (s.dual_cut_sheet) {
-        // Include answers for this specific half AND null (both halves) answers
-        return answerHalf === half || answerHalf === null;
+  const answersForHalf = (s: Session, half: 'A' | 'B' | null) => {
+    if (!s.dual_cut_sheet || half === null) {
+      // Single cut sheet — return null-half answers only
+      return s.cut_sheet_answers.filter(a => (a.half ?? null) === null);
+    }
+    // Dual cut sheet — for each section, prefer half-specific answer,
+    // fall back to null (both halves) answer if no half-specific one exists
+    const sections = [...new Set(s.cut_sheet_answers.map(a => a.section))];
+    const result = [];
+    for (const section of sections) {
+      const halfSpecific = s.cut_sheet_answers.find(
+        a => a.section === section && (a.half ?? null) === half
+      );
+      if (halfSpecific) {
+        result.push(halfSpecific);
+      } else {
+        const bothHalves = s.cut_sheet_answers.find(
+          a => a.section === section && (a.half ?? null) === null
+        );
+        if (bothHalves) result.push(bothHalves);
       }
-      return answerHalf === null;
-    });
+    }
+    return result;
+  };
 
   const completedSections = (s: Session, half: 'A' | 'B' | null) =>
     answersForHalf(s, half).filter(a => a.completed).length;
