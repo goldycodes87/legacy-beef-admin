@@ -83,16 +83,6 @@ export default function CutSheetsPage() {
     return true;
   });
 
-  const sessionRows = filtered.flatMap((session): Array<{ session: Session; half: 'A' | 'B' | null }> => {
-    if (session.purchase_type === 'whole' && session.dual_cut_sheet) {
-      return [
-        { session, half: 'A' as const },
-        { session, half: 'B' as const },
-      ];
-    }
-    return [{ session, half: null as 'A' | 'B' | null }];
-  });
-
   const answersForHalf = (s: Session, half: 'A' | 'B' | null) => {
     if (!s.dual_cut_sheet || half === null) {
       // Single cut sheet — return null-half answers only
@@ -157,8 +147,9 @@ export default function CutSheetsPage() {
     load();
   }
 
-  const handlePrintCutSheet = (sessionId: string) => {
-    window.open(`/cut-sheets/${sessionId}/print`, '_blank');
+  const handlePrintCutSheet = (sessionId: string, half?: 'A' | 'B' | null) => {
+    const query = half ? `?half=${half}` : '';
+    window.open(`/cut-sheets/${sessionId}/print${query}`, '_blank');
   };
 
   const handleManualLock = async (sessionId: string) => {
@@ -207,16 +198,271 @@ export default function CutSheetsPage() {
 
         {/* Cards */}
         <div className="space-y-4">
-          {sessionRows.map(({ session, half }) => {
+          {filtered.map(session => {
             const animal = Array.isArray(session.animals) ? session.animals[0] : session.animals;
             const butcherDate = animal?.butcher_date ? new Date(animal.butcher_date) : null;
-            const answersForRow = answersForHalf(session, half);
             const hasPassedButcher = butcherDate && butcherDate < new Date();
+            const isDual = session.purchase_type === 'whole' && session.dual_cut_sheet;
+
+            const renderHalfRow = (half: 'A' | 'B') => {
+              const answersForRow = answersForHalf(session, half);
+              const hasPendingCustom = answersForRow.some(
+                a => a.custom_request && a.custom_request_status === 'pending'
+              );
+              const rowKey = `${session.id}-half-${half}`;
+              const halfLabel = `Half ${half}`;
+              const completedCount = completedSections(session, half);
+              const isHalfComplete =
+                (half === 'A' ? session.half_a_complete : session.half_b_complete) ??
+                session.cut_sheet_complete;
+
+              return (
+                <div key={rowKey} className="rounded-lg border p-4 space-y-3" style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="bg-white/10 text-xs font-semibold px-2 py-1 rounded text-white">
+                        HALF {half}
+                      </span>
+                      <span className="text-xs text-gray-300 font-semibold">
+                        {completedCount}/14 sections
+                      </span>
+                    </div>
+                    <span className={`text-xs font-semibold px-2 py-1 rounded ${isHalfComplete ? 'bg-green-600 text-white' : 'bg-yellow-500/20 text-yellow-200'}`}>
+                      {isHalfComplete ? 'Complete' : 'In Progress'}
+                    </span>
+                  </div>
+
+                  {!isHalfComplete ? (
+                    <div className="space-y-2">
+                      <div className="w-full rounded-full h-2" style={{ background: 'var(--surface-2)' }}>
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all"
+                          style={{
+                            width: `${(completedCount / 14) * 100}%`,
+                          }}
+                        />
+                      </div>
+                      {session.status !== 'locked' && (
+                        <button
+                          onClick={() => handleManualLock(session.id)}
+                          className="text-brand-orange hover:text-brand-orange-hover font-semibold text-sm"
+                        >
+                          Lock Sheet
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() =>
+                          setExpandedSheet(expandedSheet === rowKey ? null : rowKey)
+                        }
+                        className="flex-1 px-3 py-2 rounded font-medium text-sm"
+                        style={{ background: 'var(--surface-2)', color: 'white', border: '1px solid var(--border)' }}
+                      >
+                        {expandedSheet === rowKey ? 'Hide' : 'View'} Full Cut Sheet
+                      </button>
+                      <button
+                        onClick={() => handlePrintCutSheet(session.id, half)}
+                        className="flex-1 px-3 py-2 rounded font-medium text-sm text-white hover:bg-white/5"
+                        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+                      >
+                        Print Cut Sheet
+                      </button>
+                    </div>
+                  )}
+
+                  {hasPendingCustom && (
+                    <div className="border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+                      {answersForRow
+                        .filter(a => a.custom_request && a.custom_request_status === 'pending')
+                        .map(answer => (
+                          <div
+                            key={`${session.id}-${answer.section}-${half}`}
+                            className="bg-orange-50 border border-orange-200 rounded p-3 mb-3"
+                          >
+                            <p className="text-sm font-semibold text-orange-900 mb-2">
+                              ⚠️ Custom Request: {SECTION_DISPLAY_NAMES[answer.section]} ({halfLabel})
+                            </p>
+                            <p className="text-sm text-orange-800 mb-3">{answer.custom_request}</p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() =>
+                                  setConfirmApprove({ sessionId: session.id, section: answer.section, half })
+                                }
+                                className="flex-1 px-3 py-2 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700"
+                              >
+                                Approve ✓
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setConfirmDeny({ sessionId: session.id, section: answer.section, half })
+                                }
+                                className="flex-1 px-3 py-2 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700"
+                              >
+                                Deny ✗
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+
+                  {expandedSheet === rowKey && (
+                    <div className="border-t pt-3" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                      <p className="font-semibold text-white mb-3">Full Cut Sheet ({halfLabel})</p>
+                      <table className="w-full">
+                        <tbody>
+                          {answersForRow
+                            ?.sort((a: any, b: any) => SECTION_ORDER.indexOf(a.section) - SECTION_ORDER.indexOf(b.section))
+                            .map((answer: any) => {
+                              const a = answer.answers || {};
+                              const details: string[] = [];
+                              if (a.house_default) details.push('House Default');
+                              if (a.choice) details.push(String(a.choice).replace(/_/g, ' ').replace(/\b\w/g, (l:string) => l.toUpperCase()));
+                              if (a.choices) details.push((a.choices as string[]).map((c:string) => c.replace(/_/g, ' ')).join(', '));
+                              if (a.thickness) details.push(`${a.thickness} thick`);
+                              if (a.tbone_thickness) details.push(`T-Bone: ${a.tbone_thickness}`);
+                              if (a.strip_thickness) details.push(`Strip: ${a.strip_thickness}`);
+                              if (a.filet_thickness) details.push(`Filet: ${a.filet_thickness}`);
+                              if (a.steaks_per_pack) details.push(`${a.steaks_per_pack}/pack`);
+                              if (a.roast_weight) details.push(`${a.roast_weight} lb roasts`);
+                              if (a.fat_pct) details.push(`${a.fat_pct} fat`);
+                              if (a.lbs_per_pack) details.push(`${a.lbs_per_pack} lb burger packs`);
+                              if (a.pounds) details.push(`${a.pounds} lbs`);
+                              if (a.pkg_size) details.push(`${a.pkg_size} packs`);
+                              if (a.reason === 'round_not_steaks') details.push('N/A — Round not steaks');
+
+                              return (
+                                <tr key={answer.section} className="border-b" style={{ borderColor: 'var(--border)' }}>
+                                  <td className="py-3 px-4 font-semibold text-sm text-white w-40">
+                                    {SECTION_DISPLAY_NAMES[answer.section] || answer.section}
+                                  </td>
+                                  <td className="py-3 px-4 text-sm text-gray-300">
+                                    {details.join(' · ') || '—'}
+                                  </td>
+                                  <td className="py-3 px-4 text-sm">
+                                    {answer.custom_request && (
+                                      <span className="text-amber-600 text-xs">⚠ {answer.custom_request}</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 text-right">
+                                    <button
+                                      onClick={() => {
+                                        setEditingSection({ sessionId: session.id, section: answer.section, answers: answer.answers, half });
+                                        setEditAnswers(answer.answers);
+                                      }}
+                                      className="text-brand-orange text-xs font-semibold hover:underline"
+                                    >
+                                      Edit
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            };
+
+            if (isDual) {
+              return (
+                <div key={session.id} className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+                  <div className="bg-gradient-to-r from-green-700 to-green-800 text-white p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-lg">{session.customers?.name}</span>
+                        <span className="bg-white/20 px-2 py-1 rounded text-xs font-semibold">
+                          {formatPurchaseType(session.purchase_type)}
+                        </span>
+                        <span className="bg-white/20 px-2 py-1 rounded text-xs font-semibold">
+                          {formatAnimalType(animal?.animal_type || '')}
+                        </span>
+                        <span className="bg-white/20 px-2 py-1 rounded text-xs font-semibold">
+                          Dual Cut Sheet
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div>
+                        <span className="opacity-90">Butcher: {animal?.butcher_date || 'TBD'}</span>
+                        <span className="mx-2 opacity-60">•</span>
+                        <span className="bg-white/20 px-2 py-1 rounded text-xs font-semibold capitalize">
+                          {session.status}
+                        </span>
+                      </div>
+                      <span className="font-semibold">
+                        Half A: {completedSections(session, 'A')}/14 • Half B: {completedSections(session, 'B')}/14
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-4 space-y-4" style={{ background: 'var(--surface-1)' }}>
+                    <div className="text-sm text-gray-300">
+                      Last Viewed:{' '}
+                      {session.last_viewed_at
+                        ? new Date(session.last_viewed_at).toLocaleString()
+                        : <span className="text-gray-400">Not yet opened</span>}
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {renderHalfRow('A')}
+                      {renderHalfRow('B')}
+                    </div>
+
+                    {hasPassedButcher && (
+                      <div className="border-t pt-4" style={{ borderColor: 'var(--border)' }}>
+                        <p className="text-sm font-semibold text-white mb-3">Hanging Weight</p>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            placeholder="lbs"
+                            value={hangingWeights[session.id] || ''}
+                            onChange={(e) =>
+                              setHangingWeights({
+                                ...hangingWeights,
+                                [session.id]: parseFloat(e.target.value) || 0,
+                              })
+                            }
+                            className="flex-1 px-3 py-2 border rounded text-sm bg-transparent text-white"
+                            style={{ borderColor: 'var(--border)' }}
+                          />
+                          <button
+                            onClick={() => handleSaveHangingWeight(session.id)}
+                            disabled={savingId === session.id}
+                            className="px-4 py-2 bg-green-600 text-white rounded font-medium text-sm hover:bg-green-700 disabled:opacity-50"
+                          >
+                            {savingId === session.id ? 'Saving...' : 'Save & Calculate'}
+                          </button>
+                        </div>
+                        {hangingWeights[session.id] && (
+                          <p className="mt-2 text-sm font-semibold text-green-400">
+                            Balance Due: ${(hangingWeights[session.id] * (animal?.price_per_lb || 8) - session.deposit_amount).toFixed(2)}
+                          </p>
+                        )}
+                        {hangingWeights[session.id] && (
+                          <button
+                            onClick={() => setConfirmReady(session.id)}
+                            className="mt-3 w-full px-3 py-2 bg-blue-600 text-white rounded font-medium text-sm hover:bg-blue-700"
+                          >
+                            Mark Beef Ready
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+
+            const answersForRow = answersForHalf(session, null);
             const hasPendingCustom = answersForRow.some(
               a => a.custom_request && a.custom_request_status === 'pending'
             );
-            const rowKey = `${session.id}-${half || 'single'}`;
-            const halfLabel = half ? `Half ${half}` : null;
+            const rowKey = `${session.id}-single`;
 
             return (
               <div key={rowKey} className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border)' }}>
@@ -225,11 +471,6 @@ export default function CutSheetsPage() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
                       <span className="font-semibold text-lg">{session.customers?.name}</span>
-                      {halfLabel && (
-                        <span className="bg-white/20 px-2 py-1 rounded text-xs font-semibold">
-                          {halfLabel}
-                        </span>
-                      )}
                       <span className="bg-white/20 px-2 py-1 rounded text-xs font-semibold">
                         {formatPurchaseType(session.purchase_type)}
                       </span>
@@ -247,7 +488,7 @@ export default function CutSheetsPage() {
                       </span>
                     </div>
                     <span className="font-semibold">
-                      {completedSections(session, half)}/14 sections
+                      {completedSections(session, null)}/14 sections
                     </span>
                   </div>
                 </div>
@@ -267,7 +508,7 @@ export default function CutSheetsPage() {
                         <div
                           className="bg-blue-600 h-2 rounded-full transition-all"
                           style={{
-                            width: `${(completedSections(session, half) / 14) * 100}%`,
+                            width: `${(completedSections(session, null) / 14) * 100}%`,
                           }}
                         />
                       </div>
@@ -354,13 +595,13 @@ export default function CutSheetsPage() {
                             className="bg-orange-50 border border-orange-200 rounded p-3 mb-3"
                           >
                             <p className="text-sm font-semibold text-orange-900 mb-2">
-                              ⚠️ Custom Request: {SECTION_DISPLAY_NAMES[answer.section]} {halfLabel ? `(${halfLabel})` : ''}
+                              ⚠️ Custom Request: {SECTION_DISPLAY_NAMES[answer.section]}
                             </p>
                             <p className="text-sm text-orange-800 mb-3">{answer.custom_request}</p>
                             <div className="flex gap-2">
                               <button
                                 onClick={() =>
-                                  setConfirmApprove({ sessionId: session.id, section: answer.section, half })
+                                  setConfirmApprove({ sessionId: session.id, section: answer.section, half: null })
                                 }
                                 className="flex-1 px-3 py-2 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700"
                               >
@@ -368,7 +609,7 @@ export default function CutSheetsPage() {
                               </button>
                               <button
                                 onClick={() =>
-                                  setConfirmDeny({ sessionId: session.id, section: answer.section, half })
+                                  setConfirmDeny({ sessionId: session.id, section: answer.section, half: null })
                                 }
                                 className="flex-1 px-3 py-2 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700"
                               >
@@ -423,7 +664,7 @@ export default function CutSheetsPage() {
                                 <td className="py-3 px-4 text-right">
                                   <button
                                     onClick={() => {
-                                      setEditingSection({ sessionId: session.id, section: answer.section, answers: answer.answers, half });
+                                      setEditingSection({ sessionId: session.id, section: answer.section, answers: answer.answers, half: null });
                                       setEditAnswers(answer.answers);
                                     }}
                                     className="text-brand-orange text-xs font-semibold hover:underline"

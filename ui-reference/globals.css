@@ -1,0 +1,749 @@
+@import "tailwindcss";
+
+/* ============================================================================
+ * CUSTOM VARIANTS — Tailwind v4 @custom-variant must be declared at the top
+ * level, immediately after @import. Used to author kiosk-mode-only layouts
+ * in JSX (e.g. `className="md:hidden kioskp:flex"`).
+ *
+ *   <html data-kiosk="portrait"> — set by src/lib/kiosk/useKiosk.ts
+ *   <html data-kiosk="landscape">
+ * ==========================================================================*/
+/* Underscore variant names avoid Tailwind's prefix-splitting of
+   `foo-bar:xxx` — which would otherwise auto-register a bogus `kiosk` prefix
+   variant when JSX uses `kioskp:*` classes. Usage in JSX:
+     className="md:hidden kioskp:flex"    (portrait)
+     className="hidden md:block kioskp:hidden" */
+@custom-variant kioskp (&:where([data-kiosk="portrait"] *));
+@custom-variant kioskl (&:where([data-kiosk="landscape"] *));
+
+/* ============================================================================
+ * FOUNDATION — Berg Bat OS design tokens, typography, and theme layer.
+ * Layering: Palette (raw)  →  Semantic tokens  →  Theme override  →  Utilities
+ * ==========================================================================*/
+
+/* ── Font-face: reserve slots for self-hosted Futura PT when licensed. ───── */
+/* When Trevor has a Futura PT license, drop a woff2 in /public/fonts/ and   */
+/* uncomment these blocks. Until then, Jost (loaded via next/font) carries   */
+/* the same geometric intent. No app changes required on upgrade.            */
+/*
+@font-face {
+  font-family: "Futura PT";
+  src: url("/fonts/FuturaPT-Book.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Futura PT";
+  src: url("/fonts/FuturaPT-Medium.woff2") format("woff2");
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Futura PT";
+  src: url("/fonts/FuturaPT-Demi.woff2") format("woff2");
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Futura PT";
+  src: url("/fonts/FuturaPT-Bold.woff2") format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+*/
+
+/* ============================================================================
+ * PALETTE — raw values, theme-agnostic. Never reference these in components.
+ * ==========================================================================*/
+:root {
+  /* ──────────────────────────────────────────────────────────────────────
+   * BRAND (Berg Bat) — values per BERGBAT_REDESIGN_PROMPT.md Step 3.
+   * Hover/active deltas hold the same delta-E as the prior palette
+   * (~5 RGB units up for hover, ~5 down for active) — visible without
+   * shifting hue.
+   * ──────────────────────────────────────────────────────────────────── */
+  --bergbat-red:          #C8102E;
+  --bergbat-red-hover:    #DC2444;
+  --bergbat-red-active:   #A20D26;
+  --bergbat-gold:         #B8960C;
+  --bergbat-gold-hover:   #D4AE17;
+  --bergbat-gold-active:  #8E7409;
+
+  /* Split Grip brand — unchanged. The redesign prompt scopes the color
+     shift to the Berg Bat layer; SG chrome stays blue regardless of route. */
+  --splitgrip-blue:        #3b82f6;
+  --splitgrip-blue-hover:  #60a5fa;
+  --splitgrip-blue-active: #2563eb;
+
+  /* ──────────────────────────────────────────────────────────────────────
+   * ROLE PALETTE — exact values per BERGBAT_REDESIGN_PROMPT.md status &
+   * payment color tables. These are the foreground hex used by chips,
+   * progress indicators, and any UI element that needs status semantics.
+   * Both `-fg` (fg/value) tokens below resolve to these.
+   * ──────────────────────────────────────────────────────────────────── */
+  --green-500:   #10B981;
+  --green-400:   #10B981;   /* foreground tier collapses to single value — no lighter accent */
+  --amber-500:   #F59E0B;
+  --amber-400:   #F59E0B;
+  --red-500:     #EF4444;
+  --red-400:     #EF4444;
+  --blue-500:    #3B82F6;
+  --blue-400:    #3B82F6;
+  --purple-500:  #8B5CF6;
+  --purple-400:  #8B5CF6;
+  --gray-400:    #6B7280;
+  --gray-500:    #6B7280;
+  --gray-600:    #4B5563;
+
+  /* ── Semantic surfaces (4 elevations) ──────────────────────────────────
+   * Maps to prompt's --bg-base / --bg-surface / --bg-card / --bg-card-hover.
+   * Names retained (--surface-N) so the 1700+ existing references continue
+   * to resolve; only the values shift. */
+  --surface-0: #080808;   /* page background — true dark */
+  --surface-1: #111111;   /* sidebar, top nav chrome */
+  --surface-2: #181818;   /* cards, panels */
+  --surface-3: #1E1E1E;   /* card hover, raised inputs */
+
+  /* Form-input surface — sits a half-step below --surface-2 so an input
+     reads as recessed inside its parent card. New token (prompt §3). */
+  --bg-input:        #141414;
+  --bg-input-focus:  #1A1A1A;
+
+  /* ── Borders (3 strengths) ──────────────────────────────────────────────
+   * Switched from solid hex to white-alpha rgba per prompt §3. White-alpha
+   * borders read more cleanly across mixed-elevation backgrounds (card on
+   * page on hover state) than fixed-grey borders. */
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border:        rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* ── Text (5 weights) ──────────────────────────────────────────────────
+   * Prompt's --text-primary / -secondary / -muted / -disabled exact hex.
+   * Names retained for compatibility; values shift toward the cooler grey
+   * scale the prompt specifies. */
+  --text:            #F5F5F5;
+  --text-secondary:  #9CA3AF;
+  --text-muted:      #6B7280;
+  --text-disabled:   #374151;
+  --text-on-accent:  #ffffff;
+
+  /* ── Role tokens (fg / bg-soft / border-soft) ──────────────────────────
+   * Prompt §"Status Badges" specifies bg @ 0.12 alpha and border @ 0.20
+   * alpha — narrower contrast band than prior 0.14 / 0.32. Adjusted here
+   * so every chip across the app picks up the new tighter look at once. */
+  --success-fg:      var(--green-400);
+  --success-bg:      rgba(16, 185, 129, 0.12);
+  --success-border:  rgba(16, 185, 129, 0.20);
+
+  --warning-fg:      var(--amber-400);
+  --warning-bg:      rgba(245, 158, 11, 0.12);
+  --warning-border:  rgba(245, 158, 11, 0.20);
+
+  --danger-fg:       var(--red-400);
+  --danger-bg:       rgba(239, 68, 68, 0.12);
+  --danger-border:   rgba(239, 68, 68, 0.20);
+
+  --info-fg:         var(--blue-400);
+  --info-bg:         rgba(59, 130, 246, 0.12);
+  --info-border:     rgba(59, 130, 246, 0.20);
+
+  --neutral-fg:      var(--gray-400);
+  --neutral-bg:      rgba(107, 114, 128, 0.12);
+  --neutral-border:  rgba(107, 114, 128, 0.20);
+
+  --purple-fg:       var(--purple-400);
+  --purple-bg:       rgba(139, 92, 246, 0.12);
+  --purple-border:   rgba(139, 92, 246, 0.20);
+
+  --gold-fg:         var(--bergbat-gold);
+  --gold-bg:         rgba(184, 150, 12, 0.12);
+  --gold-border:     rgba(184, 150, 12, 0.20);
+
+  /* ──────────────────────────────────────────────────────────────────────
+   * SEMANTIC STATUS / PAYMENT TOKENS — prompt §3 strict mapping.
+   * Each name means exactly one thing across the app; pages reference
+   * these (not the role tokens) when the choice is semantic, not visual.
+   * ──────────────────────────────────────────────────────────────────── */
+  --status-production: var(--blue-400);    /* In production — always blue */
+  --status-shipped:    var(--green-400);   /* Shipped — always green */
+  --status-ready:      var(--amber-400);   /* Ready to ship — always amber */
+  --status-removed:    var(--gray-400);    /* Removed/archived — always gray */
+  --status-on-deck:    var(--purple-400);  /* On deck — always violet */
+
+  --payment-paid:      var(--green-400);
+  --payment-unpaid:    var(--red-400);
+  --payment-invoiced:  var(--amber-400);
+
+  /* ── Radii ──────────────────────────────────────────────────────────── */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* ── Shadows (dark UI — used sparingly; borders do most of the work) ── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.7);
+
+  /* ── Layout ─────────────────────────────────────────────────────────── */
+  --sidebar-w:        15rem;    /* 240px — 1 notch wider than current 14rem */
+  --page-max-default: 80rem;    /* 1280px */
+  --page-max-wide:    96rem;    /* 1536px */
+  --page-max-narrow:  64rem;    /* 1024px — dashboard */
+  --page-max-form:    40rem;    /*  640px — task form */
+
+  /* ── Transitions (BERGBAT_REDESIGN_PROMPT.md §3) ───────────────────────
+   * Three discrete speeds. Pages should pick from these; never hand-roll
+   * arbitrary durations so the rhythm stays consistent across the app. */
+  --transition-fast:   150ms ease;   /* Hover swaps, focus rings, chip color */
+  --transition-normal: 200ms ease;   /* Card/tab transitions, nav state */
+  --transition-slow:   300ms ease;   /* Page sections, larger fades */
+
+  /* ── Font stacks ───────────────────────────────────────────────────────
+   * Per BERGBAT_REDESIGN_PROMPT.md Step 4:
+   *   --font-display = Barlow Condensed (page titles, nav, stat numbers,
+   *                    section labels — anything uppercase/tracked)
+   *   --font-ui      = Inter            (body, tables, forms, helpers)
+   *
+   * `--font-barlow-condensed` and `--font-inter` are injected by next/font
+   * in layout.tsx. Legacy aliases `--font-jost` resolve to Inter so any
+   * unmigrated inline references still render in the new body face during
+   * the page-by-page redesign pass; remove once `style*="Jost"` shim below
+   * has nothing left to catch.
+   */
+  --font-display:
+    var(--font-barlow-condensed), "Barlow Condensed",
+    "Oswald", "Bebas Neue", "Impact",
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-ui:
+    var(--font-inter), "Inter",
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:
+    var(--font-jetbrains-mono), "JetBrains Mono", "IBM Plex Mono",
+    ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Legacy alias — older inline styles set var(--font-jost). Map to Inter. */
+  --font-jost: var(--font-inter);
+}
+
+/* ============================================================================
+ * THEME — Berg Bat (default) vs Split Grip.
+ * Swaps ONLY the accent layer. Component structure & spacing stay identical.
+ * ==========================================================================*/
+:root,
+[data-theme="bergbat"] {
+  --accent:          var(--bergbat-red);
+  --accent-hover:    var(--bergbat-red-hover);
+  --accent-active:   var(--bergbat-red-active);
+  /* RGB literals follow the new --bergbat-red value (#C8102E = 200, 16, 46).
+     Alpha 0.12 / 0.40 match prompt §3 --color-brand-dim / --border-brand. */
+  --accent-soft:     rgba(200, 16, 46, 0.12);
+  --accent-border:   rgba(200, 16, 46, 0.40);
+  --accent-on:       #ffffff;
+}
+[data-theme="splitgrip"] {
+  --accent:          var(--splitgrip-blue);
+  --accent-hover:    var(--splitgrip-blue-hover);
+  --accent-active:   var(--splitgrip-blue-active);
+  --accent-soft:     rgba(59, 130, 246, 0.14);
+  --accent-border:   rgba(59, 130, 246, 0.35);
+  --accent-on:       #ffffff;
+}
+
+/* ============================================================================
+ * LEGACY ALIASES — preserved for 1,732 existing references across 51 files.
+ * New code MUST use canonical tokens above. These aliases are frozen.
+ * --bb-red is DELIBERATELY pinned to --bergbat-red (not --accent) so the
+ * sidebar's Berg Bat section stays red regardless of which route Trevor is on.
+ * ==========================================================================*/
+:root {
+  --bb-black:         var(--surface-0);
+  --bb-dark:          var(--surface-1);
+  --bb-card:          var(--surface-2);
+  --bb-border:        var(--border);
+  --bb-border-light:  var(--border-strong);
+  --bb-red:           var(--bergbat-red);
+  --bb-red-hover:     var(--bergbat-red-hover);
+  --bb-gold:          var(--bergbat-gold);
+  --bb-text:          var(--text);
+  --bb-text-secondary:var(--text-secondary);
+  --bb-text-muted:    var(--text-muted);
+}
+
+/* ============================================================================
+ * TAILWIND v4 THEME EXTENSION — expose tokens as Tailwind utilities
+ * (bg-surface-2, text-muted, border-strong, etc.)
+ * ==========================================================================*/
+@theme inline {
+  --color-background:       var(--surface-0);
+  --color-foreground:       var(--text);
+
+  --color-surface-0:        var(--surface-0);
+  --color-surface-1:        var(--surface-1);
+  --color-surface-2:        var(--surface-2);
+  --color-surface-3:        var(--surface-3);
+
+  --color-border:           var(--border);
+  --color-border-subtle:    var(--border-subtle);
+  --color-border-strong:    var(--border-strong);
+
+  --color-text:             var(--text);
+  --color-text-secondary:   var(--text-secondary);
+  --color-text-muted:       var(--text-muted);
+  --color-text-disabled:    var(--text-disabled);
+
+  --color-accent:           var(--accent);
+  --color-accent-hover:     var(--accent-hover);
+  --color-accent-soft:      var(--accent-soft);
+
+  --color-success:          var(--success-fg);
+  --color-warning:          var(--warning-fg);
+  --color-danger:           var(--danger-fg);
+  --color-info:             var(--info-fg);
+  --color-gold:             var(--gold-fg);
+
+  --font-sans:              var(--font-ui);
+  --font-display:           var(--font-display);
+  --font-mono:              var(--font-mono);
+}
+
+/* ============================================================================
+ * BASE
+ * ==========================================================================*/
+html, body {
+  background: var(--surface-0);
+  color: var(--text);
+}
+body {
+  font-family: var(--font-ui);
+  font-feature-settings: "liga", "calt", "kern";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Baseline inputs — component primitives override per-variant, but anchor here.
+   Per BERGBAT_REDESIGN_PROMPT.md §"Form Inputs":
+     • bg            var(--bg-input)        (#141414 — sits below card surface)
+     • border        1px var(--border)      (= prompt's --border-default)
+     • radius        var(--radius-md)       (8px)
+     • focus         border var(--border-strong) + 3px var(--accent-soft) ring
+       (Brand-dim ring is a focus indicator at AA contrast without a hot
+        red border that visually fights with the field value.)
+*/
+input, select, textarea {
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+input::placeholder, select::placeholder, textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* Keyboard-only focus ring (won't fire on mouse clicks).
+   Per BERGBAT_REDESIGN_PROMPT.md §8: outline 2px solid var(--color-gold)
+   with outline-offset 2px. Gold reads consistently across both Berg Bat
+   and Split Grip themes (no theme-tied accent in the focus indicator),
+   and against AAA contrast on every surface tier. */
+:where(a, button, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--gold-fg);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface-1); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--neutral-fg); }
+
+/* Safe-area helpers for iOS notches / home indicator */
+.pt-safe { padding-top: env(safe-area-inset-top); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+.pl-safe { padding-left: env(safe-area-inset-left); }
+.pr-safe { padding-right: env(safe-area-inset-right); }
+.min-h-screen-safe { min-height: 100dvh; }
+
+/* Prevent body scroll when mobile drawer is open */
+body.drawer-open { overflow: hidden; }
+
+/* Touch-friendly tap highlight removal */
+a, button { -webkit-tap-highlight-color: transparent; }
+
+/* ============================================================================
+ * REDUCED MOTION — honour OS preference per BERGBAT_REDESIGN_PROMPT.md §7
+ * "Wrap all animations in @media (prefers-reduced-motion: no-preference)".
+ * Implementation collapses every transition + animation to ~0ms when the
+ * user has motion-reduction enabled, rather than removing them entirely
+ * — required for components that rely on transitions for accessibility
+ * affordances (e.g. focus state changes that read better with a beat).
+ * ==========================================================================*/
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================================
+ * MOBILE FORM BASELINE (<lg only — desktop untouched)
+ *
+ * • 16px font prevents iOS Safari auto-zoom on focus.
+ * • 44px min-height meets Apple HIG tap-target guidance.
+ * • Applied app-wide so individual pages don't need to remember.
+ * • Scoped under `@media (max-width: 1023px)` so the dense desktop layout
+ *   the app was built for stays pixel-identical on >=lg.
+ * • Kiosk mode opts out — it already sets its own larger targets above.
+ * ==========================================================================*/
+@media (max-width: 1023px) {
+  :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"])),
+  :where(select),
+  :where(textarea) {
+    font-size: 16px;
+    min-height: 44px;
+  }
+}
+
+/* Scroll padding so inputs focused near the bottom aren't hidden by the
+   on-screen keyboard — browsers scroll the focused field into the padded
+   area. Applies everywhere; no desktop impact because keyboard events
+   don't fire on desktop. */
+html { scroll-padding-bottom: 6rem; }
+
+/* ============================================================================
+ * SIDEBAR NAV RAIL — left-border-accent active state per
+ * BERGBAT_REDESIGN_PROMPT.md §"Sidebar Navigation".
+ *
+ * Why this lives in CSS rather than inline style: hover and active are two
+ * different state machines, and inline style has higher specificity than
+ * any :hover class — so an inline `borderLeftColor` or `color` would
+ * always shadow Tailwind hover utilities. The cleanest fix is a class
+ * that owns all three state-dependent properties (border-left-color,
+ * background, text-color) and reads the section's accent color from a
+ * `--nav-accent` custom property set inline.
+ *
+ * Usage:
+ *   <Link
+ *     className="nav-rail"
+ *     data-active={active ? "true" : undefined}
+ *     style={{ "--nav-accent": "var(--bb-red)" } as CSSProperties}
+ *   >…</Link>
+ *
+ * The 2px transparent default border reserves layout space so toggling
+ * states never shifts neighboring rows.
+ * ==========================================================================*/
+.nav-rail {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem 0.625rem 0.5rem;   /* py-2.5, pr-3, pl-2 */
+  border-radius: var(--radius-sm);
+  border-left: 2px solid transparent;
+  background: transparent;
+  /* Default labels are full white for readability against the dark rail.
+     Selected state mutes them (gray) — see [data-active] rule below.
+     Per Trevor 2026-05-26: inverted from the original muted-default scheme. */
+  color: var(--text);
+  transition:
+    border-left-color var(--transition-fast),
+    background-color  var(--transition-fast),
+    color             var(--transition-fast);
+}
+.nav-rail--indent { padding-left: 1.25rem; }   /* pl-5 — for sub-items */
+.nav-rail[data-active="true"] {
+  border-left-color: var(--nav-accent, transparent);
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.nav-rail:not([data-active="true"]):hover {
+  border-left-color: var(--border-strong);
+  color: var(--text);
+}
+.nav-rail__icon { transition: opacity var(--transition-fast); opacity: 1; }
+.nav-rail[data-active="true"] .nav-rail__icon { opacity: 0.7; }
+.nav-rail:hover .nav-rail__icon { opacity: 1; }
+
+/* ============================================================================
+ * TRANSITION SHIM — maps unmigrated inline fontFamily references to the
+ * current display / body stacks during the BERGBAT_REDESIGN_PROMPT.md
+ * page-by-page redesign pass. Each rule self-destructs per-element as the
+ * page in question is touched. Remove individual rules once `grep -l` for
+ * that family across src/app returns empty.
+ *
+ *   Oswald     → Barlow Condensed  (display)
+ *   Assistant  → Inter              (body)
+ *   Jost       → Inter              (prior body proxy; superseded)
+ *   Futura PT  → Barlow Condensed  (prior display intent; superseded)
+ * ==========================================================================*/
+[style*="Oswald"]      { font-family: var(--font-display) !important; }
+[style*="Assistant"]   { font-family: var(--font-ui)      !important; }
+[style*="Jost"]        { font-family: var(--font-ui)      !important; }
+[style*="Futura"]      { font-family: var(--font-display) !important; }
+
+/* ============================================================================
+ * TYPOGRAPHY ROLES — use these classes instead of inline fontFamily/letterSpacing
+ * (Tailwind v4 `@utility` — composable with variants: md:type-page-title, etc.)
+ * ==========================================================================*/
+@utility type-app-title {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;              /* 15 */
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+@utility type-nav-item {
+  font-family: var(--font-display);
+  font-size: 0.75rem;                /* 12 */
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+@utility type-nav-section {
+  font-family: var(--font-display);
+  font-size: 0.625rem;               /* 10 */
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+@utility type-page-title {
+  /* Prompt §4: 28-32px, Barlow Condensed 700, uppercase, tracking-wider. */
+  font-family: var(--font-display);
+  font-size: 1.875rem;               /* 30 — center of prompt's 28-32 range */
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+@utility type-page-subtitle {
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;              /* 13 */
+  line-height: 1.45;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+@utility type-panel-title {
+  font-family: var(--font-display);
+  font-size: 0.8125rem;              /* 13 */
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+@utility type-section-label {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;              /* 11 */
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+@utility type-metric-label {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;              /* 11 */
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+@utility type-metric-value {
+  /* Prompt §"Stat Cards": Barlow Condensed 700, ~48px. Tabular nums lock
+     digits to a fixed grid so number stacks read clean without jitter. */
+  font-family: var(--font-display);
+  font-size: 3rem;                   /* 48 — prompt's stat-number size */
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+@utility type-table-header {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;              /* 11 */
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+@utility type-table-cell {
+  /* Prompt §4: Inter 400, 14px for table data. */
+  font-family: var(--font-ui);
+  font-size: 0.875rem;               /* 14 */
+  line-height: 1.4;
+}
+@utility type-field-label {
+  /* Prompt §4: Inter 500, 12px, uppercase, tracking-wide. Note: this is the
+     one label role that uses Inter rather than Barlow Condensed — form
+     labels read better in the body face at small sizes than in display. */
+  font-family: var(--font-ui);
+  font-size: 0.75rem;                /* 12 */
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+@utility type-helper {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;                /* 12 */
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+@utility type-chip {
+  font-family: var(--font-display);
+  font-size: 0.625rem;               /* 10 */
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+@utility type-button {
+  /* Prompt §"Buttons": Barlow Condensed 600, 13px, uppercase, tracking-wider. */
+  font-family: var(--font-display);
+  font-size: 0.8125rem;              /* 13 */
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+@utility type-empty-title {
+  font-family: var(--font-display);
+  font-size: 1rem;                   /* 16 */
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+@utility type-empty-body {
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;              /* 13 */
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+@utility type-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+ * KIOSK MODE — 32" Apolosign FHD touch display (1920×1080 / 1080×1920 rotated)
+ *
+ * Activates ONLY when <html data-kiosk="landscape|portrait"> is set by the
+ * useKiosk() hook. Laptops / iPads / phones are untouched.
+ *
+ * Two orientation-specific custom variants let page code opt-in to
+ * portrait-specific layouts (e.g. force a table to render as cards):
+ *   <div className="md:hidden kioskp:block">…</div>
+ *   <div className="hidden md:block kioskp:hidden">…</div>
+ *
+ * The heavy lifting is token scale-up below — type, touch targets, spacing,
+ * scrollbars, sidebar width — so 90% of the app beefs up without per-page work.
+ * ==========================================================================*/
+
+[data-kiosk] {
+  /* Beefier sidebar rail so nav icons + type feel right at 2–5 ft. */
+  --sidebar-w: 17rem;           /* 272 — up from 15rem (240) */
+
+  /* Slightly rounder corners read better at TV distance. */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+
+  /* Kill mobile Safari double-tap zoom + accidental pinches */
+  touch-action: manipulation;
+}
+
+/* ── Touch-target minimums — gloved hands at arm's length ───────────────── */
+[data-kiosk] button,
+[data-kiosk] [role="button"],
+[data-kiosk] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+[data-kiosk] select,
+[data-kiosk] textarea {
+  min-height: 48px;
+}
+[data-kiosk] input[type="checkbox"],
+[data-kiosk] input[type="radio"] {
+  width: 24px;
+  height: 24px;
+}
+
+/* ── Chunkier scrollbars — grabbable with a fingertip ───────────────────── */
+[data-kiosk] ::-webkit-scrollbar { width: 12px; height: 12px; }
+[data-kiosk] ::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background: var(--border-strong);
+}
+
+/* ── Button height bumps (sm/md/lg — applies to Button + IconButton) ────── */
+/* The Button primitive uses Tailwind height utilities. Overriding the
+   rendered heights here keeps the .tsx files unchanged. */
+[data-kiosk] .h-8  { height: 2.5rem !important; }   /* sm: 32 → 40 */
+[data-kiosk] .h-10 { height: 3rem   !important; }   /* md: 40 → 48 */
+[data-kiosk] .h-12 { height: 3.5rem !important; }   /* lg: 48 → 56 */
+[data-kiosk] .w-8  { width:  2.5rem !important; }
+[data-kiosk] .w-10 { width:  3rem   !important; }
+[data-kiosk] .w-12 { width:  3.5rem !important; }
+
+/* ── Typography scale-ups — roughly +25% on display, +20% on body text ──── */
+[data-kiosk] .type-page-title      { font-size: 2.25rem; }   /* 26 → 36 */
+[data-kiosk] .type-page-subtitle   { font-size: 1rem;    line-height: 1.5; }
+[data-kiosk] .type-panel-title     { font-size: 1rem; }      /* 13 → 16 */
+[data-kiosk] .type-section-label   { font-size: 0.8125rem; }
+[data-kiosk] .type-field-label     { font-size: 0.8125rem; }
+[data-kiosk] .type-metric-label    { font-size: 0.8125rem; }
+[data-kiosk] .type-metric-value    { font-size: 3rem; }      /* 32 → 48 */
+[data-kiosk] .type-table-header    { font-size: 0.8125rem; } /* 11 → 13 */
+[data-kiosk] .type-table-cell      { font-size: 1rem; line-height: 1.4; }
+[data-kiosk] .type-button          { font-size: 0.875rem; letter-spacing: 0.08em; }
+[data-kiosk] .type-nav-item        { font-size: 0.9375rem; }  /* 12 → 15 */
+[data-kiosk] .type-nav-section     { font-size: 0.75rem; }    /* 10 → 12 */
+[data-kiosk] .type-app-title       { font-size: 1.0625rem; }
+[data-kiosk] .type-chip            { font-size: 0.75rem; }    /* 10 → 12 */
+[data-kiosk] .type-helper          { font-size: 0.9375rem; line-height: 1.5; }
+[data-kiosk] .type-empty-title     { font-size: 1.25rem; }
+[data-kiosk] .type-empty-body      { font-size: 1rem; }
+
+/* Sidebar visual beef — bigger icons, bigger logo, bigger taps */
+[data-kiosk] aside > div > img     { width: 160px !important; height: auto; }
+[data-kiosk] aside nav a           { padding: 14px 14px; gap: 14px; }
+[data-kiosk] aside nav a svg       { width: 26px; height: 26px; }
+
+/* Page gutters — landscape gets airy rhythm; portrait tightens to preserve
+   the 840-ish content width. Tailwind's `lg:py-8 lg:px-8` from
+   PageContainer wins at specificity unless we override inside the container. */
+[data-kiosk="landscape"] main > div { padding: 2rem 2.5rem; max-width: 1680px; }
+[data-kiosk="portrait"]  main > div { padding: 1.25rem 1.5rem; max-width: none; }
+
+/* Larger numpad keys — the numpad uses .btn-like buttons that inherit the
+   button min-height above, but bump type so numerals read from the bench. */
+[data-kiosk] [data-numpad-key]     { font-size: 1.5rem; font-weight: 700; }
+
+/* Form field inputs — roomier interior so tapped cursor lands reliably. */
+[data-kiosk] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+[data-kiosk] select,
+[data-kiosk] textarea {
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+  padding-left: 0.875rem;
+  padding-right: 0.875rem;
+  font-size: 1rem;
+}
+
+/* ── Portrait (1080×1920) specifics — content is ~808px wide w/ sidebar ─── */
+/* Keep table layouts scrollable and grids collapsed to single-column where
+   a 2-col grid would force <400px children. */
+[data-kiosk="portrait"] .overflow-x-auto { overflow-x: auto; }
+[data-kiosk="portrait"] table             { min-width: 100%; }
+
+/* Landscape (1920×1080) has lots of horizontal room — let max-w-* grow
+   slightly for list pages. (Opt-in, pages set `kioskl:max-w-[...]`.) */
