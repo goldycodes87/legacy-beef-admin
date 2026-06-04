@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 interface CutSheetAnswer {
   section: string;
   answers: Record<string, unknown>;
+  half?: 'A' | 'B' | null;
 }
 
 interface SessionData {
@@ -138,8 +139,9 @@ export default function PrintCutSheetPage() {
             <div style={{fontWeight:'bold', textDecoration:'underline'}}>Brisket</div>
             <div>
               {brisket.choice === 'yes_whole' && <SelectedOnly text="Yes (Whole)" />}
-              {brisket.choice === 'half' && <SelectedOnly text="Yes (Half)" />}
+              {(brisket.choice === 'half' || brisket.choice === 'yes_half') && <SelectedOnly text="Yes (Half)" />}
               {(brisket.choice === false || brisket.choice === 'no') && <SelectedOnly text="No" />}
+              {!brisket.choice && <span style={{color:'#999'}}>Not specified</span>}
             </div>
           </div>
 
