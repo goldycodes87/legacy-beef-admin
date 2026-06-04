@@ -213,8 +213,10 @@ export default function CutSheetsPage() {
               const halfLabel = `Half ${half}`;
               const completedCount = completedSections(session, half);
               const isHalfComplete =
-                (half === 'A' ? session.half_a_complete : session.half_b_complete) ??
-                session.cut_sheet_complete;
+                (half === 'A' ? session.half_a_complete : session.half_b_complete) ||
+                session.cut_sheet_complete ||
+                !!session.cut_sheet_locked_at ||
+                session.status === 'locked';
 
               return (
                 <div key={rowKey} className="rounded-lg border p-4 space-y-3" style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}>
