@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 
 interface CutSheetAnswer {
   section: string;
@@ -250,6 +250,8 @@ function CutSheetContent({ session, half }: { session: SessionData; half: 'A' | 
 export default function PrintCutSheetPage() {
   const params = useParams();
   const id = params.id as string;
+  const searchParams = useSearchParams();
+  const halfParam = searchParams.get('half') as 'A' | 'B' | null;
   const [session, setSession] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -328,9 +330,9 @@ export default function PrintCutSheetPage() {
     <div style={{fontFamily:'Arial, sans-serif', maxWidth:850, margin:'0 auto', padding:16, fontSize:12, lineHeight:1.4, WebkitPrintColorAdjust:'exact'}}>
       {session.dual_cut_sheet ? (
         <>
-          <CutSheetContent session={session} half="A" />
-          <div className="page-break" />
-          <CutSheetContent session={session} half="B" />
+          {halfParam === 'B' ? null : <CutSheetContent session={session} half="A" />}
+          {halfParam === null && <div className="page-break" />}
+          {halfParam === 'A' ? null : <CutSheetContent session={session} half="B" />}
           <div className="page-break" />
           {renderAmbulatoryPage()}
         </>
