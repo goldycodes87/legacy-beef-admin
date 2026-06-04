@@ -97,7 +97,8 @@ export default function CutSheetsPage() {
     s.cut_sheet_answers.filter(a => {
       const answerHalf = a.half ?? null;
       if (s.dual_cut_sheet) {
-        return half ? answerHalf === half : false;
+        // Include answers for this specific half AND null (both halves) answers
+        return answerHalf === half || answerHalf === null;
       }
       return answerHalf === null;
     });
