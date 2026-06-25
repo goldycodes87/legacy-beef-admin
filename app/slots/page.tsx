@@ -168,7 +168,8 @@ export default function SlotsPage() {
     setSavingWeight(sessionId);
     const weight = parseFloat(hangingWeights[sessionId]);
     if (!weight) return;
-    const balanceDue = (weight * pricePerLb) - (depositAmountCents / 100);
+    // Use actual deposit paid — don't pass balance_due, let server calculate from payments table
+    const balanceDue = null;
     const res = await fetch(`/api/admin/sessions/${sessionId}/hanging-weight`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
