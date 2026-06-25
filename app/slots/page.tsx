@@ -134,7 +134,7 @@ export default function SlotsPage() {
   };
 
   const handleCancel = async (session: Reservation) => {
-    const cancelMessage = `Cancel reservation for ${session.customer_name}? Their deposit will need to be refunded manually through Stripe.`;
+    const cancelMessage = `Cancel reservation for ${session.customer_name}? If a deposit was paid, it will need to be refunded manually through Square.`;
     setConfirmModal({
       open: true,
       message: cancelMessage,
@@ -438,10 +438,11 @@ export default function SlotsPage() {
                                   style={{ borderColor: 'var(--border)' }}
                                 />
                                 {hangingWeights[session.id] && (
-                                  <p className="text-sm text-brand-gray">
-                                    Balance Due: <span className="font-bold text-white">
-                                      ${((parseFloat(hangingWeights[session.id]) * (session.price_per_lb ?? session.animals?.price_per_lb ?? 8.00)) - (session.deposit_amount_cents || 0) / 100).toFixed(2)}
+                                  <p className="text-sm text-gray-400">
+                                    Est. Total: <span className="font-bold text-white">
+                                      ${(parseFloat(hangingWeights[session.id]) * (session.price_per_lb ?? session.animals?.price_per_lb ?? 8.00)).toFixed(2)}
                                     </span>
+                                    <span className="text-xs text-gray-500 ml-2">(balance calculated from actual deposit on save)</span>
                                   </p>
                                 )}
                                 <button
