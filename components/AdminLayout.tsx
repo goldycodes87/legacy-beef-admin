@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: '/customers', label: 'Customers', icon: '👥' },
   { href: '/cut-sheets', label: 'Cut Sheets', icon: '📝' },
   { href: '/payments', label: 'Payments', icon: '💳' },
+  { href: '/financials', label: 'Financials', icon: '💰' },
   { href: '/coupons', label: 'Coupons', icon: '🏷️' },
   { href: '/notifications', label: 'Notifications', icon: '🔔' },
   { href: '/email-preview', label: 'Email Preview', icon: '✉️' },
