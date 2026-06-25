@@ -54,6 +54,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         sum + (p.amount_cents / 100), 0
       );
       const balanceDue = balance_due || Math.max(0, totalCost - depositPaid - ((session as any).discount_amount || 0));
+      // Save calculated balance back to session
+      await supabase.from('sessions')
+        .update({ balance_due: balanceDue })
+        .eq('id', id);
 
       const purchaseLabel =
         (session as any).purchase_type === 'whole'
