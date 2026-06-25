@@ -46,9 +46,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const firstName = customer.name?.split(' ')[0] ?? 'there';
       const pricePerLb = parseFloat((session as any).price_per_lb) || parseFloat(animal?.price_per_lb) || 0;
       const totalCost = hanging_weight_lbs * pricePerLb;
-      const t = (session as any).purchase_type;
-      const s = (session as any).is_splitting;
-      const depositPaid = (t === 'whole' && !s) ? 850 : (t === 'whole' && s) ? 500 : (t === 'half' && s) ? 250 : (t === 'half') ? 500 : 250;
+      // Use actual deposit paid from payments table, not hardcoded amount
+      const depositPayments = payments.filter((p: any) => 
+        p.type === 'deposit' && p.status === 'paid'
+      );
+      const depositPaid = depositPayments.reduce((sum: number, p: any) => 
+        sum + (p.amount_cents / 100), 0
+      );
       const balanceDue = balance_due || Math.max(0, totalCost - depositPaid - ((session as any).discount_amount || 0));
 
       const purchaseLabel =
