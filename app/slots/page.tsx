@@ -402,7 +402,7 @@ export default function SlotsPage() {
                                   Picked Up ✓
                                 </button>
                               )}
-                              {session.balance_payment_method === 'cash' && !session.balance_paid && (
+                              {!session.balance_paid && session.balance_due > 0 && (
                                 <button
                                   onClick={(e) => { 
                                     e.stopPropagation(); 
