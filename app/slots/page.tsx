@@ -81,7 +81,9 @@ export default function SlotsPage() {
   };
 
   const handleMarkBalancePaid = async (sessionId: string) => {
-    if (!confirm('Mark balance as paid by cash/check?')) return;
+    const method = window.prompt('Payment method? Type: cash, check, or card', 'check');
+    if (!method) return;
+    if (!confirm(`Mark balance as paid by ${method}?`)) return;
     try {
       const res = await fetch(
         `/api/admin/sessions/${sessionId}/mark-balance-paid`,
@@ -402,7 +404,7 @@ export default function SlotsPage() {
                                   Picked Up ✓
                                 </button>
                               )}
-                              {!session.balance_paid && session.balance_due > 0 && (
+                              {!session.balance_paid && (session.balance_due ?? 0) > 0 && (
                                 <button
                                   onClick={(e) => { 
                                     e.stopPropagation(); 
