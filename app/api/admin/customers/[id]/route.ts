@@ -24,6 +24,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   return NextResponse.json({ success: true });
 }
 
+/**
+ * Permanently removes a customer who has no financial history.
+ *
+ * Anyone who has ever paid is refused: deleting them would destroy the
+ * payments rows that evidence money changing hands, along with their signed
+ * cut sheets. Archive those customers instead — it hides them from the list
+ * and keeps the record.
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -40,9 +48,34 @@ export async function DELETE(
 
   if (sessions && sessions.length > 0) {
     return NextResponse.json(
-      { error: 'Customer has active sessions' },
+      { error: 'This customer has active reservations. Cancel them first, or archive the customer instead.' },
       { status: 400 }
     );
+  }
+
+  // Refuse if any money was ever recorded against this customer.
+  const { data: everySession } = await supabase
+    .from('sessions')
+    .select('id')
+    .eq('customer_id', id);
+  const everySessionId = (everySession || []).map((s: { id: string }) => s.id);
+
+  if (everySessionId.length > 0) {
+    const { data: paymentRows } = await supabase
+      .from('payments')
+      .select('id')
+      .in('session_id', everySessionId)
+      .limit(1);
+
+    if (paymentRows && paymentRows.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            'This customer has payment history, which must be kept. Archive them instead — they will be hidden from the list but the record stays.',
+        },
+        { status: 409 }
+      );
+    }
   }
 
   // Delete customer_links (FK direct to customers)

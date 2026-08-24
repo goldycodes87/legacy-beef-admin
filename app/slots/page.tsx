@@ -71,6 +71,12 @@ export default function SlotsPage() {
   const [depositModal, setDepositModal] = useState<{ open: boolean; sessionId: string; customerName: string; } | null>(null);
   const [depositForm, setDepositForm] = useState<{ method: string; checkNumber: string; }>({ method: 'check', checkNumber: '' });
   const [discountForm, setDiscountForm] = useState<Record<string, { type: string; value: string; note: string }>>({});
+  const [balanceModal, setBalanceModal] = useState<{
+    sessionId: string; customerName: string; amount: number;
+    method: string; checkNumber: string;
+  } | null>(null);
+  const [savingBalance, setSavingBalance] = useState<string | null>(null);
+  const [savingDeposit, setSavingDeposit] = useState(false);
 
   const handleSaveAdminNotes = async (sessionId: string, notes: string) => {
     await fetch(`/api/admin/sessions/${sessionId}/notes`, {
@@ -80,19 +86,32 @@ export default function SlotsPage() {
     });
   };
 
-  const handleMarkBalancePaid = async (sessionId: string) => {
-    const method = window.prompt('Payment method? Type: cash, check, or card', 'check');
-    if (!method) return;
-    if (!confirm(`Mark balance as paid by ${method}?`)) return;
+  const handleMarkBalancePaid = async (
+    sessionId: string,
+    method: string,
+    checkNumber: string
+  ) => {
+    setSavingBalance(sessionId);
     try {
       const res = await fetch(
         `/api/admin/sessions/${sessionId}/mark-balance-paid`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ method, check_number: checkNumber || null }),
+        }
       );
-      if (res.ok) loadSlots();
-      else alert('Failed to mark balance paid');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'Could not mark the balance paid. Please try again.');
+        return;
+      }
+      setBalanceModal(null);
+      loadSlots();
     } catch (err) {
-      alert('Error: ' + err);
+      alert(`Could not mark the balance paid: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setSavingBalance(null);
     }
   };
 
@@ -166,21 +185,35 @@ export default function SlotsPage() {
     }
   };
 
-  const handleSaveHangingWeight = async (sessionId: string, pricePerLb: number, depositAmountCents: number) => {
-    setSavingWeight(sessionId);
+  const handleSaveHangingWeight = async (sessionId: string) => {
     const weight = parseFloat(hangingWeights[sessionId]);
-    if (!weight) return;
-    // Use actual deposit paid — don't pass balance_due, let server calculate from payments table
-    const balanceDue = null;
-    const res = await fetch(`/api/admin/sessions/${sessionId}/hanging-weight`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hanging_weight_lbs: weight, balance_due: balanceDue }),
-    });
-    setSavingWeight(null);
-    setExpandedSession(null);
-    if (res.ok) {
+    if (!Number.isFinite(weight) || weight < 50 || weight > 1200) {
+      alert('Enter a hanging weight between 50 and 1200 lbs.');
+      return;
+    }
+    // Saving this emails the customer their balance, so confirm the number.
+    if (!confirm(`Save ${weight} lbs? This emails the customer their balance.`)) return;
+
+    setSavingWeight(sessionId);
+    try {
+      // The server computes the balance from the payments table and any
+      // discount — deliberately not sent from here.
+      const res = await fetch(`/api/admin/sessions/${sessionId}/hanging-weight`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hanging_weight_lbs: weight }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'Could not save the hanging weight. Please try again.');
+        return;
+      }
+      setExpandedSession(null);
       loadSlots();
+    } catch (err) {
+      alert(`Could not save the hanging weight: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setSavingWeight(null);
     }
   };
 
@@ -406,9 +439,15 @@ export default function SlotsPage() {
                               )}
                               {!session.balance_paid && (session.balance_due ?? 0) > 0 && (
                                 <button
-                                  onClick={(e) => { 
-                                    e.stopPropagation(); 
-                                    handleMarkBalancePaid(session.id); 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setBalanceModal({
+                                      sessionId: session.id,
+                                      customerName: session.customer_name,
+                                      amount: session.balance_due ?? 0,
+                                      method: 'check',
+                                      checkNumber: '',
+                                    });
                                   }}
                                   className="text-green-600 hover:text-green-800 font-semibold text-sm ml-3"
                                 >
@@ -448,7 +487,7 @@ export default function SlotsPage() {
                                   </p>
                                 )}
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); handleSaveHangingWeight(session.id, session.price_per_lb ?? session.animals?.price_per_lb ?? 8.00, session.deposit_amount_cents || 0); }}
+                                  onClick={(e) => { e.stopPropagation(); handleSaveHangingWeight(session.id); }}
                                   disabled={!hangingWeights[session.id] || savingWeight === session.id}
                                   className="px-4 py-2 bg-brand-orange text-white rounded-lg text-sm font-semibold disabled:opacity-50"
                                 >
@@ -638,6 +677,86 @@ export default function SlotsPage() {
         />
       )}
 
+      {balanceModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div
+            className="rounded-2xl p-6 w-full max-w-sm shadow-xl"
+            style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
+          >
+            <h3 className="text-lg font-bold text-white mb-1">Record balance payment</h3>
+            <p className="text-sm text-gray-300 mb-5">
+              {balanceModal.customerName} — ${balanceModal.amount.toFixed(2)}
+            </p>
+
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+              How did they pay?
+            </label>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {[
+                { value: 'cash', label: '💵 Cash' },
+                { value: 'check', label: '🧾 Check' },
+                { value: 'card', label: '💳 Card' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setBalanceModal({ ...balanceModal, method: option.value })}
+                  className={`py-2 rounded-lg text-sm font-semibold border ${
+                    balanceModal.method === option.value ? 'text-white' : 'text-gray-300'
+                  }`}
+                  style={{
+                    background: balanceModal.method === option.value ? 'var(--accent-soft)' : 'transparent',
+                    borderColor: balanceModal.method === option.value ? 'var(--accent)' : 'var(--border)',
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            {balanceModal.method === 'check' && (
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                  Check number (optional)
+                </label>
+                <input
+                  type="text"
+                  value={balanceModal.checkNumber}
+                  onChange={(e) => setBalanceModal({ ...balanceModal, checkNumber: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-transparent text-white border focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                  style={{ borderColor: 'var(--border)' }}
+                />
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setBalanceModal(null)}
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-gray-300 border"
+                style={{ borderColor: 'var(--border)' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={savingBalance === balanceModal.sessionId}
+                onClick={() =>
+                  handleMarkBalancePaid(
+                    balanceModal.sessionId,
+                    balanceModal.method,
+                    balanceModal.checkNumber
+                  )
+                }
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-brand-orange text-white disabled:opacity-50"
+              >
+                {savingBalance === balanceModal.sessionId ? 'Saving…' : 'Record payment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {depositModal?.open && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div
@@ -680,21 +799,34 @@ export default function SlotsPage() {
             </div>
             <div className="flex gap-3 mt-6">
               <button
+                disabled={savingDeposit}
                 onClick={async () => {
-                  await fetch(`/api/admin/sessions/${depositModal.sessionId}/confirm-deposit`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      method: depositForm.method,
-                      check_number: depositForm.checkNumber || null,
-                    }),
-                  });
-                  setDepositModal(null);
-                  loadSlots();
+                  setSavingDeposit(true);
+                  try {
+                    const res = await fetch(`/api/admin/sessions/${depositModal.sessionId}/confirm-deposit`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        method: depositForm.method,
+                        check_number: depositForm.checkNumber || null,
+                      }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                      alert(data.error || 'Could not confirm the deposit. Please try again.');
+                      return;
+                    }
+                    setDepositModal(null);
+                    loadSlots();
+                  } catch (err) {
+                    alert(`Could not confirm the deposit: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                  } finally {
+                    setSavingDeposit(false);
+                  }
                 }}
-                className="flex-1 bg-brand-orange hover:bg-brand-orange-hover text-white py-2 rounded-lg font-semibold"
+                className="flex-1 bg-brand-orange hover:bg-brand-orange-hover text-white py-2 rounded-lg font-semibold disabled:opacity-50"
               >
-                Confirm Payment
+                {savingDeposit ? 'Saving…' : 'Confirm Payment'}
               </button>
               <button
                 onClick={() => setDepositModal(null)}

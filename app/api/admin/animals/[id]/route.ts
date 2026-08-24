@@ -67,10 +67,27 @@ export async function DELETE(
     const sessionIds = (allSessions || []).map(s => s.id);
 
     if (sessionIds.length > 0) {
-      // Cascade delete in order
+      // Refuse if money was ever recorded against this animal. Deleting would
+      // destroy the payments rows that evidence it. Archive instead.
+      const { data: paymentRows } = await supabase
+        .from('payments')
+        .select('id')
+        .in('session_id', sessionIds)
+        .limit(1);
+
+      if (paymentRows && paymentRows.length > 0) {
+        return NextResponse.json(
+          {
+            error:
+              'This butcher date has payment history, which must be kept. Archive it instead — it will be hidden but the record stays.',
+          },
+          { status: 409 }
+        );
+      }
+
+      // Only reachable for dates whose reservations never involved money.
       await supabase.from('pickup_appointments').delete().in('session_id', sessionIds);
       await supabase.from('notifications').delete().in('session_id', sessionIds);
-      await supabase.from('payments').delete().in('session_id', sessionIds);
       await supabase.from('cut_sheet_answers').delete().in('session_id', sessionIds);
       await supabase.from('sessions').delete().in('id', sessionIds);
     }

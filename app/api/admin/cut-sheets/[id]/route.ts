@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { computeBalance } from '@/lib/money';
 
 export async function PUT(
   request: NextRequest,
@@ -12,27 +13,39 @@ export async function PUT(
 
   // Handle hanging weight entry + balance calculation
   if (body.hanging_weight_lbs !== undefined) {
+    const weight = Number(body.hanging_weight_lbs);
+    if (!Number.isFinite(weight) || weight < 50 || weight > 1200) {
+      return NextResponse.json(
+        { error: 'Hanging weight must be between 50 and 1200 lbs.' },
+        { status: 400 }
+      );
+    }
+
     const { data: session } = await supabase
       .from('sessions')
-      .select('purchase_type, deposit_amount, price_per_lb, animals(price_per_lb)')
+      .select(`
+        purchase_type, price_per_lb, discount_amount, balance_paid,
+        animals(price_per_lb),
+        payments(amount_cents, surcharge_cents, type, status)
+      `)
       .eq('id', id)
       .single();
 
     if (session) {
       const animal = Array.isArray(session.animals) ? session.animals[0] : session.animals;
-      // The price quoted at booking is what the customer owes.
-      const pricePerLb = session.price_per_lb ?? animal?.price_per_lb ?? 0;
-      const totalDue = body.hanging_weight_lbs * pricePerLb;
-      const deposit = session.deposit_amount || 0;
-      const balanceDue = Math.max(0, totalDue - deposit);
+      // Same calculator the rest of the app uses: the price quoted at booking,
+      // deposits net of card surcharge, and any discount.
+      const { balanceDue } = computeBalance({
+        hangingWeightLbs: weight,
+        pricePerLb: session.price_per_lb ?? animal?.price_per_lb,
+        payments: (session as any).payments,
+        discountAmount: (session as any).discount_amount,
+      });
 
-      await supabase
-        .from('sessions')
-        .update({
-          hanging_weight_lbs: body.hanging_weight_lbs,
-          balance_due: balanceDue,
-        })
-        .eq('id', id);
+      const update: Record<string, unknown> = { hanging_weight_lbs: weight };
+      if (!(session as any).balance_paid) update.balance_due = balanceDue;
+
+      await supabase.from('sessions').update(update).eq('id', id);
 
       return NextResponse.json({ success: true, balance_due: balanceDue });
     }

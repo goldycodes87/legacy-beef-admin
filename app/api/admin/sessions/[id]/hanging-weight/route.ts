@@ -3,16 +3,35 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { emailBase, ctaButton, orderCard } from '@/lib/email-templates';
 import { sendPushNotification } from '@/lib/push';
+import { computeBalance } from '@/lib/money';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.legacylandandcattleco.com';
+
+/** A carcass outside this range is a typo, not a weight. */
+const MIN_HANGING_WEIGHT_LBS = 50;
+const MAX_HANGING_WEIGHT_LBS = 1200;
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = getSupabaseAdmin();
   const { id } = await params;
-  const { hanging_weight_lbs, balance_due } = await request.json();
+  const { hanging_weight_lbs } = await request.json();
+
+  // The balance is computed here from the payments table and the session's
+  // discount. It is never taken from the request body — this figure is emailed
+  // to the customer as what they owe.
+  const weight = Number(hanging_weight_lbs);
+  if (!Number.isFinite(weight) || weight < MIN_HANGING_WEIGHT_LBS || weight > MAX_HANGING_WEIGHT_LBS) {
+    return NextResponse.json(
+      {
+        error: `Hanging weight must be between ${MIN_HANGING_WEIGHT_LBS} and ${MAX_HANGING_WEIGHT_LBS} lbs.`,
+        detail: `Received: ${hanging_weight_lbs}`,
+      },
+      { status: 400 }
+    );
+  }
 
   const { error } = await supabase.from('sessions')
-    .update({ hanging_weight_lbs, balance_due })
+    .update({ hanging_weight_lbs: weight })
     .eq('id', id);
 
   if (error)
@@ -28,7 +47,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       id, purchase_type, is_splitting, access_token, price_per_lb, discount_amount, discount_note,
       customers (id, name, email),
       animals (name, butcher_date),
-      payments (amount_cents, type, status)
+      payments (amount_cents, surcharge_cents, type, status)
     `)
     .eq('id', id)
     .single();
@@ -45,16 +64,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (customer && animal) {
       const firstName = customer.name?.split(' ')[0] ?? 'there';
       const pricePerLb = parseFloat((session as any).price_per_lb) || parseFloat(animal?.price_per_lb) || 0;
-      const totalCost = hanging_weight_lbs * pricePerLb;
-      // Use actual deposit paid from payments table, not hardcoded amount
-      const depositPayments = payments.filter((p: any) => 
-        p.type === 'deposit' && p.status === 'paid'
-      );
-      const depositPaid = depositPayments.reduce((sum: number, p: any) => 
-        sum + (p.amount_cents / 100), 0
-      );
-      const balanceDue = balance_due || Math.max(0, totalCost - depositPaid - ((session as any).discount_amount || 0));
-      // Save calculated balance back to session
+
+      const { totalCost, depositCredit: depositPaid, balanceDue } = computeBalance({
+        hangingWeightLbs: weight,
+        pricePerLb,
+        payments,
+        discountAmount: (session as any).discount_amount,
+      });
+
       await supabase.from('sessions')
         .update({ balance_due: balanceDue })
         .eq('id', id);
@@ -76,7 +93,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const emailHtml = buildHangingWeightEmail({
         firstName,
         purchaseLabel,
-        hangingWeight: hanging_weight_lbs,
+        hangingWeight: weight,
         pricePerLb,
         totalCost,
         depositPaid,
@@ -88,7 +105,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
       await sendPushNotification(
         '⚖️ Hanging Weight Entered',
-        `${purchaseLabel} — ${hanging_weight_lbs} lbs — Balance: $${balanceDue.toFixed(2)}`,
+        `${purchaseLabel} — ${weight} lbs — Balance: $${balanceDue.toFixed(2)}`,
         '/slots'
       );
 

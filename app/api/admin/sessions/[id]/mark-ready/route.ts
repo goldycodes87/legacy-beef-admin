@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { computeBalance } from '@/lib/money';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.legacylandandcattleco.com';
 
@@ -13,9 +14,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .from('sessions')
     .select(`
       id, status, hanging_weight_lbs, price_per_lb, is_splitting, purchase_type, access_token,
+      discount_amount, balance_due, balance_paid,
       customers(id, name, email),
       animals(id, name, butcher_date),
-      payments(id, amount_cents, paid_at)
+      payments(id, amount_cents, surcharge_cents, type, status, paid_at)
     `)
     .eq('id', id)
     .single();
@@ -27,19 +29,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const customer = Array.isArray(session.customers) ? session.customers[0] : session.customers;
   const animal = Array.isArray(session.animals) ? session.animals[0] : session.animals;
 
-  // Calculate balance if not set
-  const depositPaid = (session.payments || []).reduce((sum: number, p: any) => sum + (p.amount_cents || 0) / 100, 0);
-  const hangingWeight = session.hanging_weight_lbs || 0;
-  const pricePerLb = session.price_per_lb || 0;
-  const balanceDue = hangingWeight > 0 && pricePerLb > 0 ? (hangingWeight * pricePerLb) - depositPaid : 0;
+  // Recompute through the shared calculator so the discount is honoured and
+  // the card surcharge is not credited against the beef. Previously this
+  // recomputed without the discount term and silently re-billed customers who
+  // had been given one.
+  const { balanceDue } = computeBalance({
+    hangingWeightLbs: session.hanging_weight_lbs,
+    pricePerLb: session.price_per_lb,
+    payments: session.payments,
+    discountAmount: (session as any).discount_amount,
+  });
 
-  // Update session
+  // A settled balance stays settled.
+  const balanceToStore = (session as any).balance_paid ? 0 : balanceDue;
+
   await supabase
     .from('sessions')
     .update({
       status: 'beef_ready',
       beef_ready_at: new Date().toISOString(),
-      balance_due: balanceDue > 0 ? balanceDue : 0,
+      balance_due: balanceToStore,
     })
     .eq('id', id);
 
@@ -58,16 +67,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const purchaseLabel = session.purchase_type.charAt(0).toUpperCase() + session.purchase_type.slice(1);
 
   let balanceSection = '';
-  if (balanceDue > 0) {
+  if (balanceToStore > 0) {
     balanceSection = `
       <p style="margin: 20px 0; color: #d97706; font-weight: bold;">
-        Balance Due: <span style="font-size: 18px;">$${balanceDue.toFixed(2)}</span>
+        Balance Due: <span style="font-size: 18px;">$${balanceToStore.toFixed(2)}</span>
       </p>
       <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
         <tr>
           <td align="center">
             <a href="${APP_URL}/session/${id}/balance" style="background-color: #E85D24; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-              Pay Balance Online → $${balanceDue.toFixed(2)}
+              Pay Balance Online → $${balanceToStore.toFixed(2)}
             </a>
           </td>
         </tr>

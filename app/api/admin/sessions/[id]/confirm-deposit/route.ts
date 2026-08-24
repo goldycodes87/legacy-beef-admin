@@ -24,6 +24,31 @@ export async function POST(
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
+    // Confirming twice would credit the deposit twice and re-email the customer.
+    const { data: existingDeposit } = await supabase
+      .from('payments')
+      .select('id')
+      .eq('session_id', id)
+      .eq('type', 'deposit')
+      .eq('status', 'paid')
+      .gt('amount_cents', 0)
+      .maybeSingle();
+
+    if (existingDeposit) {
+      return NextResponse.json(
+        { error: 'A deposit is already recorded for this reservation.' },
+        { status: 409 }
+      );
+    }
+
+    const allowedMethods = ['cash', 'check', 'card'];
+    if (method && !allowedMethods.includes(String(method).toLowerCase())) {
+      return NextResponse.json(
+        { error: `Payment method must be one of: ${allowedMethods.join(', ')}.` },
+        { status: 400 }
+      );
+    }
+
     // The deposit quoted at booking is what we record; otherwise fall back to
     // the config matrix. Never a hardcoded figure.
     const sessionAnimal = Array.isArray((session as any).animals)
@@ -82,10 +107,19 @@ export async function POST(
 
           const firstName = customer.name?.split(' ')[0] ?? 'there';
           const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.legacylandandcattleco.com';
-          const accessToken = (fullSession as any).access_token;
-          const cutSheetUrl = accessToken
-            ? `${APP_URL}/api/token/${accessToken}`
-            : `${APP_URL}`;
+
+          // Cash and check customers never went through the card flow, so they
+          // have no access token yet. Without one this email's only call to
+          // action would drop them on the home page.
+          let accessToken = (fullSession as any).access_token;
+          if (!accessToken) {
+            const { createAccessToken } = await import('@/lib/access-token');
+            const butcherDate = animal.butcher_date
+              ? new Date(new Date(animal.butcher_date).getTime() + 60 * 24 * 60 * 60 * 1000)
+              : new Date(Date.now() + 150 * 24 * 60 * 60 * 1000);
+            accessToken = await createAccessToken(id, butcherDate);
+          }
+          const cutSheetUrl = `${APP_URL}/api/token/${accessToken}`;
 
           const t = (fullSession as any).purchase_type;
           const purchaseLabel = t === 'whole' ? 'Whole Beef' : t === 'half' ? 'Half Beef' : 'Quarter Beef';

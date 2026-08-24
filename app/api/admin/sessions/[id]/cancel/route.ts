@@ -1,14 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!
-  );
-}
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { unitCostFor } from '@/lib/inventory';
 
 export async function POST(
   request: NextRequest,
@@ -18,25 +12,55 @@ export async function POST(
     const supabase = getSupabaseAdmin();
     const { id } = await params;
 
-    // Get session to release capacity
-    const { data: session } = await supabase.from('sessions').select('*').eq('id', id).single();
+    const { data: session } = await supabase
+      .from('sessions')
+      .select('id, status, purchase_type, animal_id')
+      .eq('id', id)
+      .single();
+
     if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
 
-    const unitCost = session.purchase_type === 'whole' ? 1.0 : session.purchase_type === 'half' ? 0.5 : 0.25;
-
-    // Release capacity on animal — only if session is not a draft (drafts never incremented units_used)
-    if (session.status !== 'draft') {
-      const { data: animal } = await supabase.from('animals').select('units_used').eq('id', session.animal_id).single();
-      await supabase.from('animals')
-        .update({ units_used: Math.max(0, (animal?.units_used || 0) - unitCost) })
-        .eq('id', session.animal_id);
+    if (session.status === 'cancelled') {
+      return NextResponse.json({ error: 'This reservation is already cancelled.' }, { status: 409 });
     }
 
-    // Mark session cancelled
-    await supabase.from('sessions').update({ status: 'cancelled' }).eq('id', id);
+    // Mark cancelled first. If releasing capacity then fails we have a spot
+    // held by a cancelled order, which is visible and fixable; the reverse
+    // would double-release capacity on a retry.
+    const { error: sessionError } = await supabase
+      .from('sessions')
+      .update({ status: 'cancelled' })
+      .eq('id', id);
+
+    if (sessionError) {
+      return NextResponse.json(
+        { error: 'Failed to cancel reservation', detail: sessionError.message },
+        { status: 500 }
+      );
+    }
+
+    // Drafts never claimed capacity, so there is nothing to give back.
+    if (session.status !== 'draft') {
+      const { error: releaseError } = await supabase.rpc('adjust_animal_units', {
+        p_animal_id: session.animal_id,
+        p_delta: -unitCostFor(session.purchase_type),
+      });
+
+      if (releaseError) {
+        console.error(`Cancelled session ${id} but did not release capacity`, releaseError);
+        return NextResponse.json(
+          { error: 'Reservation cancelled, but the slot was not released. Check the animal capacity.' },
+          { status: 500 }
+        );
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: 'Failed to cancel reservation' }, { status: 500 });
+    console.error('Cancel reservation error:', err);
+    return NextResponse.json(
+      { error: 'Failed to cancel reservation', detail: err instanceof Error ? err.message : 'Unknown error' },
+      { status: 500 }
+    );
   }
 }
