@@ -9,6 +9,8 @@ export interface OpenItem {
 export interface SettleResult {
   archived: { id: string; name: string }[];
   needsAttention: { id: string; name: string; butcher_date: string; open: OpenItem[] }[];
+  /** Dates that were finished but could not be archived, with the reason. */
+  failed: { id: string; name: string; reason: string }[];
 }
 
 /**
@@ -42,6 +44,7 @@ export async function settlePastButcherDates(): Promise<SettleResult> {
 
   const archived: SettleResult['archived'] = [];
   const needsAttention: SettleResult['needsAttention'] = [];
+  const failed: SettleResult['failed'] = [];
 
   for (const animal of animals || []) {
     const sessions = ((animal as any).sessions || []).filter(
@@ -72,7 +75,19 @@ export async function settlePastButcherDates(): Promise<SettleResult> {
         .from('animals')
         .update({ status: 'archived' })
         .eq('id', animal.id);
-      if (!archiveError) archived.push({ id: animal.id, name: (animal as any).name });
+
+      if (archiveError) {
+        // Never swallow this. A failing archive used to leave the date looking
+        // active with no explanation anywhere.
+        console.error(`Could not archive butcher date ${(animal as any).name}:`, archiveError);
+        failed.push({
+          id: animal.id,
+          name: (animal as any).name,
+          reason: archiveError.message,
+        });
+      } else {
+        archived.push({ id: animal.id, name: (animal as any).name });
+      }
     } else {
       needsAttention.push({
         id: animal.id,
@@ -83,5 +98,5 @@ export async function settlePastButcherDates(): Promise<SettleResult> {
     }
   }
 
-  return { archived, needsAttention };
+  return { archived, needsAttention, failed };
 }

@@ -139,6 +139,7 @@ export default function AnimalsPage() {
     { id: string; name: string; butcher_date: string; open: { customer_name: string; reason: string }[] }[]
   >([]);
   const [justArchived, setJustArchived] = useState<string[]>([]);
+  const [archiveFailures, setArchiveFailures] = useState<{ id: string; name: string; reason: string }[]>([]);
   const [editForm, setEditForm] = useState<{butcher_date: string, estimated_ready_date: string, grass_fed_count: number, grain_finished_count: number, wagyu_count: number}>({butcher_date: '', estimated_ready_date: '', grass_fed_count: 0, grain_finished_count: 0, wagyu_count: 0});
 
   useEffect(() => {
@@ -161,6 +162,7 @@ export default function AnimalsPage() {
       if (!res.ok) return;
       const data = await res.json();
       setNeedsAttention(data.needs_attention || []);
+      setArchiveFailures(data.failed || []);
       if ((data.archived || []).length > 0) {
         setJustArchived(data.archived.map((a: { name: string }) => a.name));
       }
@@ -442,6 +444,22 @@ export default function AnimalsPage() {
             {justArchived.length === 1 ? '' : 's'}: {justArchived.join(', ')}.
           </span>
           <button onClick={() => setJustArchived([])} aria-label="Dismiss" className="shrink-0">✕</button>
+        </div>
+      )}
+
+      {archiveFailures.length > 0 && (
+        <div
+          className="rounded-xl p-4 mb-4 text-sm"
+          style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-fg)' }}
+        >
+          <p className="font-semibold mb-1">
+            {archiveFailures.length} finished date{archiveFailures.length === 1 ? '' : 's'} could not be archived
+          </p>
+          <ul className="ml-4 list-disc">
+            {archiveFailures.map((f) => (
+              <li key={f.id}>{f.name} — {f.reason}</li>
+            ))}
+          </ul>
         </div>
       )}
 

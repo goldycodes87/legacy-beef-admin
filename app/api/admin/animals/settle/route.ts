@@ -4,8 +4,8 @@ import { settlePastButcherDates } from '@/lib/settle-butcher-dates';
 
 export async function POST() {
   try {
-    const { archived, needsAttention } = await settlePastButcherDates();
-    return NextResponse.json({ archived, needs_attention: needsAttention });
+    const { archived, needsAttention, failed } = await settlePastButcherDates();
+    return NextResponse.json({ archived, needs_attention: needsAttention, failed });
   } catch (err) {
     console.error('Settle butcher dates error:', err);
     return NextResponse.json(
