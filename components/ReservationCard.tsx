@@ -1,7 +1,7 @@
 'use client';
 
 import { Chip } from '@/components/ui/Chip';
-import { formatCurrency, formatWeight, purchaseTypeShort } from '@/lib/format';
+import { formatCents, formatWeight, purchaseTypeShort } from '@/lib/format';
 import { getStageMeta, getStageDetail, type StageInput } from '@/lib/reservation-status';
 
 export interface ReservationCardData extends StageInput {
@@ -11,6 +11,8 @@ export interface ReservationCardData extends StageInput {
   hanging_weight_lbs?: number | null;
   balance_due?: number | null;
   check_number?: string | null;
+  deposit_taken_cents?: number | null;
+  unrecorded_settlement?: boolean;
 }
 
 /**
@@ -35,7 +37,7 @@ export function ReservationCard({
   // The number worth showing depends on where the order is.
   const figure =
     meta.stage === 'balance_due'
-      ? formatCurrency(reservation.balance_due)
+      ? formatCents(reservation.outstanding_cents ?? 0)
       : reservation.hanging_weight_lbs
         ? formatWeight(reservation.hanging_weight_lbs)
         : null;
@@ -75,7 +77,7 @@ export function ReservationCard({
 
       <span className="flex items-end justify-between gap-3 mt-3">
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          {detail}
+          {reservation.unrecorded_settlement ? 'Marked paid — no payment on file' : detail}
         </span>
         {figure && (
           <span

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { computeBalance } from '@/lib/money';
+import { summarizeReservation } from '@/lib/reservation';
 
 /**
  * Every reservation that involves money, with what was actually banked.
@@ -31,26 +31,15 @@ export async function GET() {
   const records = sessions.map((session: any) => {
     const customer = Array.isArray(session.customers) ? session.customers[0] : session.customers;
     const animal = Array.isArray(session.animals) ? session.animals[0] : session.animals;
-    const payments = (session.payments || []) as any[];
-    const paid = payments.filter((p) => p.status === 'paid' && (p.amount_cents || 0) > 0);
+    const paid = (session.payments || []).filter(
+      (p: any) => p.status === 'paid' && (p.amount_cents || 0) > 0
+    );
 
-    // Real deposit only — zero-dollar rows are auto-settle artifacts.
-    const deposit = paid.find((p) => p.type === 'deposit') || null;
-    const balancePayments = paid.filter((p) => p.type === 'balance');
-
-    const grossCents = paid.reduce((s, p) => s + (p.amount_cents || 0), 0);
-    const surchargeCents = paid.reduce((s, p) => s + (p.surcharge_cents || 0), 0);
-    const bankedCents = grossCents - surchargeCents;
-
-    const { totalCost } = computeBalance({
-      hangingWeightLbs: session.hanging_weight_lbs,
-      pricePerLb: session.price_per_lb ?? animal?.price_per_lb,
-      payments: [],
-      discountAmount: 0,
-    });
-    const discount = Number(session.discount_amount) || 0;
-    const orderTotalCents = Math.max(0, Math.round((totalCost - discount) * 100));
-    const outstandingCents = orderTotalCents > 0 ? Math.max(0, orderTotalCents - bankedCents) : 0;
+    // Shared with Reservations, Cut Sheets, and the dashboard.
+    const {
+      orderTotalCents, bankedCents, surchargeCents, outstandingCents,
+      depositCents, depositMethod, depositPaidAt, unrecordedSettlement,
+    } = summarizeReservation(session);
 
     return {
       session_id: session.id,
@@ -61,11 +50,12 @@ export async function GET() {
       purchase_type: session.purchase_type,
       status: session.status,
 
-      deposit_amount_cents: deposit?.amount_cents ?? null,
-      deposit_paid_at: deposit?.paid_at ?? null,
-      deposit_method: deposit?.method ?? null,
+      deposit_amount_cents: depositCents,
+      deposit_paid_at: depositPaidAt,
+      deposit_method: depositMethod,
 
-      balance_due: Number(session.balance_due) || 0,
+      // Derived, so a stale column cannot contradict the other tabs.
+      balance_due: outstandingCents / 100,
       balance_paid: !!session.balance_paid,
       balance_paid_at: session.balance_paid_at,
       balance_payment_method: session.balance_payment_method,
@@ -75,11 +65,7 @@ export async function GET() {
       surcharge_cents: surchargeCents,
       outstanding_cents: outstandingCents,
       payment_count: paid.length,
-
-      // Marked settled but no money recorded — the old "mark paid" only
-      // flipped a flag, so these orders under-report revenue.
-      unrecorded_settlement:
-        !!session.balance_paid && balancePayments.length === 0 && orderTotalCents > bankedCents,
+      unrecorded_settlement: unrecordedSettlement,
 
       hanging_weight_lbs: session.hanging_weight_lbs,
       price_per_lb: session.price_per_lb,

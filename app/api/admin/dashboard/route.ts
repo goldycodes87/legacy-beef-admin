@@ -32,14 +32,20 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .not('status', 'eq', 'draft').not('status', 'eq', 'cancelled');
 
-    // Revenue collected (sum of payments where status=paid, excluding cancelled sessions)
+    // Revenue collected. Net of the card surcharge, which is collected for the
+    // processor and is not ranch income — the Payments and Financials tabs
+    // exclude it too, and the three must agree.
     const { data: payments } = await supabase
       .from('payments')
-      .select('amount_cents, sessions!inner(status)')
+      .select('amount_cents, surcharge_cents, sessions!inner(status)')
       .not('sessions.status', 'eq', 'cancelled')
       .eq('status', 'paid');
 
-    const revenue = (payments || []).reduce((sum, p) => sum + (p.amount_cents || 0), 0) / 100;
+    const revenue =
+      (payments || []).reduce(
+        (sum, p) => sum + Math.max(0, (p.amount_cents || 0) - (p.surcharge_cents || 0)),
+        0
+      ) / 100;
 
     // Pending cut sheets
     const { count: pendingCutSheets } = await supabase

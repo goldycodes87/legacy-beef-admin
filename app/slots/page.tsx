@@ -6,7 +6,7 @@ import AdminLayout from '@/components/AdminLayout';
 import { ReservationCard } from '@/components/ReservationCard';
 import { ActionSheet, SheetAction } from '@/components/ActionSheet';
 import { getStage, getStageMeta } from '@/lib/reservation-status';
-import { formatMonth, purchaseTypeLabel } from '@/lib/format';
+import { formatMonth, purchaseTypeLabel, formatCents, paymentMethodLabel } from '@/lib/format';
 
 function ConfirmModal({ message, onConfirm, onCancel }: { message: string, onConfirm: () => void, onCancel: () => void }) {
   return (
@@ -48,6 +48,11 @@ interface Reservation {
   hanging_weight_lbs?: number | null;
   balance_paid?: boolean;
   balance_due?: number;
+  deposit_taken_cents?: number | null;
+  order_total_cents?: number;
+  banked_cents?: number;
+  outstanding_cents?: number;
+  unrecorded_settlement?: boolean;
   balance_payment_method?: string;
   payment_method?: string;
   intended_payment_method?: string | null;
@@ -337,8 +342,12 @@ export default function SlotsPage() {
                               {session.deposit_paid ? (
                                 <div className="flex flex-col">
                                   <span className="text-green-600 font-semibold text-xs">
-                                    ✓ {session.payment_method === 'check' ? 'Check' : session.payment_method === 'cash' ? 'Cash' : session.payment_method === 'echeck' ? 'eCheck' : 'Card'}
+                                    ✓ {formatCents(session.banked_cents ?? 0)}
+                                    {session.payment_method ? ` · ${paymentMethodLabel(session.payment_method)}` : ''}
                                   </span>
+                                  {session.deposit_taken_cents == null && (
+                                    <span className="text-gray-500 text-xs">paid without a deposit</span>
+                                  )}
                                   {session.payment_method === 'check' && session.check_number && (
                                     <span className="text-gray-500 text-xs">
                                       #{session.check_number}
