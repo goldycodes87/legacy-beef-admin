@@ -67,8 +67,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             : 'Quarter Beef';
 
       const accessToken = (session as any).access_token;
+      // /api/token/<token> is the only route that consumes an access token: it
+      // verifies it, sets the access cookie, and forwards to the right page.
       const payLink = accessToken
-        ? `${APP_URL}/access/${accessToken}`
+        ? `${APP_URL}/api/token/${accessToken}`
         : `${APP_URL}`;
 
       const emailHtml = buildHangingWeightEmail({

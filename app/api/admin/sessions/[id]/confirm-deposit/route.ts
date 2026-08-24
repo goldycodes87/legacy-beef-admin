@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { sendPushNotification } from '@/lib/push';
+import { getConfig, getDepositAmount } from '@/lib/config';
 
 export async function POST(
   request: NextRequest,
@@ -15,7 +16,7 @@ export async function POST(
     // Load session
     const { data: session } = await supabase
       .from('sessions')
-      .select('id, purchase_type, animal_id, is_splitting, price_per_lb, access_token')
+      .select('id, purchase_type, animal_id, is_splitting, price_per_lb, access_token, deposit_amount, animals (animal_type)')
       .eq('id', id)
       .single();
 
@@ -23,10 +24,20 @@ export async function POST(
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    // Calculate deposit amount
-    const t = session.purchase_type;
-    const s = session.is_splitting;
-    const depositCents = (t === 'whole' && !s) ? 85000 : (t === 'whole' && s) ? 50000 : (t === 'half' && s) ? 25000 : (t === 'half') ? 50000 : 25000;
+    // The deposit quoted at booking is what we record; otherwise fall back to
+    // the config matrix. Never a hardcoded figure.
+    const sessionAnimal = Array.isArray((session as any).animals)
+      ? (session as any).animals[0]
+      : (session as any).animals;
+    const depositDollars =
+      (session as any).deposit_amount ??
+      getDepositAmount(
+        await getConfig(),
+        session.purchase_type,
+        session.is_splitting || false,
+        sessionAnimal?.animal_type
+      );
+    const depositCents = Math.round(depositDollars * 100);
 
     // Insert payment record
     await supabase.from('payments').insert({

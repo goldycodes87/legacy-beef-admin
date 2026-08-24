@@ -14,13 +14,14 @@ export async function PUT(
   if (body.hanging_weight_lbs !== undefined) {
     const { data: session } = await supabase
       .from('sessions')
-      .select('purchase_type, deposit_amount, animals(price_per_lb)')
+      .select('purchase_type, deposit_amount, price_per_lb, animals(price_per_lb)')
       .eq('id', id)
       .single();
 
     if (session) {
       const animal = Array.isArray(session.animals) ? session.animals[0] : session.animals;
-      const pricePerLb = animal?.price_per_lb || 8.0;
+      // The price quoted at booking is what the customer owes.
+      const pricePerLb = session.price_per_lb ?? animal?.price_per_lb ?? 0;
       const totalDue = body.hanging_weight_lbs * pricePerLb;
       const deposit = session.deposit_amount || 0;
       const balanceDue = Math.max(0, totalDue - deposit);

@@ -1,11 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { getConfig, getDepositAmount } from '@/lib/config';
 
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = getSupabaseAdmin();
+    const config = await getConfig();
     const { searchParams } = new URL(request.url);
     const animalId = searchParams.get('animal_id');
 
@@ -27,8 +29,9 @@ export async function GET(request: NextRequest) {
         intended_payment_method,
         discount_amount,
         discount_note,
+        deposit_amount,
         customers (name, email, phone),
-        animals (id, name, butcher_date, price_per_lb)
+        animals (id, name, animal_type, butcher_date, price_per_lb)
       `)
       .neq('status', 'cancelled')
       .order('created_at', { ascending: false });
@@ -93,15 +96,15 @@ export async function GET(request: NextRequest) {
         cut_sheet_complete: session.cut_sheet_complete,
         created_at: session.created_at,
         price_per_lb: session.price_per_lb || session.animals?.price_per_lb || null,
-        deposit_amount_cents: (() => {
-          const t = session.purchase_type;
-          const s = session.is_splitting;
-          if (t === 'whole' && !s) return 85000;
-          if (t === 'whole' && s) return 50000;
-          if (t === 'half' && s) return 25000;
-          if (t === 'half') return 50000;
-          return 25000;
-        })(),
+        deposit_amount_cents: Math.round(
+          (session.deposit_amount ??
+            getDepositAmount(
+              config,
+              session.purchase_type,
+              session.is_splitting || false,
+              session.animals?.animal_type
+            )) * 100
+        ),
         admin_notes: session.admin_notes || null,
         hanging_weight_lbs: session.hanging_weight_lbs || null,
         balance_paid: session.balance_paid || false,

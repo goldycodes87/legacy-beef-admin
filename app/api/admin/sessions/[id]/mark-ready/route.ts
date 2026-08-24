@@ -103,7 +103,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
           <tr>
             <td align="center">
-              <a href="${APP_URL}/token/${accessToken}" style="background-color: #2D5016; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+              <a href="${APP_URL}/api/token/${accessToken}" style="background-color: #2D5016; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
                 Schedule My Pickup →
               </a>
             </td>
