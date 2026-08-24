@@ -135,11 +135,36 @@ export default function AnimalsPage() {
   const [archiveId, setArchiveId] = useState<string | null>(null);
   const [archiving, setArchiving] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [needsAttention, setNeedsAttention] = useState<
+    { id: string; name: string; butcher_date: string; open: { customer_name: string; reason: string }[] }[]
+  >([]);
+  const [justArchived, setJustArchived] = useState<string[]>([]);
   const [editForm, setEditForm] = useState<{butcher_date: string, estimated_ready_date: string, grass_fed_count: number, grain_finished_count: number, wagyu_count: number}>({butcher_date: '', estimated_ready_date: '', grass_fed_count: 0, grain_finished_count: 0, wagyu_count: 0});
 
   useEffect(() => {
     loadAnimals();
+    settlePastDates();
   }, []);
+
+  /**
+   * Closes out butcher dates that have passed. Ones where every reservation is
+   * picked up and paid archive themselves; the rest are listed so nothing
+   * unpaid gets quietly hidden.
+   */
+  const settlePastDates = async () => {
+    try {
+      const res = await fetch('/api/admin/animals/settle', { method: 'POST' });
+      if (!res.ok) return;
+      const data = await res.json();
+      setNeedsAttention(data.needs_attention || []);
+      if ((data.archived || []).length > 0) {
+        setJustArchived(data.archived.map((a: { name: string }) => a.name));
+        loadAnimals();
+      }
+    } catch {
+      // Non-fatal — the page still lists dates and archiving stays manual.
+    }
+  };
 
   const loadAnimals = async () => {
     try {
@@ -337,19 +362,40 @@ export default function AnimalsPage() {
     });
   };
 
-  async function handleArchive(animalId: string) {
+  async function handleArchive(animalId: string, force = false) {
     setArchiving(true);
-    const res = await fetch(`/api/admin/animals/${animalId}/archive`, {
-      method: 'POST',
-    });
-    const result = await res.json();
-    if (result.error) {
-      alert(result.error);
-    } else {
+    try {
+      const res = await fetch(`/api/admin/animals/${animalId}/archive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force }),
+      });
+      const result = await res.json().catch(() => ({}));
+
+      if (res.status === 409 && result.can_force) {
+        const proceed = confirm(
+          `${result.error}\n\nArchive anyway? The date and its reservations will be hidden from the main view. You can bring it back with "Show Archived".`
+        );
+        if (proceed) {
+          await handleArchive(animalId, true);
+          return;
+        }
+        return;
+      }
+
+      if (!res.ok) {
+        alert(result.error || 'Could not archive this date.');
+        return;
+      }
+
       setArchiveId(null);
+      setNeedsAttention((prev) => prev.filter((n) => n.id !== animalId));
       loadAnimals();
+    } catch (err) {
+      alert(`Could not archive this date: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setArchiving(false);
     }
-    setArchiving(false);
   }
 
   return (
@@ -382,6 +428,51 @@ export default function AnimalsPage() {
           </button>
         ))}
       </div>
+
+      {justArchived.length > 0 && (
+        <div
+          className="rounded-xl p-3 mb-4 text-sm flex items-start justify-between gap-3"
+          style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-fg)' }}
+        >
+          <span>
+            Archived {justArchived.length} finished butcher date
+            {justArchived.length === 1 ? '' : 's'}: {justArchived.join(', ')}.
+          </span>
+          <button onClick={() => setJustArchived([])} aria-label="Dismiss" className="shrink-0">✕</button>
+        </div>
+      )}
+
+      {needsAttention.length > 0 && (
+        <div
+          className="rounded-xl p-4 mb-6"
+          style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}
+        >
+          <p className="font-semibold text-sm mb-2" style={{ color: 'var(--warning-fg)' }}>
+            {needsAttention.length} past butcher date{needsAttention.length === 1 ? '' : 's'} still {needsAttention.length === 1 ? 'has' : 'have'} loose ends
+          </p>
+          <div className="space-y-3">
+            {needsAttention.map((n) => (
+              <div key={n.id} className="text-sm">
+                <p className="font-medium" style={{ color: 'var(--text)' }}>
+                  {n.name} — {new Date(n.butcher_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </p>
+                <ul className="mt-1 ml-4 list-disc" style={{ color: 'var(--text-secondary)' }}>
+                  {n.open.map((o, i) => (
+                    <li key={i}>{o.customer_name} — {o.reason}</li>
+                  ))}
+                </ul>
+                <button
+                  onClick={() => handleArchive(n.id)}
+                  className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                >
+                  Archive anyway
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Show Archived toggle */}
       <div className="flex items-center gap-4 mb-6">

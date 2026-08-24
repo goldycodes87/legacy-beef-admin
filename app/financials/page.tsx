@@ -33,6 +33,7 @@ interface Customer {
 
 interface Payment {
   amount_cents: number;
+  surcharge_cents?: number | null;
   type: string;
   status: string;
   method?: string | null;
@@ -89,16 +90,18 @@ function getCustomer(session: Session): Customer | null {
 
 function sumPaidPayments(payments: Payment[] | null | undefined) {
   if (!payments) return 0;
+  // The card surcharge is collected for the processor, not the ranch, so it is
+  // not revenue and must not inflate the margin.
   return payments
     .filter((p) => p.status === 'paid')
-    .reduce((sum, p) => sum + (p.amount_cents || 0), 0) / 100;
+    .reduce((sum, p) => sum + Math.max(0, (p.amount_cents || 0) - (p.surcharge_cents || 0)), 0) / 100;
 }
 
 function sumPaidByType(payments: Payment[] | null | undefined, type: string) {
   if (!payments) return 0;
   return payments
     .filter((p) => p.status === 'paid' && p.type === type)
-    .reduce((sum, p) => sum + (p.amount_cents || 0), 0) / 100;
+    .reduce((sum, p) => sum + Math.max(0, (p.amount_cents || 0) - (p.surcharge_cents || 0)), 0) / 100;
 }
 
 export default function FinancialsPage() {

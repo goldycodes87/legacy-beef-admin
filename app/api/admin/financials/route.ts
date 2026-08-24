@@ -21,7 +21,7 @@ export async function GET() {
       id, animal_id, purchase_type, is_splitting, group_size,
       hanging_weight_lbs, price_per_lb, balance_due, status,
       customers (id, name, email),
-      payments (amount_cents, type, status, method)
+      payments (amount_cents, surcharge_cents, type, status, method)
     `)
     .not('status', 'in', '(cancelled,draft)');
 
