@@ -671,12 +671,12 @@ export const returningLink: EmailTemplate<ReturningLinkParams> = {
   label: 'Returning customer link',
   when: 'When someone asks for their order link from the Returning Customer page.',
   subject: () => 'Your Legacy Land & Cattle order',
-  preheader: () => 'Here is your way back into your order.',
+  preheader: () => 'Here is your way back into your account.',
   content: (p) => `
     ${para(
-      `Hi ${p.firstName} — here&rsquo;s your way back in. This link opens your order, where you can see your cut sheet, your balance and your pickup details.`
+      `Hi ${p.firstName} — here&rsquo;s your way back in. This link opens your account, where you can see every order you have placed, your cut sheets, your invoices and your payments — and reserve your next beef in about a minute.`
     )}
-    ${ctaButton('Open my order →', p.orderUrl)}
+    ${ctaButton('Open my account →', p.orderUrl)}
     ${p.mostRecentOrder
       ? `<p style="color:#6B7280;font-family:Arial,sans-serif;font-size:13px;text-align:center;margin-top:8px;">Most recent order: ${p.mostRecentOrder}</p>`
       : ''}
@@ -685,7 +685,7 @@ export const returningLink: EmailTemplate<ReturningLinkParams> = {
   sample: {
     firstName: 'Sarah',
     mostRecentOrder: 'October 2026 — Grass-Fed',
-    orderUrl: 'https://www.legacylandandcattleco.com/api/token/sample',
+    orderUrl: 'https://www.legacylandandcattleco.com/api/token/sample?to=account',
   },
 };
 
