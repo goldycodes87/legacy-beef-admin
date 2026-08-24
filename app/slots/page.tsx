@@ -3,6 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { PaymentForm, CreditCard } from 'react-square-web-payments-sdk';
 import AdminLayout from '@/components/AdminLayout';
+import { ReservationCard } from '@/components/ReservationCard';
+import { ActionSheet, SheetAction } from '@/components/ActionSheet';
+import { getStage, getStageMeta } from '@/lib/reservation-status';
+import { formatMonth, purchaseTypeLabel } from '@/lib/format';
 
 function ConfirmModal({ message, onConfirm, onCancel }: { message: string, onConfirm: () => void, onCancel: () => void }) {
   return (
@@ -77,6 +81,8 @@ export default function SlotsPage() {
   } | null>(null);
   const [savingBalance, setSavingBalance] = useState<string | null>(null);
   const [savingDeposit, setSavingDeposit] = useState(false);
+  const [sheetSession, setSheetSession] = useState<Reservation | null>(null);
+  const [sheetWeight, setSheetWeight] = useState('');
 
   const handleSaveAdminNotes = async (sessionId: string, notes: string) => {
     await fetch(`/api/admin/sessions/${sessionId}/notes`, {
@@ -229,6 +235,7 @@ export default function SlotsPage() {
     const filtered: Record<string, AnimalGroup> = {};
     for (const [animalName, group] of Object.entries(slots)) {
       const filteredSessions = group.sessions.filter(s => {
+        if (statusFilter === 'needs_me') return getStageMeta(s).needsAction;
         if (statusFilter === 'confirmed') return s.status !== 'draft';
         if (statusFilter === 'draft') return s.status === 'draft';
         return true;
@@ -248,12 +255,12 @@ export default function SlotsPage() {
         <p className="text-brand-gray">No reservations yet</p>
       ) : (
         <div>
-          <div className="flex gap-2 mb-6">
-            {['all', 'confirmed', 'draft'].map((f) => (
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+            {['needs_me', 'all', 'confirmed', 'draft'].map((f) => (
               <button
                 key={f}
                 onClick={() => setStatusFilter(f)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition border ${
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition border whitespace-nowrap ${
                   statusFilter === f
                     ? 'bg-brand-orange text-white'
                     : 'text-gray-300 hover:bg-white/5'
@@ -264,7 +271,7 @@ export default function SlotsPage() {
                     : { background: 'var(--surface-1)', borderColor: 'var(--border)' }
                 }
               >
-                {f === 'all' ? 'All' : f === 'confirmed' ? 'Confirmed' : 'Drafts'}
+                {f === 'needs_me' ? 'Needs me' : f === 'all' ? 'All' : f === 'confirmed' ? 'Confirmed' : 'Drafts'}
               </button>
             ))}
           </div>
@@ -278,7 +285,21 @@ export default function SlotsPage() {
               {group.sessions.length === 0 ? (
                 <p className="text-sm text-brand-gray">No reservations yet</p>
               ) : (
-                <div className="rounded-2xl shadow-sm overflow-hidden bg-gray-900 text-white">
+                <>
+                {/* Phone: cards with the stage up front, actions one tap away.
+                    The eight-column table below is unusable on a small screen. */}
+                <div className="md:hidden space-y-2">
+                  {group.sessions.map((session) => (
+                    <ReservationCard
+                      key={session.id}
+                      reservation={session}
+                      animalLabel={formatMonth(group.animal?.butcher_date)}
+                      onOpen={(r) => setSheetSession(r as Reservation)}
+                    />
+                  ))}
+                </div>
+
+                <div className="hidden md:block rounded-2xl shadow-sm overflow-hidden bg-gray-900 text-white">
                   <div className="overflow-x-auto -mx-4 px-4">
                     <table className="w-full">
                     <thead className="border-b text-gray-400" style={{background:"var(--surface-2)",borderColor:"var(--border)"}}>
@@ -619,6 +640,7 @@ export default function SlotsPage() {
                   </table>
                   </div>
                 </div>
+                </>
               )}
             </div>
             ))}
@@ -839,6 +861,116 @@ export default function SlotsPage() {
           </div>
         </div>
       )}
+
+      {/* Phone: everything you can do to one reservation, thumb-sized. */}
+      <ActionSheet
+        open={!!sheetSession}
+        title={sheetSession?.customer_name ?? ''}
+        subtitle={
+          sheetSession
+            ? `${purchaseTypeLabel(sheetSession.purchase_type)} · ${getStageMeta(sheetSession).label}`
+            : undefined
+        }
+        onClose={() => { setSheetSession(null); setSheetWeight(''); }}
+      >
+        {sheetSession && (() => {
+          const stage = getStage(sheetSession);
+          const close = () => { setSheetSession(null); setSheetWeight(''); };
+
+          return (
+            <>
+              {stage === 'awaiting_deposit' && (
+                <SheetAction
+                  intent="primary"
+                  onClick={() => {
+                    setDepositModal({ open: true, sessionId: sheetSession.id, customerName: sheetSession.customer_name });
+                    close();
+                  }}
+                >
+                  Confirm deposit received
+                </SheetAction>
+              )}
+
+              {stage === 'needs_weight' && (
+                <div className="mb-3">
+                  <label htmlFor="sheet-weight" className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>
+                    Hanging weight (lbs)
+                  </label>
+                  <input
+                    id="sheet-weight"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.5"
+                    min="50"
+                    max="1200"
+                    value={sheetWeight}
+                    onChange={(e) => setSheetWeight(e.target.value)}
+                    placeholder="e.g. 394.5"
+                    className="w-full px-4 py-3 rounded-xl text-[16px] bg-transparent text-white border focus:outline-none focus:ring-2 focus:ring-brand-orange mb-3"
+                    style={{ borderColor: 'var(--border)' }}
+                  />
+                  <SheetAction
+                    intent="primary"
+                    disabled={!sheetWeight || savingWeight === sheetSession.id}
+                    onClick={async () => {
+                      setHangingWeights((prev) => ({ ...prev, [sheetSession.id]: sheetWeight }));
+                      const id = sheetSession.id;
+                      close();
+                      await handleSaveHangingWeight(id);
+                    }}
+                  >
+                    {savingWeight === sheetSession.id ? 'Saving…' : 'Save weight and email customer'}
+                  </SheetAction>
+                </div>
+              )}
+
+              {stage === 'balance_due' && (
+                <SheetAction
+                  intent="primary"
+                  onClick={() => {
+                    setBalanceModal({
+                      sessionId: sheetSession.id,
+                      customerName: sheetSession.customer_name,
+                      amount: sheetSession.balance_due ?? 0,
+                      method: 'check',
+                      checkNumber: '',
+                    });
+                    close();
+                  }}
+                >
+                  Record balance payment
+                </SheetAction>
+              )}
+
+              {stage === 'ready_for_pickup' && (
+                <SheetAction
+                  intent="primary"
+                  onClick={() => { const id = sheetSession.id; close(); handlePickedUp(id); }}
+                >
+                  Mark picked up
+                </SheetAction>
+              )}
+
+              <SheetAction onClick={() => { const s = sheetSession; close(); handleMoveOpen(s); }}>
+                Move to another butcher date
+              </SheetAction>
+
+              {stage !== 'cancelled' && stage !== 'picked_up' && (
+                <SheetAction
+                  intent="danger"
+                  onClick={() => { const s = sheetSession; close(); handleCancel(s); }}
+                >
+                  Cancel reservation
+                </SheetAction>
+              )}
+
+              <SheetAction intent="quiet" onClick={close}>
+                Close
+              </SheetAction>
+            </>
+          );
+        })()}
+      </ActionSheet>
 
       {manualChargeSession && (
         <ManualChargeModal

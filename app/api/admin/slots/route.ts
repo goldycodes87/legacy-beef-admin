@@ -44,14 +44,16 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
-    // Get all paid deposits for these sessions
+    // Real paid deposits only. Zero-dollar rows are artifacts of the
+    // auto-settle job, and counting them made unpaid orders look settled.
     const sessionIds = (sessions || []).map((s: any) => s.id);
     const { data: paidDeposits } = await supabase
       .from('payments')
       .select('session_id, amount_cents, method, check_number')
       .in('session_id', sessionIds)
       .eq('type', 'deposit')
-      .eq('status', 'paid');
+      .eq('status', 'paid')
+      .gt('amount_cents', 0);
 
     const paidSessionIds = new Set((paidDeposits || []).map((p: any) => p.session_id));
 
