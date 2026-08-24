@@ -142,8 +142,12 @@ export default function AnimalsPage() {
   const [editForm, setEditForm] = useState<{butcher_date: string, estimated_ready_date: string, grass_fed_count: number, grain_finished_count: number, wagyu_count: number}>({butcher_date: '', estimated_ready_date: '', grass_fed_count: 0, grain_finished_count: 0, wagyu_count: 0});
 
   useEffect(() => {
-    loadAnimals();
-    settlePastDates();
+    // Settle first, then load — otherwise the list can render before finished
+    // dates have been archived and show them as still active.
+    (async () => {
+      await settlePastDates();
+      await loadAnimals();
+    })();
   }, []);
 
   /**
@@ -159,7 +163,6 @@ export default function AnimalsPage() {
       setNeedsAttention(data.needs_attention || []);
       if ((data.archived || []).length > 0) {
         setJustArchived(data.archived.map((a: { name: string }) => a.name));
-        loadAnimals();
       }
     } catch {
       // Non-fatal — the page still lists dates and archiving stays manual.
