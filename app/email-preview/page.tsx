@@ -3,100 +3,113 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 
-const EMAIL_TYPES = [
-  { id: 'deposit_confirmation', label: 'Deposit Confirmation' },
-  { id: 'partner_invite', label: 'Split Partner Invite' },
-  { id: 'partner_deadline', label: 'Partner Deadline Warning' },
-  { id: 'reminder_10day', label: '10-Day Cut Sheet Reminder' },
-  { id: 'reminder_1day', label: '1-Day Cut Sheet Reminder' },
-  { id: 'cut_sheet_locked', label: 'Cut Sheet Locked' },
-  { id: 'auto_lock', label: 'Auto-Lock Notice' },
-  { id: 'beef_ready', label: 'Beef Ready for Pickup' },
-  { id: 'pickup_confirmed', label: 'Pickup Confirmed' },
-  { id: 'balance_payment', label: 'Balance Payment Receipt' },
-  { id: 'hanging_weight', label: 'Hanging Weight Notification' },
-  { id: 'lost_cart', label: 'Lost Cart (Draft Reminder)' },
-];
+interface TemplateInfo {
+  id: string;
+  label: string;
+  when: string;
+}
 
+/**
+ * The template list comes from the server rather than a hardcoded array, so a
+ * new email shows up here the moment it is added to email-content.ts and can
+ * never quietly go missing from this page.
+ */
 export default function EmailPreview() {
-  const [selected, setSelected] = useState('deposit_confirmation');
+  const [templates, setTemplates] = useState<TemplateInfo[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [subject, setSubject] = useState('');
+  const [when, setWhen] = useState('');
   const [html, setHtml] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchEmail = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/admin/email-preview?type=${selected}`);
-        const data = await res.json();
-        setHtml(data.html);
-      } catch (err) {
-        console.error('Failed to load email preview:', err);
-        setHtml('<p>Error loading email preview</p>');
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetch('/api/admin/email-preview')
+      .then((r) => r.json())
+      .then((data) => {
+        const list: TemplateInfo[] = data.templates || [];
+        setTemplates(list);
+        if (list.length > 0) setSelected(list[0].id);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
-    fetchEmail();
+  useEffect(() => {
+    if (!selected) return;
+    setLoading(true);
+    fetch(`/api/admin/email-preview?type=${selected}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setHtml(data.html || '<p>Could not render this template.</p>');
+        setSubject(data.subject || '');
+        setWhen(data.when || '');
+      })
+      .catch(() => setHtml('<p>Error loading email preview</p>'))
+      .finally(() => setLoading(false));
   }, [selected]);
 
   return (
     <AdminLayout title="Email Preview">
       <div
-        className="flex h-[calc(100vh-120px)] gap-0"
+        className="flex flex-col lg:flex-row h-[calc(100vh-120px)] gap-0"
         style={{ background: 'var(--surface-2)' }}
       >
         {/* Sidebar */}
         <div
-          className="w-64 overflow-y-auto border-r"
+          className="w-full lg:w-72 overflow-y-auto border-b lg:border-b-0 lg:border-r shrink-0"
           style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
         >
           <div className="p-6 border-b" style={{ borderColor: 'var(--border)' }}>
             <h2 className="text-lg font-bold text-white">Email Templates</h2>
-            <p className="text-xs text-gray-400 mt-1">Mock Data - Read-Only</p>
+            <p className="text-xs text-gray-400 mt-1">
+              The real template, filled with sample data.
+            </p>
           </div>
           <div className="p-4 space-y-2">
-            {EMAIL_TYPES.map((type) => (
+            {templates.map((t) => (
               <button
-                key={type.id}
-                onClick={() => setSelected(type.id)}
+                key={t.id}
+                onClick={() => setSelected(t.id)}
                 className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition ${
-                  selected === type.id
+                  selected === t.id
                     ? 'bg-brand-orange text-white'
                     : 'text-gray-300 hover:bg-white/5'
                 }`}
               >
-                {type.label}
+                {t.label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Preview Pane */}
+        {/* Preview pane */}
         <div
-          className="flex-1 flex flex-col rounded-lg shadow-sm border"
+          className="flex-1 flex flex-col min-w-0 rounded-lg shadow-sm border"
           style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
         >
-          <div
-            className="border-b px-6 py-4 flex justify-between items-center"
-            style={{ borderColor: 'var(--border)' }}
-          >
-            <h3 className="text-lg font-semibold text-white">Preview</h3>
-            <span className="inline-block px-3 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full">
-              Mock Data
-            </span>
+          <div className="border-b px-6 py-4" style={{ borderColor: 'var(--border)' }}>
+            <div className="flex flex-wrap justify-between items-start gap-3">
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">Subject</p>
+                <h3 className="text-base font-semibold text-white break-words">
+                  {subject || '—'}
+                </h3>
+              </div>
+              <span className="inline-block px-3 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full whitespace-nowrap">
+                Sample data
+              </span>
+            </div>
+            {when && <p className="text-sm text-gray-400 mt-3">{when}</p>}
           </div>
           <div className="flex-1 p-6 overflow-auto">
             {loading ? (
               <div className="flex items-center justify-center h-full">
-                <p className="text-gray-400">Loading preview...</p>
+                <p className="text-gray-400">Loading preview…</p>
               </div>
             ) : (
               <iframe
                 srcDoc={html}
-                className="w-full h-full border-0 rounded-lg"
-                title="Email Preview"
+                className="w-full h-full min-h-[600px] border-0 rounded-lg bg-white"
+                title="Email preview"
                 sandbox="allow-same-origin"
               />
             )}

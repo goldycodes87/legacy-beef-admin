@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { computeBalance } from '@/lib/money';
+import { build, beefReady } from '@/lib/email-content';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.legacylandandcattleco.com';
 
@@ -64,71 +65,30 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   const firstName = customer.name?.split(' ')[0] || 'there';
-  const purchaseLabel = session.purchase_type.charAt(0).toUpperCase() + session.purchase_type.slice(1);
 
-  let balanceSection = '';
-  if (balanceToStore > 0) {
-    balanceSection = `
-      <p style="margin: 20px 0; color: #d97706; font-weight: bold;">
-        Balance Due: <span style="font-size: 18px;">$${balanceToStore.toFixed(2)}</span>
-      </p>
-      <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
-        <tr>
-          <td align="center">
-            <a href="${APP_URL}/session/${id}/balance" style="background-color: #E85D24; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-              Pay Balance Online → $${balanceToStore.toFixed(2)}
-            </a>
-          </td>
-        </tr>
-      </table>
-    `;
-  }
+  // This route used to hand-roll its own unbranded HTML — wrong green, no
+  // shared shell, and a hardcoded $8.25/lb whenever a session had no price.
+  // The template is shared with the preview now, so what you see is what sends.
+  const pricePerLb = session.price_per_lb ?? 0;
+  const hangingWeight = session.hanging_weight_lbs ?? null;
+  const depositPaid = (session.payments || [])
+    .filter((x: any) => x.status === 'paid' && x.type !== 'balance')
+    .reduce((sum: number, x: any) => sum + (x.amount_cents - (x.surcharge_cents || 0)), 0) / 100;
 
-  const htmlBody = `
-<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"></head>
-<body style="font-family: Arial; background-color: #f5f0e8; margin: 0; padding: 20px;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px;">
-    <tr>
-      <td style="background-color: #2D5016; padding: 30px; text-align: center; color: white;">
-        <h1 style="margin: 0; font-size: 24px;">Your Beef is Ready! 🎉</h1>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding: 30px;">
-        <p>Great news, <strong>${firstName}</strong>!</p>
-        <p>Your <strong>${purchaseLabel}</strong> beef is back from the butcher and ready for pickup.</p>
-        
-        <div style="background: #f9f9f9; border-radius: 8px; padding: 16px; margin: 20px 0;">
-          <p><strong>${animal.name}</strong></p>
-          <p>Hanging Weight: <strong>${session.hanging_weight_lbs ? session.hanging_weight_lbs + ' lbs' : 'TBD'}</strong></p>
-          <p>Price: <strong>$${session.price_per_lb ? session.price_per_lb.toFixed(2) : '8.25'}/lb</strong></p>
-        </div>
-
-        ${balanceSection}
-
-        <p style="margin: 20px 0;">Next step: choose your pickup time.</p>
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
-          <tr>
-            <td align="center">
-              <a href="${APP_URL}/api/token/${accessToken}" style="background-color: #2D5016; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-                Schedule My Pickup →
-              </a>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `;
+  const { subject, html: htmlBody } = build(beefReady, {
+    firstName,
+    hangingWeight,
+    pricePerLb,
+    totalCost: (hangingWeight || 0) * pricePerLb,
+    depositPaid,
+    balanceDue: balanceToStore,
+    pickupUrl: `${APP_URL}/api/token/${accessToken}`,
+  });
 
   await resend.emails.send({
     from: 'Legacy Land & Cattle <orders@legacylandandcattleco.com>',
     to: customer.email,
-    subject: `Your beef is ready for pickup! 🎉`,
+    subject,
     html: htmlBody,
   }).catch((err: any) => console.error('Resend error:', err));
 

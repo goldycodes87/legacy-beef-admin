@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { build, cutSheetInvite } from '@/lib/email-content';
 
 export async function POST(
   request: NextRequest,
@@ -57,44 +58,21 @@ export async function POST(
 
       const pricePerLb = parseFloat((session as any).price_per_lb) || parseFloat(animal.price_per_lb) || 0;
 
-      const content = `
-        <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;"><tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
-          <div style="font-size:40px;margin-bottom:8px;">✂️</div>
-          <h2 style="font-family:Georgia,serif;color:white;font-size:24px;margin:0 0 8px;font-weight:normal;">
-            Time to build your cut sheet, ${firstName}.
-          </h2>
-          <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
-            Butcher date: ${formatDate(animal.butcher_date)}
-          </p>
-        </td></tr></table>
-        <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
-          We know life gets busy — but this is the fun part. Tell us exactly how you want your beef cut: steaks, roasts, ground beef, stew meat, bones for broth. It's all yours.
-        </p>
-        ${orderCard([
-          { label: 'Order Type', value: purchaseLabel },
-          { label: 'Animal', value: animal.name },
-          { label: 'Price/lb', value: '$' + pricePerLb.toFixed(2) },
-          { label: 'Ready by', value: formatDate(animal.estimated_ready_date) },
-        ])}
-        <div style="background:#E8F5E9;border:1px solid #4CAF50;border-radius:12px;padding:16px 20px;margin:0 0 24px;">
-          <p style="font-family:Arial,sans-serif;font-size:14px;color:#1A3D2B;margin:0 0 8px;font-weight:bold;">
-            🏠 Not sure what to pick?
-          </p>
-          <p style="font-family:Arial,sans-serif;font-size:13px;color:#374151;margin:0;">
-            Choose our Legacy House Cut — a chef-approved selection that maximizes your beef and puts variety in your freezer.
-          </p>
-        </div>
-        ${ctaButton('Build My Cut Sheet →', cutSheetUrl)}
-        <p style="color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;text-align:center;">
-          Questions? Call us at (719) 258-1777 or reply to this email.
-        </p>
-      `;
+      const { subject, html } = build(cutSheetInvite, {
+        firstName,
+        purchaseLabel,
+        animalName: animal.name,
+        butcherDate: formatDate(animal.butcher_date),
+        estimatedReady: animal.estimated_ready_date ? formatDate(animal.estimated_ready_date) : null,
+        pricePerLb,
+        cutSheetUrl,
+      });
 
       await resend.emails.send({
         from: 'Legacy Land & Cattle <orders@legacylandandcattleco.com>',
         to: customer.email,
-        subject: 'Time to build your cut sheet — Butcher date: ' + formatDate(animal.butcher_date),
-        html: emailBase(content, 'Time to build your cut sheet.'),
+        subject,
+        html,
       });
 
       return NextResponse.json({ success: true });

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { emailBase, ctaButton, orderCard } from '@/lib/email-templates';
+import { build, hangingWeight as hangingWeightEmail } from '@/lib/email-content';
 import { sendPushNotification } from '@/lib/push';
 import { computeBalance } from '@/lib/money';
 
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         ? `${APP_URL}/api/token/${accessToken}`
         : `${APP_URL}`;
 
-      const emailHtml = buildHangingWeightEmail({
+      const { subject, html } = build(hangingWeightEmail, {
         firstName,
         purchaseLabel,
         hangingWeight: weight,
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         totalCost,
         depositPaid,
         balanceDue,
-        payLink,
+        payUrl: payLink,
         discountAmount: (session as any).discount_amount || 0,
         discountNote: (session as any).discount_note || null,
       });
@@ -115,8 +115,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         await resend.emails.send({
           from: 'Legacy Land & Cattle <orders@legacylandandcattleco.com>',
           to: customer.email,
-          subject: `Your hanging weight is in, ${firstName} — here's your balance`,
-          html: emailHtml,
+          subject,
+          html,
         });
       } catch (emailErr) {
         console.error('Hanging weight email error:', emailErr);
@@ -125,64 +125,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   return NextResponse.json({ success: true });
-}
-
-interface HangingWeightEmailParams {
-  firstName: string;
-  purchaseLabel: string;
-  hangingWeight: number;
-  pricePerLb: number;
-  totalCost: number;
-  depositPaid: number;
-  balanceDue: number;
-  payLink: string;
-  discountAmount: number;
-  discountNote: string | null;
-}
-
-function buildHangingWeightEmail(p: HangingWeightEmailParams): string {
-  const content = `
-    <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;">
-    <tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
-      <div style="font-size:40px;margin-bottom:8px;">&#9878;</div>
-      <h2 style="font-family:Georgia,serif;color:white;font-size:24px;margin:0 0 8px;font-weight:normal;">
-        Your hanging weight is in, ${p.firstName}.
-      </h2>
-      <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;">
-        Here's your final balance.
-      </p>
-    </td></tr></table>
-    <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
-      Your beef has been harvested and weighed. This is the final hanging weight —
-      the number your balance is calculated from. Everything looks great.
-    </p>
-    ${orderCard([
-      { label: 'Order', value: p.purchaseLabel },
-      { label: 'Hanging Weight', value: `${p.hangingWeight} lbs` },
-      { label: 'Price Per Lb', value: `$${p.pricePerLb.toFixed(2)}/lb` },
-      { label: 'Total Cost', value: `$${p.totalCost.toFixed(2)}` },
-      { label: 'Deposit Paid', value: `-$${p.depositPaid.toFixed(2)}` },
-      ...(p.discountAmount > 0 ? [{ 
-        label: p.discountNote ? `Discount — ${p.discountNote}` : 'Discount', 
-        value: `-$${p.discountAmount.toFixed(2)}` 
-      }] : []),
-      { label: 'Balance Due', value: `$${p.balanceDue.toFixed(2)}` },
-    ])}
-    <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
-      You can pay your balance now online, or bring payment at pickup —
-      cash, check, or card all work.
-    </p>
-    ${ctaButton('Pay My Balance Now \u2192', p.payLink)}
-    <table role="presentation" style="margin:12px auto 0;width:100%;max-width:100%;"><tr><td style="text-align:center;">
-      <a href="${p.payLink}" style="display:inline-block;background:#F5F0E8;color:#1A3D2B;
-        font-family:Arial,sans-serif;font-size:15px;font-weight:bold;padding:16px 40px;
-        border-radius:10px;text-decoration:none;border:2px solid #1A3D2B;">
-        I'll Pay at Pickup
-      </a>
-    </td></tr></table>
-    <p style="color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;text-align:center;margin-top:16px;">
-      Questions? Call us at (719) 258-1777 or reply to this email.
-    </p>
-  `;
-  return emailBase(content, `Your hanging weight is in, ${p.firstName} — here's your balance`);
 }

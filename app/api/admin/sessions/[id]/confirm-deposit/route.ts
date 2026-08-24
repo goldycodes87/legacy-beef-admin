@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { sendPushNotification } from '@/lib/push';
 import { getConfig, getDepositAmount } from '@/lib/config';
+import { build, depositConfirmation } from '@/lib/email-content';
 
 export async function POST(
   request: NextRequest,
@@ -133,47 +134,25 @@ export async function POST(
             parseFloat(animal.price_per_lb) || 0;
           const depositPaid = depositCents / 100;
 
-          const content = `
-            <table role="presentation" width="100%" style="border-radius:12px;margin:0 0 28px;">
-              <tr><td bgcolor="#1A3D2B" style="background:linear-gradient(135deg,#1A3D2B 0%,#2d6a4f 100%);border-radius:12px;padding:28px 24px;text-align:center;">
-                <div style="font-size:40px;margin-bottom:8px;">🎉</div>
-                <h2 style="font-family:Georgia,serif;color:white;font-size:26px;margin:0 0 8px;font-weight:normal;">
-                  You're in, ${firstName}.
-                </h2>
-                <p style="color:#C4A46B;font-size:14px;margin:0;font-family:Arial,sans-serif;letter-spacing:0.5px;">
-                  Your spot is locked. Your beef is coming.
-                </p>
-              </td></tr>
-            </table>
-            <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 24px;">
-              We've got your deposit and your reservation is officially on the books.
-              This is real, ranch-direct beef raised right here in Colorado Springs —
-              no grocery store, no middleman. Just our cattle, our butcher, and your freezer.
-            </p>
-            ${orderCard([
-              { label: 'Order Type', value: purchaseLabel },
-              { label: 'Animal', value: animal.name },
-              { label: 'Butcher Date', value: formatDate(animal.butcher_date) },
-              { label: 'Est. Ready', value: formatDate(animal.estimated_ready_date) },
-              { label: 'Price/lb', value: `$${pricePerLb.toFixed(2)}` },
-              { label: 'Deposit Paid', value: `$${depositPaid.toFixed(2)}` },
-            ])}
-            <p style="color:#374151;font-family:Arial,sans-serif;font-size:15px;line-height:1.7;margin:0 0 16px;">
-              <strong style="color:#1A3D2B;">Your next step:</strong> Fill out your cut sheet —
-              that's where you tell the butcher exactly how you want your beef cut.
-            </p>
-            ${ctaButton('Build My Cut Sheet →', cutSheetUrl)}
-            <p style="color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;text-align:center;margin-top:8px;">
-              This link is yours — bookmark it for easy access anytime.
-            </p>
-          `;
+          // Shared with the portal's card-payment path and with the admin
+          // preview, so a cash customer and a card customer get the same email.
+          const { subject: depositSubject, html: depositHtml } = build(depositConfirmation, {
+            firstName,
+            purchaseLabel,
+            animalName: animal.name,
+            butcherDate: formatDate(animal.butcher_date),
+            estimatedReady: animal.estimated_ready_date ? formatDate(animal.estimated_ready_date) : null,
+            pricePerLb,
+            depositPaid,
+            cutSheetUrl,
+          });
 
           // Send customer confirmation email
           await resend.emails.send({
             from: 'Legacy Land & Cattle <orders@legacylandandcattleco.com>',
             to: customer.email,
-            subject: 'Your Legacy Land & Cattle Reservation is Confirmed',
-            html: emailBase(content, 'Your spot is locked. Your beef is coming.'),
+            subject: depositSubject,
+            html: depositHtml,
           });
 
           // Send Grant notification email
