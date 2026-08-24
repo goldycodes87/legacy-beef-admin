@@ -6,6 +6,31 @@ interface CutSheetAnswer {
   section: string;
   answers: Record<string, unknown>;
   half?: 'A' | 'B' | null;
+  custom_request?: string | null;
+  custom_request_status?: string | null;
+}
+
+const SECTION_LABELS: Record<string, string> = {
+  chuck: 'Chuck', brisket: 'Brisket', skirt: 'Skirt Steak', rib: 'Rib',
+  short_ribs: 'Short Ribs', sirloin: 'Sirloin', round: 'Round',
+  short_loin: 'Short Loin', flank: 'Flank', stew_meat: 'Stew Meat',
+  tenderized_round: 'Tenderized Round', organs: 'Organs', bones: 'Bones',
+  packing: 'Ground Beef',
+};
+
+/**
+ * Approved special requests for this half. These were collected from the
+ * customer and approved in the admin, but never made it onto the sheet that
+ * goes to T-K — so the butcher never saw any of them.
+ */
+function approvedRequests(answers: CutSheetAnswer[], half: 'A' | 'B' | null) {
+  return answers.filter(
+    (a) =>
+      a.custom_request &&
+      a.custom_request.trim() &&
+      a.custom_request_status === 'approved' &&
+      (half === null || (a.half ?? null) === half || (a.half ?? null) === null)
+  );
 }
 
 interface SessionData {
@@ -89,6 +114,7 @@ function CutSheetContent({ session, half }: { session: SessionData; half: 'A' | 
   }
 
   const halfLabel = half ? ` — Half ${half}` : '';
+  const specialRequests = approvedRequests(answers, half);
 
   return (
     <div>
@@ -243,6 +269,20 @@ function CutSheetContent({ session, half }: { session: SessionData; half: 'A' | 
           </strong>
         </div>
       </div>
+
+      {/* Approved special requests — boxed so they are impossible to miss. */}
+      {specialRequests.length > 0 && (
+        <div style={{marginTop:10, border:'2px solid black', padding:8}}>
+          <div style={{fontWeight:'bold', textDecoration:'underline', marginBottom:6}}>
+            SPECIAL REQUESTS — PLEASE READ
+          </div>
+          {specialRequests.map((r, i) => (
+            <div key={i} style={{marginBottom:6, fontSize:12, lineHeight:1.4}}>
+              <strong>{SECTION_LABELS[r.section] || r.section}:</strong> {r.custom_request}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -268,6 +308,12 @@ export default function PrintCutSheetPage() {
 
   if (loading) return <div style={{padding:40, fontFamily:'serif', textAlign:'center'}}>Loading Cut Sheet…</div>;
   if (!session) return <div style={{padding:40}}>Session not found.</div>;
+
+  // A request left unreviewed prints as if it were never made. Flag it on
+  // screen (never on the sheet) so it gets a decision before drop-off.
+  const unreviewed = (session.cut_sheet_answers || []).filter(
+    (a) => a.custom_request && a.custom_request.trim() && a.custom_request_status === 'pending'
+  );
 
   const renderAmbulatoryPage = () => (
     <div className="page-break" style={{paddingTop:40}}>
@@ -328,6 +374,22 @@ export default function PrintCutSheetPage() {
 
   return (
     <div style={{fontFamily:'Arial, sans-serif', maxWidth:850, margin:'0 auto', padding:16, fontSize:12, lineHeight:1.4, WebkitPrintColorAdjust:'exact'}}>
+      {unreviewed.length > 0 && (
+        <div className="screen-only" style={{border:'2px solid #B45309', background:'#FFFBEB', color:'#7C2D12', borderRadius:8, padding:12, marginBottom:16}}>
+          <strong>{unreviewed.length} special request{unreviewed.length === 1 ? '' : 's'} not yet approved or denied.</strong>
+          <div style={{marginTop:6}}>
+            Only approved requests print. Decide on these in Cut Sheets before drop-off:
+          </div>
+          <ul style={{margin:'6px 0 0 18px'}}>
+            {unreviewed.map((a, i) => (
+              <li key={i}>
+                <strong>{SECTION_LABELS[a.section] || a.section}</strong>
+                {a.half ? ` (Half ${a.half})` : ''}: {a.custom_request}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {session.dual_cut_sheet ? (
         <>
           {halfParam === 'B' ? null : <CutSheetContent session={session} half="A" />}
@@ -352,6 +414,7 @@ export default function PrintCutSheetPage() {
           }
           html { -webkit-print-color-adjust: exact; }
           .page-break { page-break-before: always; break-before: page; }
+          .screen-only { display: none !important; }
         }
       `}</style>
     </div>
