@@ -29,6 +29,28 @@ export async function POST(
       );
     }
 
+    // The Square POS callback records automatically and can fire twice (page
+    // reload, back button). The transaction id makes the operation idempotent.
+    const squareTransactionId =
+      typeof body.square_transaction_id === 'string' && body.square_transaction_id.trim()
+        ? body.square_transaction_id.trim()
+        : null;
+    if (squareTransactionId) {
+      const { data: existing } = await supabase
+        .from('payments')
+        .select('id, amount_cents')
+        .eq('session_id', id)
+        .eq('square_payment_id', squareTransactionId)
+        .maybeSingle();
+      if (existing) {
+        return NextResponse.json({
+          success: true,
+          already_recorded: true,
+          amount_recorded: (existing.amount_cents || 0) / 100,
+        });
+      }
+    }
+
     const { data: session } = await supabase
       .from('sessions')
       .select(`
@@ -107,6 +129,7 @@ export async function POST(
       status: 'paid',
       paid_at: new Date().toISOString(),
       check_number: method === 'check' ? (body.check_number || null) : null,
+      square_payment_id: squareTransactionId,
     });
 
     if (insertError) {

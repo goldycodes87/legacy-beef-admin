@@ -25,8 +25,14 @@ export function isAndroid(): boolean {
   return /Android/.test(navigator.userAgent);
 }
 
+/** What we tell Square to hand back so the callback can record the payment. */
+export interface PosState {
+  sessionId: string;
+  amountCents: number;
+}
+
 /** iOS Point of Sale API link with the amount prefilled. */
-function iosChargeUrl(amountCents: number, note: string): string | null {
+function iosChargeUrl(amountCents: number, note: string, state?: PosState): string | null {
   const clientId = process.env.NEXT_PUBLIC_SQUARE_APP_ID;
   if (!clientId) return null;
   const data = {
@@ -35,6 +41,8 @@ function iosChargeUrl(amountCents: number, note: string): string | null {
     client_id: clientId,
     version: '1.3',
     notes: note.slice(0, 500),
+    // Square returns this untouched in the callback.
+    ...(state ? { state: JSON.stringify(state) } : {}),
     options: {
       supported_tender_types: ['CREDIT_CARD', 'CASH', 'OTHER', 'SQUARE_GIFT_CARD', 'CARD_ON_FILE'],
     },
@@ -43,7 +51,7 @@ function iosChargeUrl(amountCents: number, note: string): string | null {
 }
 
 /** Android intent link with the amount prefilled. */
-function androidChargeUrl(amountCents: number, note: string): string | null {
+function androidChargeUrl(amountCents: number, note: string, state?: PosState): string | null {
   const clientId = process.env.NEXT_PUBLIC_SQUARE_APP_ID;
   if (!clientId) return null;
   const params = [
@@ -59,6 +67,8 @@ function androidChargeUrl(amountCents: number, note: string): string | null {
         'com.squareup.pos.TENDER_CARD,com.squareup.pos.TENDER_CARD_ON_FILE,com.squareup.pos.TENDER_CASH,com.squareup.pos.TENDER_OTHER'
       ),
     'S.com.squareup.pos.NOTE=' + encodeURIComponent(note.slice(0, 500)),
+    // Returned as RESULT_REQUEST_METADATA in the callback.
+    ...(state ? ['S.com.squareup.pos.REQUEST_METADATA=' + encodeURIComponent(JSON.stringify(state))] : []),
   ].join(';');
   return `intent:#Intent;action=com.squareup.pos.action.CHARGE;package=com.squareup;${params};end`;
 }
@@ -74,14 +84,14 @@ export interface OpenResult {
  * Opens Square POS, with the amount prefilled when possible. Pass no amount to
  * just launch the app.
  */
-export function openSquarePos(amountCents?: number, note?: string): OpenResult {
+export function openSquarePos(amountCents?: number, note?: string, state?: PosState): OpenResult {
   const bare = 'square-commerce-v1://payment/create';
 
   if (amountCents && amountCents > 0) {
     const url = isAndroid()
-      ? androidChargeUrl(amountCents, note || '')
+      ? androidChargeUrl(amountCents, note || '', state)
       : isIos()
-        ? iosChargeUrl(amountCents, note || '')
+        ? iosChargeUrl(amountCents, note || '', state)
         : null;
     if (url) {
       window.location.href = url;

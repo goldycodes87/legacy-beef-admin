@@ -676,7 +676,7 @@ export const cashCheckInstructions: EmailTemplate<CashCheckInstructionsParams> =
   subject: (p) => `How to pay your ${money(p.depositAmount)} deposit — Legacy Land & Cattle`,
   preheader: (p) => `Your spot is held. Here&rsquo;s how to get us your ${p.method === 'check' ? 'check' : 'cash'} deposit.`,
   content: (p) => `
-    ${hero('🤝', `Your spot is held, ${p.firstName}.`, 'One step left — your deposit.')}
+    ${hero('🤝', `Your Reservation has been received, ${p.firstName}.`, 'One step left — your deposit.')}
     ${para(
       `We&rsquo;ve set aside your ${p.purchaseLabel.toLowerCase()} and we&rsquo;re holding it for you. Your reservation is confirmed the moment your deposit arrives.`
     )}
@@ -695,11 +695,6 @@ export const cashCheckInstructions: EmailTemplate<CashCheckInstructionsParams> =
     )}
     ${para(
       'Once we have it, you&rsquo;ll get a confirmation email and your cut sheet — that&rsquo;s where you tell the butcher exactly how you want your beef cut.'
-    )}
-    ${note(
-      '',
-      `⚠️ Spots are limited and other families are looking at the same butcher date. If we haven&rsquo;t heard from you in a few days we&rsquo;ll give you a call before releasing your spot.`,
-      'amber'
     )}
     ${fineprint(`Questions? Call us at ${PHONE} or reply to this email.`)}
   `,

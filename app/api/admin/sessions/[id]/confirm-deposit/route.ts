@@ -159,7 +159,7 @@ export async function POST(
           // Send Grant notification email
           await resend.emails.send({
             from: 'Legacy Land & Cattle <orders@legacylandandcattleco.com>',
-            to: 'orders@legacylandandcattleco.com',
+            to: 'grant@legacylandandcattleco.com',
             subject: `New Order (${method === 'check' ? 'Check' : 'Cash'}): ${purchaseLabel} — ${customer.name}`,
             html: `<ul>
               <li><strong>Customer:</strong> ${customer.name} (${customer.email})</li>

@@ -275,7 +275,8 @@ export default function PaymentsPage() {
                 onClick={() => {
                   const r = openSquarePos(
                     sheet.outstanding_cents,
-                    `${sheet.customer_name} — ${purchaseTypeShort(sheet.purchase_type)} balance`
+                    `${sheet.customer_name} — ${purchaseTypeShort(sheet.purchase_type)} balance`,
+                    { sessionId: sheet.session_id, amountCents: sheet.outstanding_cents }
                   );
                   if (!r.attempted) setPosFallback(true);
                 }}
