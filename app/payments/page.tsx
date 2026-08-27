@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { Chip } from '@/components/ui/Chip';
 import { ActionSheet, SheetAction } from '@/components/ActionSheet';
+import { openSquarePos } from '@/lib/square-pos';
 import {
   formatCents,
   formatCurrency,
@@ -47,9 +48,6 @@ interface Totals {
 type Filter = 'owed' | 'all' | 'settled';
 
 const SQUARE_DASHBOARD = 'https://squareup.com/dashboard/sales/transactions';
-// Opens the Square Point of Sale app when installed; the dashboard link is the
-// dependable fallback on any device.
-const SQUARE_POS_APP = 'square-commerce-v1://';
 
 export default function PaymentsPage() {
   const [records, setRecords] = useState<PaymentRecord[]>([]);
@@ -58,6 +56,7 @@ export default function PaymentsPage() {
   const [filter, setFilter] = useState<Filter>('owed');
   const [query, setQuery] = useState('');
   const [sheet, setSheet] = useState<PaymentRecord | null>(null);
+  const [posFallback, setPosFallback] = useState(false);
   const [method, setMethod] = useState('cash');
   const [checkNumber, setCheckNumber] = useState('');
   const [amount, setAmount] = useState('');
@@ -174,12 +173,18 @@ export default function PaymentsPage() {
 
           {/* Take a payment */}
           <div className="grid grid-cols-2 gap-3 mb-5">
-            <a
-              href={SQUARE_POS_APP}
+            <button
+              onClick={() => {
+                const r = openSquarePos();
+                // On desktop there is no app; on mobile, show help if nothing
+                // grabbed the link within a beat.
+                if (!r.attempted) setPosFallback(true);
+                else setTimeout(() => setPosFallback((v) => v || !document.hidden), 1600);
+              }}
               className="rounded-xl px-4 py-3 text-center text-sm font-semibold text-white bg-brand-orange hover:bg-brand-orange-hover"
             >
               Open Square POS
-            </a>
+            </button>
             <a
               href={SQUARE_DASHBOARD}
               target="_blank"
@@ -190,6 +195,23 @@ export default function PaymentsPage() {
               Square dashboard
             </a>
           </div>
+
+          {posFallback && (
+            <div
+              className="rounded-xl p-3 mb-4 text-sm"
+              style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', color: 'var(--text-muted, #9ca3af)' }}
+            >
+              Square POS didn&apos;t open. It only works on a phone or tablet with the{' '}
+              <a className="underline" href="https://squareup.com/us/en/point-of-sale/app" target="_blank" rel="noopener noreferrer">
+                Square POS app
+              </a>{' '}
+              installed — on this device, use the{' '}
+              <a className="underline" href={SQUARE_DASHBOARD} target="_blank" rel="noopener noreferrer">
+                Square dashboard
+              </a>{' '}
+              instead.
+            </div>
+          )}
 
           {/* Filters + search */}
           <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
@@ -247,6 +269,21 @@ export default function PaymentsPage() {
               <Line label="Collected" value={formatCents(sheet.banked_cents)} />
               <Line label="Outstanding" value={formatCents(sheet.outstanding_cents)} strong />
             </div>
+
+            {sheet.outstanding_cents > 0 && (
+              <button
+                onClick={() => {
+                  const r = openSquarePos(
+                    sheet.outstanding_cents,
+                    `${sheet.customer_name} — ${purchaseTypeShort(sheet.purchase_type)} balance`
+                  );
+                  if (!r.attempted) setPosFallback(true);
+                }}
+                className="w-full mb-4 py-3 rounded-xl text-sm font-semibold text-white bg-brand-orange hover:bg-brand-orange-hover"
+              >
+                Charge {formatCents(sheet.outstanding_cents)} in Square POS
+              </button>
+            )}
 
             <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>
               Paid by

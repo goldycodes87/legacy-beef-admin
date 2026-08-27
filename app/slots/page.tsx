@@ -240,6 +240,11 @@ export default function SlotsPage() {
     const filtered: Record<string, AnimalGroup> = {};
     for (const [animalName, group] of Object.entries(slots)) {
       const filteredSessions = group.sessions.filter(s => {
+        // Picked-up and cancelled orders live under "Past" only — seeing them
+        // mixed into the working list made sold-out dates look oversold.
+        const isPast = s.status === 'picked_up' || s.status === 'cancelled';
+        if (statusFilter === 'past') return isPast;
+        if (isPast) return false;
         if (statusFilter === 'needs_me') return getStageMeta(s).needsAction;
         if (statusFilter === 'confirmed') return s.status !== 'draft';
         if (statusFilter === 'draft') return s.status === 'draft';
@@ -261,7 +266,7 @@ export default function SlotsPage() {
       ) : (
         <div>
           <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-            {['needs_me', 'all', 'confirmed', 'draft'].map((f) => (
+            {['needs_me', 'all', 'confirmed', 'draft', 'past'].map((f) => (
               <button
                 key={f}
                 onClick={() => setStatusFilter(f)}
@@ -276,7 +281,7 @@ export default function SlotsPage() {
                     : { background: 'var(--surface-1)', borderColor: 'var(--border)' }
                 }
               >
-                {f === 'needs_me' ? 'Needs me' : f === 'all' ? 'All' : f === 'confirmed' ? 'Confirmed' : 'Drafts'}
+                {f === 'needs_me' ? 'Needs me' : f === 'all' ? 'All' : f === 'confirmed' ? 'Confirmed' : f === 'draft' ? 'Drafts' : 'Past'}
               </button>
             ))}
           </div>

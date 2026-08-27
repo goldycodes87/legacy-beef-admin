@@ -660,6 +660,59 @@ export const lostCart: EmailTemplate<LostCartParams> = {
   },
 };
 
+// ─── Cash / check deposit instructions ──────────────────────────────────────
+export interface CashCheckInstructionsParams {
+  firstName: string;
+  purchaseLabel: string;
+  animalName: string;
+  butcherDate: string;
+  depositAmount: number;
+  method: 'cash' | 'check';
+}
+
+export const cashCheckInstructions: EmailTemplate<CashCheckInstructionsParams> = {
+  label: 'Cash/check deposit instructions',
+  when: 'The moment a customer chooses cash or check for their deposit.',
+  subject: (p) => `How to pay your ${money(p.depositAmount)} deposit — Legacy Land & Cattle`,
+  preheader: (p) => `Your spot is held. Here&rsquo;s how to get us your ${p.method === 'check' ? 'check' : 'cash'} deposit.`,
+  content: (p) => `
+    ${hero('🤝', `Your spot is held, ${p.firstName}.`, 'One step left — your deposit.')}
+    ${para(
+      `We&rsquo;ve set aside your ${p.purchaseLabel.toLowerCase()} and we&rsquo;re holding it for you. Your reservation is confirmed the moment your deposit arrives.`
+    )}
+    ${orderCard([
+      { label: 'Reserved', value: p.purchaseLabel },
+      { label: 'Animal', value: p.animalName },
+      { label: 'Butcher Date', value: p.butcherDate },
+      { label: 'Deposit Due', value: money(p.depositAmount) },
+    ])}
+    ${note(
+      p.method === 'check' ? '✉️ Paying by check' : '💵 Paying with cash',
+      p.method === 'check'
+        ? `Make your check payable to <strong>Legacy Land &amp; Cattle</strong> for <strong>${money(p.depositAmount)}</strong> and mail it to:<br><br><strong>${PICKUP_ADDRESS}</strong><br><br>Or call us and drop it off — whichever is easier.`
+        : `Call us at <strong>${PHONE}</strong> and we&rsquo;ll set a time for you to drop off your <strong>${money(p.depositAmount)}</strong> deposit at the ranch:<br><br><strong>${PICKUP_ADDRESS}</strong>`,
+      'green'
+    )}
+    ${para(
+      'Once we have it, you&rsquo;ll get a confirmation email and your cut sheet — that&rsquo;s where you tell the butcher exactly how you want your beef cut.'
+    )}
+    ${note(
+      '',
+      `⚠️ Spots are limited and other families are looking at the same butcher date. If we haven&rsquo;t heard from you in a few days we&rsquo;ll give you a call before releasing your spot.`,
+      'amber'
+    )}
+    ${fineprint(`Questions? Call us at ${PHONE} or reply to this email.`)}
+  `,
+  sample: {
+    firstName: 'Sarah',
+    purchaseLabel: 'Half Beef',
+    animalName: 'October 2026 — Grain-Finished',
+    butcherDate: 'October 7, 2026',
+    depositAmount: 500,
+    method: 'check',
+  },
+};
+
 // ─── Returning customer sign-in link ────────────────────────────────────────
 export interface ReturningLinkParams {
   firstName: string;
@@ -708,6 +761,7 @@ export const EMAIL_TEMPLATES: Record<string, EmailTemplate<any>> = {
   pickup_confirmed: pickupConfirmed,
   partner_invite: partnerInvite,
   partner_deadline: partnerDeadline,
+  cash_check_instructions: cashCheckInstructions,
   lost_cart: lostCart,
   returning_link: returningLink,
 };

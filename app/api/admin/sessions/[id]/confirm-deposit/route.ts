@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { sendPushNotification } from '@/lib/push';
+import { sendAdminSms } from '@/lib/sms';
 import { getConfig, getDepositAmount } from '@/lib/config';
 import { build, depositConfirmation } from '@/lib/email-content';
 
@@ -182,6 +183,7 @@ export async function POST(
             `${purchaseLabel} deposit confirmed for ${customerName}`,
             '/slots'
           );
+    await sendAdminSms(`💰 Deposit confirmed: ${customerName} (${method}) — ${purchaseLabel}`);
         } catch (emailErr) {
           console.error('Deposit confirmation email error:', emailErr);
         }
