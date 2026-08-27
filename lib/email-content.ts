@@ -138,11 +138,11 @@ export const depositConfirmation: EmailTemplate<DepositConfirmationParams> = {
   label: 'Deposit confirmation',
   when: 'The moment a deposit is paid — by card in the portal, or when you mark cash/check in the admin.',
   subject: () => 'Your Legacy Land & Cattle Reservation is Confirmed',
-  preheader: () => 'Your spot is locked. Your beef is coming.',
+  preheader: () => 'We got your deposit — your cut sheet is live.',
   content: (p) => `
-    ${hero('🎉', `You&rsquo;re in, ${p.firstName}.`, 'Your spot is locked. Your beef is coming.')}
+    ${hero('🎉', `You&rsquo;re in, ${p.firstName}.`, 'We got your deposit — your cut sheet is live.')}
     ${para(
-      'We&rsquo;ve got your deposit and your reservation is officially on the books. This is real, ranch-direct beef raised right here in Colorado Springs — no grocery store, no middleman. Just our cattle, our butcher, and your freezer.'
+      'We&rsquo;ve got your deposit — thank you. Your reservation is officially on the books and your cut sheet is open and waiting for you. This is real, ranch-direct beef raised right here in Colorado Springs — no grocery store, no middleman. Just our cattle, our butcher, and your freezer.'
     )}
     ${orderCard([
       { label: 'Order Type', value: p.purchaseLabel },
