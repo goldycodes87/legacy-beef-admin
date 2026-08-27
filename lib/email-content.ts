@@ -668,6 +668,8 @@ export interface CashCheckInstructionsParams {
   butcherDate: string;
   depositAmount: number;
   method: 'cash' | 'check';
+  /** True when they somehow finished the cut sheet before paying. */
+  cutSheetDone: boolean;
 }
 
 export const cashCheckInstructions: EmailTemplate<CashCheckInstructionsParams> = {
@@ -694,7 +696,9 @@ export const cashCheckInstructions: EmailTemplate<CashCheckInstructionsParams> =
       'green'
     )}
     ${para(
-      'Once we have it, you&rsquo;ll get a confirmation email and your cut sheet — that&rsquo;s where you tell the butcher exactly how you want your beef cut.'
+      p.cutSheetDone
+        ? 'Your cut sheet is already locked in — once your deposit arrives, you&rsquo;re all set.'
+        : 'Once we have it, you&rsquo;ll get a confirmation email and your cut sheet — that&rsquo;s where you tell the butcher exactly how you want your beef cut.'
     )}
     ${fineprint(`Questions? Call us at ${PHONE} or reply to this email.`)}
   `,
@@ -705,6 +709,7 @@ export const cashCheckInstructions: EmailTemplate<CashCheckInstructionsParams> =
     butcherDate: 'October 7, 2026',
     depositAmount: 500,
     method: 'check',
+    cutSheetDone: false,
   },
 };
 
