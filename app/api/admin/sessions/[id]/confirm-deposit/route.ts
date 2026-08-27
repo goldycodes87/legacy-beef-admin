@@ -86,7 +86,7 @@ export async function POST(
     const { data: fullSession } = await supabase
       .from('sessions')
       .select(`
-        id, purchase_type, price_per_lb,
+        id, purchase_type, price_per_lb, cut_sheet_complete,
         customers (id, name, email),
         animals (name, butcher_date, estimated_ready_date, price_per_lb)
       `)
@@ -146,6 +146,11 @@ export async function POST(
             pricePerLb,
             depositPaid,
             cutSheetUrl,
+            // Brenda's case: sheet locked before the check arrived. She gets
+            // "you're all set", not "go build your cut sheet".
+            cutSheetDone:
+              !!(fullSession as any).cut_sheet_complete ||
+              (fullSession as any).purchase_type === 'quarter',
           });
 
           // Send customer confirmation email

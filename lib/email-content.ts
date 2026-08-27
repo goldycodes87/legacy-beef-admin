@@ -132,17 +132,30 @@ export interface DepositConfirmationParams {
   pricePerLb: number;
   depositPaid: number;
   cutSheetUrl: string;
+  /** True when the cut sheet was already finished before the deposit landed. */
+  cutSheetDone: boolean;
 }
 
 export const depositConfirmation: EmailTemplate<DepositConfirmationParams> = {
   label: 'Deposit confirmation',
   when: 'The moment a deposit is paid — by card in the portal, or when you mark cash/check in the admin.',
   subject: () => 'Your Legacy Land & Cattle Reservation is Confirmed',
-  preheader: () => 'We got your deposit — your cut sheet is live.',
+  preheader: (p) =>
+    p.cutSheetDone
+      ? 'We got your deposit — you&rsquo;re all set.'
+      : 'We got your deposit — your cut sheet is live.',
   content: (p) => `
-    ${hero('🎉', `You&rsquo;re in, ${p.firstName}.`, 'We got your deposit — your cut sheet is live.')}
+    ${hero(
+      '🎉',
+      `You&rsquo;re in, ${p.firstName}.`,
+      p.cutSheetDone
+        ? 'We got your deposit — you&rsquo;re all set.'
+        : 'We got your deposit — your cut sheet is live.'
+    )}
     ${para(
-      'We&rsquo;ve got your deposit — thank you. Your reservation is officially on the books and your cut sheet is open and waiting for you. This is real, ranch-direct beef raised right here in Colorado Springs — no grocery store, no middleman. Just our cattle, our butcher, and your freezer.'
+      p.cutSheetDone
+        ? 'We&rsquo;ve got your deposit — thank you. Your reservation is officially on the books, and since your cut sheet is already locked in, there&rsquo;s nothing else you need to do. This is real, ranch-direct beef raised right here in Colorado Springs — no grocery store, no middleman. Just our cattle, our butcher, and your freezer.'
+        : 'We&rsquo;ve got your deposit — thank you. Your reservation is officially on the books and your cut sheet is open and waiting for you. This is real, ranch-direct beef raised right here in Colorado Springs — no grocery store, no middleman. Just our cattle, our butcher, and your freezer.'
     )}
     ${orderCard([
       { label: 'Order Type', value: p.purchaseLabel },
@@ -153,9 +166,11 @@ export const depositConfirmation: EmailTemplate<DepositConfirmationParams> = {
       { label: 'Deposit Paid', value: money(p.depositPaid) },
     ])}
     ${para(
-      '<strong style="color:#1A3D2B;">Your next step:</strong> Fill out your cut sheet — that&rsquo;s where you tell the butcher exactly how you want your beef cut. Steak thickness, roast size, ground beef ratio, all of it.'
+      p.cutSheetDone
+        ? '<strong style="color:#1A3D2B;">What happens next:</strong> We hand your cut sheet to T-K Processing before butcher day, and we&rsquo;ll email you when your beef is weighed and again when it&rsquo;s ready for pickup.'
+        : '<strong style="color:#1A3D2B;">Your next step:</strong> Fill out your cut sheet — that&rsquo;s where you tell the butcher exactly how you want your beef cut. Steak thickness, roast size, ground beef ratio, all of it.'
     )}
-    ${ctaButton('Build My Cut Sheet →', p.cutSheetUrl)}
+    ${ctaButton(p.cutSheetDone ? 'View My Order →' : 'Build My Cut Sheet →', p.cutSheetUrl)}
     ${fineprint('This link is yours — bookmark it for easy access anytime.')}
   `,
   sample: {
@@ -167,6 +182,7 @@ export const depositConfirmation: EmailTemplate<DepositConfirmationParams> = {
     pricePerLb: 8.5,
     depositPaid: 500,
     cutSheetUrl: 'https://www.legacylandandcattleco.com/api/token/sample',
+    cutSheetDone: false,
   },
 };
 
