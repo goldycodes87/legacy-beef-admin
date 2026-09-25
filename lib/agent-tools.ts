@@ -25,7 +25,7 @@ const TYPE_LABEL: Record<string, string> = {
   wagyu: 'Wagyu',
 };
 
-export const WRITE_TOOLS = new Set(['create_butcher_date', 'adjust_capacity']);
+export const WRITE_TOOLS = new Set(['create_butcher_date', 'adjust_capacity', 'update_persona']);
 
 export const AGENT_TOOLS: Anthropic.Tool[] = [
   {
@@ -95,6 +95,22 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
         delta: { type: 'number', description: 'Change to total_animals, e.g. 1 or -1' },
       },
       required: ['butcher_date', 'animal_type', 'delta'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'update_persona',
+    description:
+      'WRITE — requires Grant’s approval. Changes your own name and/or standing instructions (tone, priorities, recurring behaviors Grant wants). Use when Grant asks you to change how you behave or what you are called.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'New name for the assistant (optional)' },
+        extra_prompt: {
+          type: 'string',
+          description: 'Full replacement standing instructions (optional). Include everything that should persist, not just the change.',
+        },
+      },
       additionalProperties: false,
     },
   },
@@ -355,6 +371,17 @@ async function adjustCapacity(input: {
   };
 }
 
+async function updatePersona(input: { name?: string; extra_prompt?: string }): Promise<Json> {
+  const supabase = getSupabaseAdmin();
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.name && input.name.trim()) update.name = input.name.trim().slice(0, 40);
+  if (typeof input.extra_prompt === 'string') update.extra_prompt = input.extra_prompt.slice(0, 4000);
+  if (Object.keys(update).length === 1) return { error: 'Nothing to change.' };
+  const { error } = await supabase.from('agent_config').update(update).eq('id', 1);
+  if (error) return { error: error.message };
+  return { updated: true, ...update };
+}
+
 /** Runs a tool. The route checks WRITE_TOOLS + approval before calling this for writes. */
 export async function executeTool(name: string, input: unknown): Promise<Json> {
   try {
@@ -371,6 +398,8 @@ export async function executeTool(name: string, input: unknown): Promise<Json> {
         return await createButcherDate(input as Parameters<typeof createButcherDate>[0]);
       case 'adjust_capacity':
         return await adjustCapacity(input as Parameters<typeof adjustCapacity>[0]);
+      case 'update_persona':
+        return await updatePersona(input as { name?: string; extra_prompt?: string });
       default:
         return { error: `Unknown tool: ${name}` };
     }

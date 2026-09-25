@@ -7,10 +7,13 @@ import { AUTH_COOKIE, verifySessionToken } from '@/lib/auth';
  * /api/auth      — the login endpoint itself.
  * /api/push/notify — called by the customer portal, guarded by its own
  *                    x-notify-secret header check.
+ * /api/webhooks  — Twilio SMS and Vapi voice callbacks; each route verifies
+ *                    its own signature or shared secret in place of a session,
+ *                    and refuses outright when unconfigured.
  *
  * Everything else, including every /api/admin route, requires a valid session.
  */
-const PUBLIC_PATHS = ['/login', '/api/auth', '/api/push/notify'];
+const PUBLIC_PATHS = ['/login', '/api/auth', '/api/push/notify', '/api/webhooks'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
