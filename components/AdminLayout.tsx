@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { href: '/', label: 'Dashboard', icon: '📊' },
   { href: '/animals', label: 'Butcher Dates', icon: '🐄' },
   { href: '/slots', label: 'Reservations', icon: '📋' },
+  { href: '/ask', label: 'Ask', icon: '🤠' },
   { href: '/customers', label: 'Customers', icon: '👥' },
   { href: '/cut-sheets', label: 'Cut Sheets', icon: '📝' },
   { href: '/payments', label: 'Payments', icon: '💳' },
