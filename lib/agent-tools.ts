@@ -2,6 +2,15 @@ import Anthropic from '@anthropic-ai/sdk';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { summarizeReservation } from '@/lib/reservation';
 import { getStageMeta } from '@/lib/reservation-status';
+import {
+  callSessionRoute,
+  resolveSession,
+  sendCustomerEmail,
+  textCustomer,
+  recordExpense,
+  expensesReport,
+  upcomingPickups,
+} from '@/lib/agent-ops';
 
 /**
  * The admin agent's hands.
@@ -25,7 +34,32 @@ const TYPE_LABEL: Record<string, string> = {
   wagyu: 'Wagyu',
 };
 
-export const WRITE_TOOLS = new Set(['create_butcher_date', 'adjust_capacity', 'update_persona']);
+export const WRITE_TOOLS = new Set([
+  'create_butcher_date',
+  'adjust_capacity',
+  'update_persona',
+  'mark_deposit_received',
+  'record_payment',
+  'enter_hanging_weight',
+  'mark_beef_ready',
+  'mark_picked_up',
+  'mark_balance_paid',
+  'apply_discount',
+  'move_reservation',
+  'cancel_reservation',
+  'send_cut_sheet_invite',
+  'email_customer',
+  'text_customer',
+  'record_expense',
+]);
+
+/** Every session-scoped tool takes the customer the same way. */
+const CUSTOMER_ARG = {
+  customer: {
+    type: 'string',
+    description: 'Customer name, email, or a session id from an earlier lookup',
+  },
+} as const;
 
 export const AGENT_TOOLS: Anthropic.Tool[] = [
   {
@@ -97,6 +131,196 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
       required: ['butcher_date', 'animal_type', 'delta'],
       additionalProperties: false,
     },
+  },
+  {
+    name: 'mark_deposit_received',
+    description:
+      'WRITE - approval required. Marks a cash/check deposit as received: records the payment, confirms the reservation, unlocks their cut sheet, and sends the confirmation email. Same as the Confirm Deposit button.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ...CUSTOMER_ARG,
+        method: { type: 'string', enum: ['check', 'cash'] },
+        check_number: { type: 'string', description: 'Check number if paying by check (optional)' },
+      },
+      required: ['customer', 'method'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'record_payment',
+    description:
+      'WRITE - approval required. Records money received against a reservation (usually a balance payment). Use paid_in_full to settle whatever is outstanding.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ...CUSTOMER_ARG,
+        amount: { type: 'number', description: 'Dollars. Omit when paid_in_full is true.' },
+        method: { type: 'string', enum: ['cash', 'check', 'card'] },
+        check_number: { type: 'string' },
+        paid_in_full: { type: 'boolean', description: 'Settle the full outstanding amount' },
+      },
+      required: ['customer', 'method'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'enter_hanging_weight',
+    description:
+      'WRITE - approval required. Enters the hanging weight for an order, computes the balance, and emails the customer their final numbers.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ...CUSTOMER_ARG,
+        weight_lbs: { type: 'number', description: 'Hanging weight in pounds' },
+      },
+      required: ['customer', 'weight_lbs'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'mark_beef_ready',
+    description:
+      'WRITE - approval required. Marks an order ready for pickup and sends the beef-ready email with the pickup link.',
+    input_schema: {
+      type: 'object',
+      properties: { ...CUSTOMER_ARG },
+      required: ['customer'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'mark_picked_up',
+    description: 'WRITE - approval required. Marks an order as picked up and complete.',
+    input_schema: {
+      type: 'object',
+      properties: { ...CUSTOMER_ARG },
+      required: ['customer'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'mark_balance_paid',
+    description:
+      'WRITE - approval required. Settles the remaining balance as paid (cash/check/card taken outside the portal).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ...CUSTOMER_ARG,
+        method: { type: 'string', enum: ['cash', 'check', 'card'] },
+        check_number: { type: 'string' },
+      },
+      required: ['customer', 'method'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'apply_discount',
+    description: 'WRITE - approval required. Applies a dollar discount to an order, with a note.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ...CUSTOMER_ARG,
+        amount: { type: 'number', description: 'Discount in dollars' },
+        note: { type: 'string', description: 'Why (shows on the invoice line)' },
+      },
+      required: ['customer', 'amount'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'move_reservation',
+    description:
+      'WRITE - approval required. Moves a reservation to a different butcher date/animal type. Capacity is claimed on the target and released on the source; refuses when the target is full.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ...CUSTOMER_ARG,
+        new_butcher_date: { type: 'string', description: 'YYYY-MM-DD of the target date' },
+        new_animal_type: { type: 'string', enum: ['grass_fed', 'grain_finished', 'wagyu'] },
+      },
+      required: ['customer', 'new_butcher_date', 'new_animal_type'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'cancel_reservation',
+    description:
+      'WRITE - approval required. Cancels a reservation and releases its capacity. Serious and hard to undo - restate who and what before proposing it.',
+    input_schema: {
+      type: 'object',
+      properties: { ...CUSTOMER_ARG },
+      required: ['customer'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'send_cut_sheet_invite',
+    description:
+      'WRITE - approval required. Emails the customer their cut sheet link (the time-to-build-your-cut-sheet email).',
+    input_schema: {
+      type: 'object',
+      properties: { ...CUSTOMER_ARG },
+      required: ['customer'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'email_customer',
+    description:
+      'WRITE - approval required. Sends a one-off branded email from orders@ to a customer. Write the message in plain text; paragraphs separated by blank lines.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        to: { type: 'string', description: 'Recipient email address' },
+        subject: { type: 'string' },
+        message: { type: 'string', description: 'Plain-text body' },
+      },
+      required: ['to', 'subject', 'message'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'text_customer',
+    description:
+      'WRITE - approval required. Texts a customer from the ranch number. Keep it short and say who it is from.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        phone: { type: 'string', description: 'Customer phone number' },
+        message: { type: 'string' },
+      },
+      required: ['phone', 'message'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'record_expense',
+    description:
+      'WRITE - approval required. Records a business cost - what a steer cost, processing, feed, transport - for profit tracking.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        amount: { type: 'number', description: 'Dollars' },
+        category: { type: 'string', enum: ['steer', 'processing', 'feed', 'transport', 'other'] },
+        note: { type: 'string' },
+        butcher_date: { type: 'string', description: 'YYYY-MM-DD it relates to (optional)' },
+        animal_type: { type: 'string', enum: ['grass_fed', 'grain_finished', 'wagyu'] },
+        spent_on: { type: 'string', description: 'YYYY-MM-DD the money was spent (optional)' },
+      },
+      required: ['amount', 'category'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'upcoming_pickups',
+    description: 'Scheduled pickup appointments with who, when, and whether they still owe money.',
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'expenses_report',
+    description: 'Recorded business costs: total, by category, and recent entries.',
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
     name: 'update_persona',
@@ -382,6 +606,22 @@ async function updatePersona(input: { name?: string; extra_prompt?: string }): P
   return { updated: true, ...update };
 }
 
+/** Session-scoped write: resolve the customer, then run the admin route in-process. */
+async function sessionWrite(
+  customer: string,
+  route: Parameters<typeof callSessionRoute>[0],
+  body: Record<string, unknown> = {}
+): Promise<Json> {
+  const resolved = await resolveSession(customer, {
+    includeDone: route === 'record-payment' || route === 'mark-balance-paid' || route === 'picked-up',
+  });
+  if (!resolved.sessionId) {
+    return { error: resolved.error, candidates: resolved.candidates };
+  }
+  const result = await callSessionRoute(route, resolved.sessionId, body);
+  return { customer: resolved.customer, ...result };
+}
+
 /** Runs a tool. The route checks WRITE_TOOLS + approval before calling this for writes. */
 export async function executeTool(name: string, input: unknown): Promise<Json> {
   try {
@@ -400,6 +640,74 @@ export async function executeTool(name: string, input: unknown): Promise<Json> {
         return await adjustCapacity(input as Parameters<typeof adjustCapacity>[0]);
       case 'update_persona':
         return await updatePersona(input as { name?: string; extra_prompt?: string });
+      case 'mark_deposit_received': {
+        const i = input as { customer: string; method: string; check_number?: string };
+        return await sessionWrite(i.customer, 'confirm-deposit', {
+          method: i.method,
+          check_number: i.check_number,
+        });
+      }
+      case 'record_payment': {
+        const i = input as {
+          customer: string; amount?: number; method: string; check_number?: string; paid_in_full?: boolean;
+        };
+        return await sessionWrite(i.customer, 'record-payment', {
+          amount: i.amount,
+          method: i.method,
+          check_number: i.check_number,
+          paid_in_full: i.paid_in_full === true,
+        });
+      }
+      case 'enter_hanging_weight': {
+        const i = input as { customer: string; weight_lbs: number };
+        return await sessionWrite(i.customer, 'hanging-weight', { hanging_weight_lbs: i.weight_lbs });
+      }
+      case 'mark_beef_ready':
+        return await sessionWrite((input as { customer: string }).customer, 'mark-ready');
+      case 'mark_picked_up':
+        return await sessionWrite((input as { customer: string }).customer, 'picked-up');
+      case 'mark_balance_paid': {
+        const i = input as { customer: string; method: string; check_number?: string };
+        return await sessionWrite(i.customer, 'mark-balance-paid', {
+          method: i.method,
+          check_number: i.check_number,
+        });
+      }
+      case 'apply_discount': {
+        const i = input as { customer: string; amount: number; note?: string };
+        return await sessionWrite(i.customer, 'discount', {
+          discount_amount: i.amount,
+          discount_note: i.note,
+        });
+      }
+      case 'move_reservation': {
+        const i = input as { customer: string; new_butcher_date: string; new_animal_type: string };
+        const supabase = getSupabaseAdmin();
+        const { data: target } = await supabase
+          .from('animals')
+          .select('id, name')
+          .eq('butcher_date', i.new_butcher_date)
+          .eq('animal_type', i.new_animal_type)
+          .neq('status', 'archived')
+          .maybeSingle();
+        if (!target) return { error: 'No butcher date found for that date and type.' };
+        const moved = await sessionWrite(i.customer, 'move', { new_animal_id: target.id });
+        return { ...moved, moved_to: target.name };
+      }
+      case 'cancel_reservation':
+        return await sessionWrite((input as { customer: string }).customer, 'cancel');
+      case 'send_cut_sheet_invite':
+        return await sessionWrite((input as { customer: string }).customer, 'send-cut-sheet-email');
+      case 'email_customer':
+        return await sendCustomerEmail(input as { to: string; subject: string; message: string });
+      case 'text_customer':
+        return await textCustomer(input as { phone: string; message: string });
+      case 'record_expense':
+        return await recordExpense(input as Parameters<typeof recordExpense>[0]);
+      case 'upcoming_pickups':
+        return await upcomingPickups();
+      case 'expenses_report':
+        return await expensesReport();
       default:
         return { error: `Unknown tool: ${name}` };
     }

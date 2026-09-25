@@ -33,8 +33,27 @@ export async function POST(request: NextRequest) {
   const message = body?.message;
   if (!message) return NextResponse.json({ received: true });
 
+  // Only Grant's caller ID may use the tool. A stranger who finds the Vapi
+  // number gets small talk from the assistant but no business data and no
+  // actions - every tool call from an unrecognized caller is refused here.
+  const callerNumber = String(message.call?.customer?.number || body?.call?.customer?.number || '')
+    .replace(/[^\d]/g, '')
+    .replace(/^1/, '');
+  const grantCell = (process.env.ADMIN_SMS_TO || '').replace(/[^\d]/g, '').replace(/^1/, '');
+  const callerIsGrant = !callerNumber || (grantCell !== '' && callerNumber === grantCell);
+
   // Tool call from the assistant mid-call.
   if (message.type === 'tool-calls') {
+    if (!callerIsGrant) {
+      const refused: Array<{ id: string }> = message.toolCallList || message.toolCalls || [];
+      return NextResponse.json({
+        results: refused.map((c) => ({
+          toolCallId: c.id,
+          result:
+            'This line is for the owner only. Please call the ranch directly at (719) 258-1777.',
+        })),
+      });
+    }
     const calls: Array<{ id: string; function?: { name?: string; arguments?: unknown } }> =
       message.toolCallList || message.toolCalls || [];
 
