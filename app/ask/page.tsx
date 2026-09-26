@@ -26,6 +26,25 @@ const TOOL_LABEL: Record<string, string> = {
   create_butcher_date: 'Create butcher date',
   adjust_capacity: 'Adjust capacity',
   update_persona: 'Update my persona',
+  mark_deposit_received: 'Mark deposit received',
+  record_payment: 'Record a payment',
+  enter_hanging_weight: 'Enter hanging weight',
+  mark_beef_ready: 'Mark beef ready',
+  mark_picked_up: 'Mark picked up',
+  mark_balance_paid: 'Mark balance paid',
+  apply_discount: 'Apply a discount',
+  move_reservation: 'Move a reservation',
+  cancel_reservation: 'Cancel a reservation',
+  send_cut_sheet_invite: 'Send cut sheet invite',
+  email_customer: 'Email a customer',
+  text_customer: 'Text a customer',
+  update_customer_info: 'Edit customer info',
+  create_coupon: 'Create a coupon',
+  delete_coupon: 'Delete a coupon',
+  create_pickup_window: 'Create pickup window',
+  update_pickup_window: 'Change pickup window',
+  delete_pickup_window: 'Delete pickup window',
+  record_animal_cost: 'Record an animal cost',
 };
 
 const SUGGESTIONS = [
@@ -33,6 +52,7 @@ const SUGGESTIONS = [
   'Who still owes me a deposit?',
   "What's left on upcoming butcher dates?",
   'Did Brenda get her emails?',
+  'How is profit looking per animal?',
 ];
 
 export default function AskPage() {

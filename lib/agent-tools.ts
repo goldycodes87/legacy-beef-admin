@@ -7,9 +7,19 @@ import {
   resolveSession,
   sendCustomerEmail,
   textCustomer,
-  recordExpense,
-  expensesReport,
   upcomingPickups,
+  updateCustomerInfo,
+  listCoupons,
+  createCoupon,
+  deleteCoupon,
+  listPickupWindows,
+  createPickupWindow,
+  updatePickupWindow,
+  deletePickupWindow,
+  previewPricing,
+  checkCustomerEmails,
+  recordAnimalCost,
+  financesReport,
 } from '@/lib/agent-ops';
 
 /**
@@ -50,7 +60,13 @@ export const WRITE_TOOLS = new Set([
   'send_cut_sheet_invite',
   'email_customer',
   'text_customer',
-  'record_expense',
+  'update_customer_info',
+  'create_coupon',
+  'delete_coupon',
+  'create_pickup_window',
+  'update_pickup_window',
+  'delete_pickup_window',
+  'record_animal_cost',
 ]);
 
 /** Every session-scoped tool takes the customer the same way. */
@@ -295,31 +311,169 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
-    name: 'record_expense',
+    name: 'update_customer_info',
     description:
-      'WRITE - approval required. Records a business cost - what a steer cost, processing, feed, transport - for profit tracking.',
+      'WRITE - approval required. Edits a customer\'s contact info (name, email, phone, address). Only the fields given are changed; the result shows before and after.',
     input_schema: {
       type: 'object',
       properties: {
-        amount: { type: 'number', description: 'Dollars' },
-        category: { type: 'string', enum: ['steer', 'processing', 'feed', 'transport', 'other'] },
-        note: { type: 'string' },
-        butcher_date: { type: 'string', description: 'YYYY-MM-DD it relates to (optional)' },
-        animal_type: { type: 'string', enum: ['grass_fed', 'grain_finished', 'wagyu'] },
-        spent_on: { type: 'string', description: 'YYYY-MM-DD the money was spent (optional)' },
+        ...CUSTOMER_ARG,
+        name: { type: 'string' },
+        email: { type: 'string' },
+        phone: { type: 'string' },
+        address: { type: 'string' },
+        city: { type: 'string' },
+        state: { type: 'string' },
+        zip: { type: 'string' },
       },
-      required: ['amount', 'category'],
+      required: ['customer'],
       additionalProperties: false,
     },
   },
   {
-    name: 'upcoming_pickups',
-    description: 'Scheduled pickup appointments with who, when, and whether they still owe money.',
+    name: 'list_coupons',
+    description: 'Every coupon code with its type, value, expiration, and whether it was redeemed.',
     input_schema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
-    name: 'expenses_report',
-    description: 'Recorded business costs: total, by category, and recent entries.',
+    name: 'create_coupon',
+    description:
+      'WRITE - approval required. Creates a coupon code customers can use at checkout. fixed_amount and percentage discount the deposit total; waive_deposit skips it; percent_off_balance discounts the final balance.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        code: { type: 'string', description: 'The code, e.g. WELCOME50 (stored uppercase)' },
+        type: {
+          type: 'string',
+          enum: ['fixed_amount', 'percentage', 'waive_deposit', 'percent_off_balance'],
+        },
+        value: { type: 'number', description: 'Dollars for fixed_amount, percent for the % types; not needed for waive_deposit' },
+        expires_at: { type: 'string', description: 'YYYY-MM-DD (optional, no expiration if omitted)' },
+        single_use: { type: 'boolean', description: 'Default true — dies after one redemption' },
+      },
+      required: ['code', 'type'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'delete_coupon',
+    description:
+      'WRITE - approval required. Deletes an unredeemed coupon code. A redeemed coupon is refused — it is part of an order\'s record.',
+    input_schema: {
+      type: 'object',
+      properties: { code: { type: 'string' } },
+      required: ['code'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'list_pickup_windows',
+    description: 'Every pickup window with date, times, capacity, active flag, and how many appointments are booked into it.',
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'create_pickup_window',
+    description:
+      'WRITE - approval required. Creates a pickup window customers can book once their beef is ready.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        label: { type: 'string', description: 'e.g. "Saturday Morning Pickup" (optional)' },
+        pickup_date: { type: 'string', description: 'YYYY-MM-DD' },
+        start_time: { type: 'string', description: '24h HH:MM' },
+        end_time: { type: 'string', description: '24h HH:MM' },
+        max_slots: { type: 'number', description: 'Optional cap on bookings' },
+      },
+      required: ['pickup_date', 'start_time', 'end_time'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'update_pickup_window',
+    description:
+      'WRITE - approval required. Changes a pickup window (label, date, times, capacity, or active on/off). Warns when customers are already booked into it.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        pickup_date: { type: 'string', description: 'YYYY-MM-DD of the window as it is now' },
+        which: { type: 'string', description: 'Label or start time, when that date has several windows' },
+        new_label: { type: 'string' },
+        new_date: { type: 'string', description: 'YYYY-MM-DD' },
+        new_start_time: { type: 'string', description: '24h HH:MM' },
+        new_end_time: { type: 'string', description: '24h HH:MM' },
+        new_max_slots: { type: 'number' },
+        active: { type: 'boolean', description: 'false hides it from customers without deleting it' },
+      },
+      required: ['pickup_date'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'delete_pickup_window',
+    description:
+      'WRITE - approval required. Deletes a pickup window. Refused when appointments are booked into it — move or cancel them first, or deactivate instead.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        pickup_date: { type: 'string', description: 'YYYY-MM-DD' },
+        which: { type: 'string', description: 'Label or start time, when that date has several windows' },
+      },
+      required: ['pickup_date'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'preview_pricing',
+    description:
+      'What-if pricing for a hanging weight, BEFORE committing it: total cost, deposit credit, discount, and balance due, using the same math as the real entry. Read-only — saves nothing, emails nothing. Use this whenever Grant wants to sanity-check numbers first.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ...CUSTOMER_ARG,
+        weight_lbs: { type: 'number', description: 'Hypothetical hanging weight in pounds' },
+      },
+      required: ['customer', 'weight_lbs'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'check_customer_emails',
+    description:
+      'Did a customer get their emails? Returns the app\'s send log and Resend delivery events (delivered/opened/bounced) for that customer.',
+    input_schema: {
+      type: 'object',
+      properties: { ...CUSTOMER_ARG },
+      required: ['customer'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'record_animal_cost',
+    description:
+      'WRITE - approval required. Records what an animal cost — purchase (what the steer cost), feed, butcher/processing, or other — on the Financials tab\'s ledger for a specific butcher date.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        butcher_date: { type: 'string', description: 'YYYY-MM-DD of the animal it belongs to' },
+        animal_type: { type: 'string', enum: ['grass_fed', 'grain_finished', 'wagyu'] },
+        cost_type: { type: 'string', enum: ['purchase', 'feed', 'butcher', 'other'] },
+        amount: { type: 'number', description: 'Dollars' },
+        description: { type: 'string', description: 'e.g. "Steer #14 from the Hendersons" (optional)' },
+        date: { type: 'string', description: 'YYYY-MM-DD spent (optional, defaults to today)' },
+      },
+      required: ['butcher_date', 'animal_type', 'cost_type', 'amount'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'finances_report',
+    description:
+      'The Financials tab as numbers: per animal — revenue collected (net of card surcharges), what is still owed, costs by type, and profit so far — plus business-wide totals.',
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'upcoming_pickups',
+    description: 'Scheduled pickup appointments with who, when, and whether they still owe money.',
     input_schema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
@@ -702,12 +856,32 @@ export async function executeTool(name: string, input: unknown): Promise<Json> {
         return await sendCustomerEmail(input as { to: string; subject: string; message: string });
       case 'text_customer':
         return await textCustomer(input as { phone: string; message: string });
-      case 'record_expense':
-        return await recordExpense(input as Parameters<typeof recordExpense>[0]);
+      case 'update_customer_info':
+        return await updateCustomerInfo(input as Parameters<typeof updateCustomerInfo>[0]);
+      case 'list_coupons':
+        return await listCoupons();
+      case 'create_coupon':
+        return await createCoupon(input as Parameters<typeof createCoupon>[0]);
+      case 'delete_coupon':
+        return await deleteCoupon(input as { code: string });
+      case 'list_pickup_windows':
+        return await listPickupWindows();
+      case 'create_pickup_window':
+        return await createPickupWindow(input as Parameters<typeof createPickupWindow>[0]);
+      case 'update_pickup_window':
+        return await updatePickupWindow(input as Parameters<typeof updatePickupWindow>[0]);
+      case 'delete_pickup_window':
+        return await deletePickupWindow(input as Parameters<typeof deletePickupWindow>[0]);
+      case 'preview_pricing':
+        return await previewPricing(input as { customer: string; weight_lbs: number });
+      case 'check_customer_emails':
+        return await checkCustomerEmails(input as { customer: string });
+      case 'record_animal_cost':
+        return await recordAnimalCost(input as Parameters<typeof recordAnimalCost>[0]);
+      case 'finances_report':
+        return await financesReport();
       case 'upcoming_pickups':
         return await upcomingPickups();
-      case 'expenses_report':
-        return await expensesReport();
       default:
         return { error: `Unknown tool: ${name}` };
     }
