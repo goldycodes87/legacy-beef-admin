@@ -758,6 +758,34 @@ export const returningLink: EmailTemplate<ReturningLinkParams> = {
   },
 };
 
+// ─── Waitlist confirmation ──────────────────────────────────────────────────
+export interface WaitlistConfirmationParams {
+  firstName: string;
+  /** What they asked for, e.g. "American Wagyu — Half Beef". */
+  wantsLabel: string;
+}
+
+export const waitlistConfirmation: EmailTemplate<WaitlistConfirmationParams> = {
+  label: 'Waitlist confirmation',
+  when: 'The moment someone joins the waitlist (Wagyu notify-me, or a sold-out date).',
+  subject: (p) => `You're on the list, ${p.firstName}`,
+  preheader: (p) => `We'll email you the moment ${p.wantsLabel} opens up.`,
+  content: (p) => `
+    ${hero('📋', `You&rsquo;re on the list, ${p.firstName}.`, 'We&rsquo;ll reach out the moment a spot opens.')}
+    ${para(
+      `We&rsquo;ve saved your request for <strong>${p.wantsLabel}</strong>. When a butcher date with room opens up, you&rsquo;ll hear from us first — before it goes on the website.`
+    )}
+    ${para(
+      `Spots go in the order the list was joined, so when that email lands, don&rsquo;t sit on it too long.`
+    )}
+    ${fineprint(`Questions in the meantime? Call ${PHONE} — we&rsquo;re happy to talk beef.`)}
+  `,
+  sample: {
+    firstName: 'Sarah',
+    wantsLabel: 'American Wagyu — Half Beef',
+  },
+};
+
 // ─── Registry, for the admin preview ────────────────────────────────────────
 /**
  * Every customer-facing email, keyed by the id the preview uses. Adding a
@@ -780,6 +808,7 @@ export const EMAIL_TEMPLATES: Record<string, EmailTemplate<any>> = {
   cash_check_instructions: cashCheckInstructions,
   lost_cart: lostCart,
   returning_link: returningLink,
+  waitlist_confirmation: waitlistConfirmation,
 };
 
 /** Renders a template with its sample data, for the admin preview. */

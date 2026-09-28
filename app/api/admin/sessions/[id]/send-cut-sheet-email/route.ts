@@ -33,11 +33,19 @@ export async function POST(
       ? (session as any).animals[0]
       : (session as any).animals;
 
-    if (!customer || !animal || !(session as any).access_token) {
-      return NextResponse.json(
-        { error: 'Missing customer, animal, or access token' },
-        { status: 400 }
-      );
+    if (!customer || !animal) {
+      return NextResponse.json({ error: 'Missing customer or animal' }, { status: 400 });
+    }
+
+    // Mint a token if the session doesn't have one yet (same as mark-ready
+    // and confirm-deposit), instead of refusing to send the invite.
+    let accessToken = (session as any).access_token as string | null;
+    if (!accessToken) {
+      const { createAccessToken } = await import('@/lib/access-token');
+      const expires = animal.butcher_date
+        ? new Date(new Date(animal.butcher_date).getTime() + 60 * 24 * 60 * 60 * 1000)
+        : new Date(Date.now() + 150 * 24 * 60 * 60 * 1000);
+      accessToken = await createAccessToken(id, expires);
     }
 
     try {
@@ -47,7 +55,7 @@ export async function POST(
 
       const firstName = customer.name?.split(' ')[0] ?? 'there';
       const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.legacylandandcattleco.com';
-      const cutSheetUrl = `${APP_URL}/api/token/${(session as any).access_token}`;
+      const cutSheetUrl = `${APP_URL}/api/token/${accessToken}`;
 
       const t = (session as any).purchase_type;
       const purchaseLabel = t === 'whole' ? 'Whole Beef' : t === 'half' ? 'Half Beef' : 'Quarter Beef';
