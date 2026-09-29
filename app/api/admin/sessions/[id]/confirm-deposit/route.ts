@@ -77,9 +77,19 @@ export async function POST(
       check_number: check_number || null,
     });
 
-    // Update session status
+    // Update session status. Quarters are marked cut-sheet-complete here the
+    // same way the card path does it — they get the Legacy House Cut, and the
+    // reminder/auto-lock crons must never nag them about a cut sheet.
+    const { data: statusSession } = await supabase
+      .from('sessions')
+      .select('purchase_type')
+      .eq('id', id)
+      .maybeSingle();
     await supabase.from('sessions')
-      .update({ status: 'deposit_paid' })
+      .update({
+        status: 'deposit_paid',
+        ...(statusSession?.purchase_type === 'quarter' ? { cut_sheet_complete: true } : {}),
+      })
       .eq('id', id);
 
     // Load full session data for email
