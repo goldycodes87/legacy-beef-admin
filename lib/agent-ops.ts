@@ -607,10 +607,85 @@ export async function checkCustomerEmails(input: { customer: string }): Promise<
     sent_by_app: sends || [],
     delivery_events: events || [],
     note:
-      (events || []).length === 0
-        ? 'Delivery events come from the Resend webhook; if it is not configured yet, only the app send log shows. Not every email writes a send-log row, so an empty log is not proof nothing went out.'
-        : 'Delivery events are from Resend and cover every email, including opens/bounces where reported.',
+      'Delivery tracking began 2026-09-28; emails sent before that date can only appear in the app send log, and not every email writes a send-log row — so absence of records for an older email is NOT proof it was never sent. Delivery events cover every email from 2026-09-28 onward.',
   };
+}
+
+// ─── Waitlist ────────────────────────────────────────────────────────────────
+
+const WAITLIST_STATUSES = ['waiting', 'notified', 'converted', 'removed'];
+
+/** The whole waitlist in join order — wagyu notify-mes and sold-out signups alike. */
+export async function listWaitlist(): Promise<Json> {
+  const { data, error } = await getSupabaseAdmin()
+    .from('waitlist')
+    .select('id, customer_name, email, phone, animal_type, size_preference, status, notified_at, created_at')
+    .order('created_at', { ascending: true });
+  if (error) return { error: error.message };
+  const entries = (data || []).map((w, i) => ({ position: i + 1, ...w }));
+  const byStatus: Record<string, number> = {};
+  for (const w of entries) byStatus[w.status] = (byStatus[w.status] || 0) + 1;
+  return {
+    counts: byStatus,
+    entries,
+    note: 'Position is join order — first come, first served when a date opens.',
+  };
+}
+
+/** Updates or removes one waitlist entry, resolved by email (or id when ambiguous). */
+export async function updateWaitlistEntry(input: {
+  entry: string;
+  status?: string;
+  phone?: string;
+  size_preference?: string;
+  animal_type?: string;
+  delete_entry?: boolean;
+}): Promise<Json> {
+  const supabase = getSupabaseAdmin();
+  const q = input.entry.trim();
+
+  let rows;
+  if (/^[0-9a-f-]{36}$/i.test(q)) {
+    const { data } = await supabase.from('waitlist').select('id, customer_name, email, animal_type, size_preference, status').eq('id', q);
+    rows = data || [];
+  } else {
+    const { data } = await supabase
+      .from('waitlist')
+      .select('id, customer_name, email, animal_type, size_preference, status')
+      .or(`email.ilike.%${q}%,customer_name.ilike.%${q}%`);
+    rows = data || [];
+  }
+  if (rows.length === 0) return { error: `No waitlist entry matched "${input.entry}".` };
+  if (rows.length > 1) {
+    return {
+      error: 'More than one waitlist entry matches — ask Grant which one, then pass its id.',
+      candidates: rows.map((r) => `${r.customer_name} <${r.email}> — ${r.animal_type}/${r.size_preference} (${r.status}) [${r.id}]`),
+    };
+  }
+  const row = rows[0];
+
+  if (input.delete_entry === true) {
+    const { error } = await supabase.from('waitlist').delete().eq('id', row.id);
+    if (error) return { error: error.message };
+    return { deleted: `${row.customer_name} <${row.email}>` };
+  }
+
+  const changes: Record<string, unknown> = {};
+  if (input.status) {
+    if (!WAITLIST_STATUSES.includes(input.status)) {
+      return { error: `status must be one of: ${WAITLIST_STATUSES.join(', ')}` };
+    }
+    changes.status = input.status;
+    if (input.status === 'notified') changes.notified_at = new Date().toISOString();
+  }
+  if (input.phone) changes.phone = input.phone;
+  if (input.size_preference) changes.size_preference = input.size_preference;
+  if (input.animal_type) changes.animal_type = input.animal_type;
+  if (Object.keys(changes).length === 0) return { error: 'No changes were given.' };
+
+  const { error } = await supabase.from('waitlist').update(changes).eq('id', row.id);
+  if (error) return { error: error.message };
+  return { updated: `${row.customer_name} <${row.email}>`, changes };
 }
 
 // ─── Finances (the Financials tab) ───────────────────────────────────────────

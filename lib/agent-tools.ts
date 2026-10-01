@@ -20,6 +20,8 @@ import {
   checkCustomerEmails,
   recordAnimalCost,
   financesReport,
+  listWaitlist,
+  updateWaitlistEntry,
 } from '@/lib/agent-ops';
 
 /**
@@ -67,6 +69,7 @@ export const WRITE_TOOLS = new Set([
   'update_pickup_window',
   'delete_pickup_window',
   'record_animal_cost',
+  'update_waitlist',
 ]);
 
 /** Every session-scoped tool takes the customer the same way. */
@@ -470,6 +473,30 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
     description:
       'The Financials tab as numbers: per animal — revenue collected (net of card surcharges), what is still owed, costs by type, and profit so far — plus business-wide totals.',
     input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'view_waitlist',
+    description:
+      'The full waitlist in join order (first come, first served): wagyu notify-mes and sold-out signups, with each person\'s type preference (including "any"), size, status, and contact info. Covers all types — the admin Waitlist page only shows wagyu.',
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'update_waitlist',
+    description:
+      'WRITE - approval required. Updates one waitlist entry: set status (waiting / notified / converted / removed), fix contact or preference details, or delete the entry outright. Use "notified" after reaching out about an open spot, "converted" once they book.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        entry: { type: 'string', description: 'Email, name, or waitlist entry id from view_waitlist' },
+        status: { type: 'string', enum: ['waiting', 'notified', 'converted', 'removed'] },
+        phone: { type: 'string' },
+        size_preference: { type: 'string', enum: ['whole', 'half', 'quarter', 'any'] },
+        animal_type: { type: 'string', enum: ['wagyu', 'grass_fed', 'grain_finished', 'any'] },
+        delete_entry: { type: 'boolean', description: 'true permanently deletes the entry' },
+      },
+      required: ['entry'],
+      additionalProperties: false,
+    },
   },
   {
     name: 'upcoming_pickups',
@@ -880,6 +907,10 @@ export async function executeTool(name: string, input: unknown): Promise<Json> {
         return await recordAnimalCost(input as Parameters<typeof recordAnimalCost>[0]);
       case 'finances_report':
         return await financesReport();
+      case 'view_waitlist':
+        return await listWaitlist();
+      case 'update_waitlist':
+        return await updateWaitlistEntry(input as Parameters<typeof updateWaitlistEntry>[0]);
       case 'upcoming_pickups':
         return await upcomingPickups();
       default:

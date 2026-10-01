@@ -45,6 +45,7 @@ const TOOL_LABEL: Record<string, string> = {
   update_pickup_window: 'Change pickup window',
   delete_pickup_window: 'Delete pickup window',
   record_animal_cost: 'Record an animal cost',
+  update_waitlist: 'Update waitlist entry',
 };
 
 const SUGGESTIONS = [
