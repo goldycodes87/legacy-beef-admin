@@ -171,6 +171,13 @@ export const depositConfirmation: EmailTemplate<DepositConfirmationParams> = {
         : '<strong style="color:#1A3D2B;">Your next step:</strong> Fill out your cut sheet — that&rsquo;s where you tell the butcher exactly how you want your beef cut. Steak thickness, roast size, ground beef ratio, all of it.'
     )}
     ${ctaButton(p.cutSheetDone ? 'View My Order →' : 'Build My Cut Sheet →', p.cutSheetUrl)}
+    ${
+      p.purchaseLabel === 'Quarter Beef'
+        ? para(
+            'Wondering what you&rsquo;ll get? Your quarter is cut to our Legacy House Cut — about 110 lbs of boxed beef, ribeyes to ground. <a href="https://www.legacylandandcattleco.com/quarter" style="color:#E85D24;font-weight:bold;">See what a typical quarter looks like →</a>'
+          )
+        : ''
+    }
     ${fineprint('This link is yours — bookmark it for easy access anytime.')}
   `,
   sample: {
