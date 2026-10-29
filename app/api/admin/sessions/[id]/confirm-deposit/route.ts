@@ -96,7 +96,7 @@ export async function POST(
     const { data: fullSession } = await supabase
       .from('sessions')
       .select(`
-        id, purchase_type, price_per_lb, cut_sheet_complete,
+        id, purchase_type, price_per_lb, cut_sheet_complete, access_token, access_token_expires_at,
         customers (id, name, email),
         animals (name, butcher_date, estimated_ready_date, price_per_lb)
       `)
@@ -121,16 +121,11 @@ export async function POST(
           const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.legacylandandcattleco.com';
 
           // Cash and check customers never went through the card flow, so they
-          // have no access token yet. Without one this email's only call to
-          // action would drop them on the home page.
-          let accessToken = (fullSession as any).access_token;
-          if (!accessToken) {
-            const { createAccessToken } = await import('@/lib/access-token');
-            const butcherDate = animal.butcher_date
-              ? new Date(new Date(animal.butcher_date).getTime() + 60 * 24 * 60 * 60 * 1000)
-              : new Date(Date.now() + 150 * 24 * 60 * 60 * 1000);
-            accessToken = await createAccessToken(id, butcherDate);
-          }
+          // may have no access token yet. The select used to leave the token
+          // out, so this minted a new one every time and broke the link in any
+          // earlier email.
+          const { ensureAccessToken, linkLifetime } = await import('@/lib/access-token');
+          const accessToken = await ensureAccessToken(id, fullSession as any, 60, linkLifetime(animal.butcher_date));
           const cutSheetUrl = `${APP_URL}/api/token/${accessToken}`;
 
           const t = (fullSession as any).purchase_type;

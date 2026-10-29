@@ -120,6 +120,18 @@ export async function POST(
     // reservation, and a settle-up at pickup is not a deposit.
     const type = body.type === 'deposit' ? 'deposit' : 'balance';
 
+    // The database allows one balance payment per order (it is what stops a
+    // double charge). A partial one would leave the rest impossible to record,
+    // so a balance payment has to settle what is owed.
+    if (type === 'balance' && totalCost > 0 && amountCents < owedCents) {
+      return NextResponse.json(
+        {
+          error: `Record the full $${(owedCents / 100).toFixed(2)} balance — partial balance payments can't be recorded yet.`,
+        },
+        { status: 400 }
+      );
+    }
+
     const { error: insertError } = await supabase.from('payments').insert({
       session_id: id,
       type,

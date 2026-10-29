@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { unitCostFor } from '@/lib/inventory';
+import { holdsCapacity as holdsShare, unitCostFor } from '@/lib/inventory';
 
 export async function POST(
   request: NextRequest,
@@ -19,18 +19,21 @@ export async function POST(
 
     const { data: session } = await supabase
       .from('sessions')
-      .select('id, status, purchase_type, animal_id')
+      .select('id, status, purchase_type, animal_id, group_role')
       .eq('id', id)
       .single();
 
     if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    if (session.status === 'picked_up' || session.status === 'cancelled') {
+      return NextResponse.json({ error: `A ${session.status.replace('_', ' ')} order cannot be moved.` }, { status: 409 });
+    }
 
     if (session.animal_id === new_animal_id) {
       return NextResponse.json({ error: 'That reservation is already on this butcher date.' }, { status: 400 });
     }
 
     const unitCost = unitCostFor(session.purchase_type);
-    const holdsCapacity = session.status !== 'draft' && session.status !== 'cancelled';
+    const holdsCapacity = holdsShare(session);
 
     // Claim on the destination first. If it is full, nothing has changed yet.
     if (holdsCapacity) {

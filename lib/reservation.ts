@@ -42,6 +42,12 @@ export interface ReservationSummary {
   depositMethod: string | null;
   depositPaidAt: string | null;
   checkNumber: string | null;
+  /** The deposit toward the beef, card fee excluded. */
+  depositNetCents: number | null;
+
+  /** Balance payments toward the beef, card fee excluded, and how they came in. */
+  balancePaidCents: number;
+  balanceMethod: string | null;
 
   /** True once any real money has been received, however it was recorded. */
   hasPayment: boolean;
@@ -92,6 +98,13 @@ export function summarizeReservation(session: SessionForSummary): ReservationSum
     depositMethod: deposit?.method ?? null,
     depositPaidAt: deposit?.paid_at ?? null,
     checkNumber: deposit?.check_number ?? null,
+    depositNetCents: deposit ? (deposit.amount_cents || 0) - (deposit.surcharge_cents || 0) : null,
+
+    balancePaidCents: balancePayments.reduce(
+      (s, p) => s + (p.amount_cents || 0) - (p.surcharge_cents || 0),
+      0
+    ),
+    balanceMethod: balancePayments[balancePayments.length - 1]?.method ?? null,
 
     hasPayment: bankedCents > 0,
     fullyPaid: orderTotalCents > 0 && outstandingCents === 0,

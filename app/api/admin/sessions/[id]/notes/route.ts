@@ -7,9 +7,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { id } = await params;
   const { admin_notes } = await request.json();
 
-  await supabase.from('sessions')
+  const { error } = await supabase.from('sessions')
     .update({ admin_notes })
     .eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ success: true });
 }

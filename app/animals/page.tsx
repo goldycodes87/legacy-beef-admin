@@ -3,6 +3,15 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import Link from 'next/link';
+import { formatDate } from '@/lib/format';
+
+/** Shows the server's error and reports whether the request failed. */
+async function reportFailure(res: Response, what: string): Promise<boolean> {
+  if (res.ok) return false;
+  const body = await res.json().catch(() => ({}));
+  alert(`Could not ${what}: ${body.error || res.statusText}`);
+  return true;
+}
 
 function ConfirmModal({ message, onConfirm, onCancel }: { message: string, onConfirm: () => void, onCancel: () => void }) {
   return (
@@ -59,7 +68,8 @@ function ReservationsTable({ animalId }: { animalId: string }) {
 
   async function handleCancel(sessionId: string) {
     if (!confirm('Cancel this reservation?')) return;
-    await fetch(`/api/admin/sessions/${sessionId}/cancel`, { method: 'POST' });
+    const res = await fetch(`/api/admin/sessions/${sessionId}/cancel`, { method: 'POST' });
+    if (await reportFailure(res, 'cancel the reservation')) return;
     // Re-fetch reservations after cancel
     const updated = await fetch(`/api/admin/slots?animal_id=${animalId}`);
     const data = await updated.json();
@@ -98,7 +108,7 @@ function ReservationsTable({ animalId }: { animalId: string }) {
               </td>
               <td className="px-4 py-2 capitalize text-gray-300">{r.status}</td>
               <td className="px-4 py-2">
-                {r.status !== 'cancelled' && (
+                {r.status !== 'cancelled' && r.status !== 'picked_up' && (
                   <button
                     onClick={() => handleCancel(r.id)}
                     className="text-red-400 hover:text-red-600 text-xs font-semibold"
@@ -132,7 +142,7 @@ export default function AnimalsPage() {
   const [confirmModal, setConfirmModal] = useState<{open: boolean, message: string, onConfirm: () => void}>({open: false, message: '', onConfirm: () => {}});
   const [errorMessage, setErrorMessage] = useState('');
   const [expandedReservations, setExpandedReservations] = useState<string | null>(null);
-  const [archiveId, setArchiveId] = useState<string | null>(null);
+  const [archiveId, setArchiveId] = useState<string[] | null>(null);
   const [archiving, setArchiving] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [needsAttention, setNeedsAttention] = useState<
@@ -257,13 +267,14 @@ export default function AnimalsPage() {
 
       for (const { type, count } of types) {
         const existing = editModal.animals.find(a => a.animal_type === type);
+        let res: Response | null = null;
         if (existing) {
           if (count === 0) {
             // Delete the record if zeroed out and no active sessions
-            await fetch(`/api/admin/animals/${existing.id}`, { method: 'DELETE' });
+            res = await fetch(`/api/admin/animals/${existing.id}`, { method: 'DELETE' });
           } else {
             // Update existing record
-            await fetch(`/api/admin/animals/${existing.id}`, {
+            res = await fetch(`/api/admin/animals/${existing.id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -275,7 +286,7 @@ export default function AnimalsPage() {
           }
         } else if (count > 0) {
           // Create new animal type record for this date
-          await fetch('/api/admin/animals', {
+          res = await fetch('/api/admin/animals', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -285,6 +296,11 @@ export default function AnimalsPage() {
               estimated_ready_date: editForm.estimated_ready_date,
             }),
           });
+        }
+        // A refused change (e.g. fewer animals than are already sold) used to vanish.
+        if (res && (await reportFailure(res, `update ${type.replace('_', ' ')}`))) {
+          loadAnimals();
+          return;
         }
       }
       setEditModal({ open: false, date: '', animals: [] });
@@ -318,8 +334,9 @@ export default function AnimalsPage() {
       message: deleteMessage,
       onConfirm: async () => {
         try {
-          await fetch(`/api/admin/animals/${animal.id}`, { method: 'DELETE' });
+          const res = await fetch(`/api/admin/animals/${animal.id}`, { method: 'DELETE' });
           setConfirmModal({ open: false, message: '', onConfirm: () => {} });
+          await reportFailure(res, 'delete it');
           loadAnimals();
         } catch (err) {
           console.error('Delete error:', err);
@@ -354,10 +371,12 @@ export default function AnimalsPage() {
       message: deleteMessage,
       onConfirm: async () => {
         try {
-          await Promise.all(dateAnimals.map(animal =>
+          const results = await Promise.all(dateAnimals.map(animal =>
             fetch(`/api/admin/animals/${animal.id}`, { method: 'DELETE' })
           ));
           setConfirmModal({ open: false, message: '', onConfirm: () => {} });
+          const refused = results.find((r) => !r.ok);
+          if (refused) await reportFailure(refused, 'delete all of this date');
           loadAnimals();
         } catch (err) {
           console.error('Delete date error:', err);
@@ -367,34 +386,40 @@ export default function AnimalsPage() {
     });
   };
 
-  async function handleArchive(animalId: string, force = false) {
+  /**
+   * Archives every animal on a butcher date. A date can hold several (a
+   * grass-fed and a grain-finished), and the button used to archive only the
+   * first — the other stayed active and the date never left the list.
+   */
+  async function handleArchive(animalIds: string[], force = false) {
     setArchiving(true);
     try {
-      const res = await fetch(`/api/admin/animals/${animalId}/archive`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ force }),
-      });
-      const result = await res.json().catch(() => ({}));
+      for (let i = 0; i < animalIds.length; i++) {
+        const res = await fetch(`/api/admin/animals/${animalIds[i]}/archive`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ force }),
+        });
+        const result = await res.json().catch(() => ({}));
 
-      if (res.status === 409 && result.can_force) {
-        const proceed = confirm(
-          `${result.error}\n\nArchive anyway? The date and its reservations will be hidden from the main view. You can bring it back with "Show Archived".`
-        );
-        if (proceed) {
-          await handleArchive(animalId, true);
+        if (res.status === 409 && result.can_force && !force) {
+          const proceed = confirm(
+            `${result.error}\n\nArchive anyway? The date and its reservations will be hidden from the main view. You can bring it back with "Show Archived".`
+          );
+          if (proceed) await handleArchive(animalIds.slice(i), true);
+          else loadAnimals();
           return;
         }
-        return;
-      }
 
-      if (!res.ok) {
-        alert(result.error || 'Could not archive this date.');
-        return;
+        if (!res.ok) {
+          alert(result.error || 'Could not archive this date.');
+          loadAnimals();
+          return;
+        }
       }
 
       setArchiveId(null);
-      setNeedsAttention((prev) => prev.filter((n) => n.id !== animalId));
+      setNeedsAttention((prev) => prev.filter((n) => !animalIds.includes(n.id)));
       loadAnimals();
     } catch (err) {
       alert(`Could not archive this date: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -475,7 +500,7 @@ export default function AnimalsPage() {
             {needsAttention.map((n) => (
               <div key={n.id} className="text-sm">
                 <p className="font-medium" style={{ color: 'var(--text)' }}>
-                  {n.name} — {new Date(n.butcher_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {n.name} — {formatDate(n.butcher_date)}
                 </p>
                 <ul className="mt-1 ml-4 list-disc" style={{ color: 'var(--text-secondary)' }}>
                   {n.open.map((o, i) => (
@@ -483,7 +508,7 @@ export default function AnimalsPage() {
                   ))}
                 </ul>
                 <button
-                  onClick={() => handleArchive(n.id)}
+                  onClick={() => handleArchive([n.id])}
                   className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
                   style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
                 >
@@ -614,7 +639,7 @@ export default function AnimalsPage() {
                     {expandedReservations === dateAnimals[0]?.id ? 'Hide' : 'View'} Reservations
                   </button>
                   <button
-                    onClick={() => setArchiveId(dateAnimals[0]?.id)}
+                    onClick={() => setArchiveId(dateAnimals.map((a) => a.id))}
                     className="flex-1 px-3 py-2 bg-orange-100 text-orange-700 rounded font-medium text-sm hover:bg-orange-200"
                   >
                     Archive Date

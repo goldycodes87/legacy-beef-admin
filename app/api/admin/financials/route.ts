@@ -6,24 +6,29 @@ export async function GET() {
   const supabase = getSupabaseAdmin();
 
   // Get all animals with costs
-  const { data: animals } = await supabase
+  const { data: animals, error: animalsError } = await supabase
     .from('animals')
     .select(`
-      id, name, butcher_date, animal_type, home_raised,
+      id, name, butcher_date, animal_type, home_raised, status, price_per_lb,
       animal_costs (id, type, description, amount, date)
     `)
     .order('butcher_date', { ascending: false });
 
   // Get all sessions with payments for revenue
-  const { data: sessions } = await supabase
+  const { data: sessions, error: sessionsError } = await supabase
     .from('sessions')
     .select(`
       id, animal_id, purchase_type, is_splitting, group_size,
-      hanging_weight_lbs, price_per_lb, balance_due, status,
+      hanging_weight_lbs, price_per_lb, discount_amount, balance_paid, status,
       customers (id, name, email),
       payments (amount_cents, surcharge_cents, type, status, method)
     `)
     .not('status', 'in', '(cancelled,draft)');
+
+  // A failed query used to come back as empty lists — a page of $0.00 that
+  // looked like real numbers.
+  const error = animalsError || sessionsError;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ animals: animals || [], sessions: sessions || [] });
 }

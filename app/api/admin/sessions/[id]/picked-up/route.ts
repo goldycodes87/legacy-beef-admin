@@ -6,9 +6,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const supabase = getSupabaseAdmin();
   const { id } = await params;
 
-  await supabase.from('sessions')
+  const { error } = await supabase.from('sessions')
     .update({ status: 'picked_up' })
     .eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ success: true });
 }

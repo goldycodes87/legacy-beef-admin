@@ -5,6 +5,8 @@ import AdminLayout from '@/components/AdminLayout';
 import { Panel, PanelSection } from '@/components/ui/Panel';
 import { Chip } from '@/components/ui/Chip';
 import { Table, THead, TBody, TR, TH, TD } from '@/components/ui/Table';
+import { summarizeReservation } from '@/lib/reservation';
+import { formatDate } from '@/lib/format';
 
 type CostType = 'purchase' | 'feed' | 'butcher' | 'other';
 
@@ -22,6 +24,8 @@ interface Animal {
   butcher_date?: string | null;
   animal_type?: string | null;
   home_raised?: boolean | null;
+  status?: string | null;
+  price_per_lb?: number | null;
   animal_costs?: AnimalCost[];
 }
 
@@ -47,7 +51,8 @@ interface Session {
   group_size?: number | null;
   hanging_weight_lbs?: number | null;
   price_per_lb?: number | null;
-  balance_due?: number | null;
+  discount_amount?: number | null;
+  balance_paid?: boolean | null;
   status: string;
   customers?: Customer[] | Customer | null;
   payments?: Payment[] | null;
@@ -97,6 +102,42 @@ function sumPaidPayments(payments: Payment[] | null | undefined) {
     .reduce((sum, p) => sum + Math.max(0, (p.amount_cents || 0) - (p.surcharge_cents || 0)), 0) / 100;
 }
 
+/**
+ * What a reservation is worth and still owes, from the same calculator every
+ * other tab uses. The page used to count cash only, so an animal with weighed,
+ * billed orders read as a loss until every balance came in.
+ */
+function orderMoney(session: Session) {
+  const { orderTotalCents, outstandingCents } = summarizeReservation(session);
+  const collected = sumPaidPayments(session.payments);
+  return {
+    collected,
+    owed: outstandingCents / 100,
+    // Before weighing there is no price yet, so what's been paid is the best figure.
+    projected: orderTotalCents > 0 ? orderTotalCents / 100 : collected,
+  };
+}
+
+/** Home-raised animals have no purchase cost — leave it out of the totals, as the list does. */
+function animalCostTotal(animal: Animal) {
+  return (animal.animal_costs || [])
+    .filter((c) => !animal.home_raised || c.type !== 'purchase')
+    .reduce((sum, c) => sum + Number(c.amount || 0), 0);
+}
+
+/** Today in the browser's own time zone — toISOString() is UTC, a day ahead every evening. */
+function localToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+async function failed(res: Response, what: string) {
+  if (res.ok) return false;
+  const body = await res.json().catch(() => ({}));
+  alert(`Could not ${what}: ${body.error || res.statusText}`);
+  return true;
+}
+
 function sumPaidByType(payments: Payment[] | null | undefined, type: string) {
   if (!payments) return 0;
   return payments
@@ -107,6 +148,7 @@ function sumPaidByType(payments: Payment[] | null | undefined, type: string) {
 export default function FinancialsPage() {
   const [data, setData] = useState<FinancialsResponse>({ animals: [], sessions: [] });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [costForms, setCostForms] = useState<Record<string, { type: CostType; description: string; amount: string; date: string }>>({});
   const [savingCostId, setSavingCostId] = useState<string | null>(null);
@@ -118,12 +160,18 @@ export default function FinancialsPage() {
     try {
       const res = await fetch('/api/admin/financials', { cache: 'no-store' });
       const json = await res.json();
+      if (!res.ok) {
+        setLoadError(json.error || 'The financials could not be loaded.');
+        return;
+      }
+      setLoadError(null);
       setData({
         animals: Array.isArray(json.animals) ? json.animals : [],
         sessions: Array.isArray(json.sessions) ? json.sessions : [],
       });
     } catch (err) {
       console.error('Failed to load financials', err);
+      setLoadError('The financials could not be loaded.');
     } finally {
       setLoading(false);
     }
@@ -147,7 +195,7 @@ export default function FinancialsPage() {
     if (!form || !form.type || !form.amount) return;
     setSavingCostId(animalId);
     try {
-      await fetch('/api/admin/financials/costs', {
+      const res = await fetch('/api/admin/financials/costs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -158,6 +206,7 @@ export default function FinancialsPage() {
           date: form.date || undefined,
         }),
       });
+      if (await failed(res, 'add the cost')) return;
       setCostForms((prev) => ({
         ...prev,
         [animalId]: {
@@ -175,10 +224,12 @@ export default function FinancialsPage() {
     }
   };
 
-  const handleDeleteCost = async (costId: string) => {
-    setDeletingCostId(costId);
+  const handleDeleteCost = async (cost: AnimalCost) => {
+    if (!confirm(`Delete this ${cost.type} cost of ${formatCurrency(Number(cost.amount || 0))}?`)) return;
+    setDeletingCostId(cost.id);
     try {
-      await fetch(`/api/admin/financials/costs/${costId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/financials/costs/${cost.id}`, { method: 'DELETE' });
+      if (await failed(res, 'delete the cost')) return;
       refreshData();
     } catch (err) {
       console.error('Failed to delete cost', err);
@@ -190,11 +241,12 @@ export default function FinancialsPage() {
   const handleHomeRaised = async (animalId: string, value: boolean) => {
     setTogglingHome(animalId);
     try {
-      await fetch(`/api/admin/animals/${animalId}/home-raised`, {
+      const res = await fetch(`/api/admin/animals/${animalId}/home-raised`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ home_raised: value }),
       });
+      if (await failed(res, 'update Home Raised')) return;
       refreshData();
     } catch (err) {
       console.error('Failed to update home raised', err);
@@ -203,7 +255,7 @@ export default function FinancialsPage() {
     }
   };
 
-  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const today = useMemo(() => localToday(), []);
 
   useEffect(() => {
     const formState: Record<string, { type: CostType; description: string; amount: string; date: string }> = {};
@@ -220,14 +272,27 @@ export default function FinancialsPage() {
 
   const totals = useMemo(() => {
     let totalRevenue = 0;
+    let totalOwed = 0;
+    let totalProjected = 0;
     let totalCosts = 0;
     data.animals.forEach((animal) => {
-      const animalCosts = (animal.animal_costs || []).reduce((sum, c) => sum + Number(c.amount || 0), 0);
-      totalCosts += animalCosts;
-      const sessions = data.sessions.filter((s) => s.animal_id === animal.id);
-      totalRevenue += sessions.reduce((sum, s) => sum + sumPaidPayments(s.payments), 0);
+      totalCosts += animalCostTotal(animal);
+      data.sessions
+        .filter((s) => s.animal_id === animal.id)
+        .forEach((s) => {
+          const m = orderMoney(s);
+          totalRevenue += m.collected;
+          totalOwed += m.owed;
+          totalProjected += m.projected;
+        });
     });
-    return { totalRevenue, totalCosts, net: totalRevenue - totalCosts };
+    return {
+      totalRevenue,
+      totalOwed,
+      totalCosts,
+      net: totalRevenue - totalCosts,
+      projectedNet: totalProjected - totalCosts,
+    };
   }, [data]);
 
   if (loading) {
@@ -238,15 +303,34 @@ export default function FinancialsPage() {
     );
   }
 
+  if (loadError) {
+    return (
+      <AdminLayout title="Financials">
+        <Panel padding="md" title="Couldn't load financials">
+          <p className="text-sm" style={{ color: 'var(--danger-fg)' }}>{loadError}</p>
+          <button onClick={refreshData} className="mt-3 text-sm font-semibold underline" style={{ color: 'var(--accent)' }}>
+            Try again
+          </button>
+        </Panel>
+      </AdminLayout>
+    );
+  }
+
   return (
     <AdminLayout title="Financials">
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Panel padding="md" title="Total Revenue" emphasis>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Panel padding="md" title="Collected" emphasis>
             <div className="text-2xl font-semibold" style={{ color: 'var(--success-fg)' }}>
               {formatCurrency(totals.totalRevenue)}
             </div>
-            <p className="type-helper mt-1">All paid payments</p>
+            <p className="type-helper mt-1">Money received, card fees excluded</p>
+          </Panel>
+          <Panel padding="md" title="Still Owed" emphasis>
+            <div className="text-2xl font-semibold" style={{ color: 'var(--gold-fg)' }}>
+              {formatCurrency(totals.totalOwed)}
+            </div>
+            <p className="type-helper mt-1">Balances on weighed orders</p>
           </Panel>
           <Panel padding="md" title="Total Costs" emphasis>
             <div className="text-2xl font-semibold" style={{ color: 'var(--danger-fg)' }}>
@@ -261,17 +345,28 @@ export default function FinancialsPage() {
             >
               {formatCurrency(totals.net)}
             </div>
-            <p className="type-helper mt-1">Across all animals</p>
+            <p className="type-helper mt-1">
+              Collected less costs · {formatCurrency(totals.projectedNet)} once balances are in
+            </p>
           </Panel>
         </div>
+
+        {data.animals.length === 0 && (
+          <Panel padding="md">
+            <p className="type-helper">No butcher dates yet — add one under Butcher Dates.</p>
+          </Panel>
+        )}
 
         <div className="space-y-4">
           {data.animals.map((animal) => {
             const animalSessions = data.sessions.filter((s) => s.animal_id === animal.id);
-            const totalCosts = (animal.animal_costs || []).reduce((sum, c) => sum + Number(c.amount || 0), 0);
+            const totalCosts = animalCostTotal(animal);
             const totalUnits = animalSessions.reduce((sum, session) => sum + getUnitCost(session.purchase_type), 0);
             const totalRevenue = animalSessions.reduce((sum, session) => sum + sumPaidPayments(session.payments), 0);
+            const projectedRevenue = animalSessions.reduce((sum, session) => sum + orderMoney(session).projected, 0);
             const net = totalRevenue - totalCosts;
+            const projectedNet = projectedRevenue - totalCosts;
+            const noCosts = (animal.animal_costs || []).length === 0;
             const costSharePerUnit = totalUnits > 0 ? totalCosts / totalUnits : 0;
             const pnlPerHalf = totalUnits > 0 ? net / (totalUnits * 2) : net;
             const isExpanded = expanded.has(animal.id);
@@ -296,24 +391,37 @@ export default function FinancialsPage() {
                           {animal.name || 'Unnamed'}
                         </h3>
                         {homeRaised && <Chip tone="gold" size="sm">Home Raised 🏠</Chip>}
+                        {animal.status === 'archived' && <Chip tone="neutral" size="sm">Archived</Chip>}
                       </div>
                       <div className="type-helper text-[color:var(--text-muted)] flex items-center gap-3 flex-wrap">
-                        <span className="capitalize">{animal.animal_type || 'Animal'}</span>
+                        <span className="capitalize">{(animal.animal_type || 'Animal').replace('_', ' ')}</span>
                         {animal.butcher_date && (
-                          <span>Butcher: {new Date(animal.butcher_date).toLocaleDateString()}</span>
+                          <span>Butcher: {formatDate(animal.butcher_date)}</span>
                         )}
                         <span>Units: {totalUnits || 0}</span>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Chip tone="success" icon="💵">{formatCurrency(totalRevenue)}</Chip>
-                      <Chip tone="danger" icon="🧾">{formatCurrency(totalCosts)}</Chip>
+                      <Chip tone="success" icon="💵" title="Collected">{formatCurrency(totalRevenue)}</Chip>
+                      {noCosts ? (
+                        <Chip tone="warning" icon="⚠️" title="Add this animal's purchase and processing costs below">
+                          No costs recorded
+                        </Chip>
+                      ) : (
+                        <Chip tone="danger" icon="🧾" title="Costs">{formatCurrency(totalCosts)}</Chip>
+                      )}
                       <Chip
                         tone={net >= 0 ? 'success' : 'danger'}
                         icon={net >= 0 ? '📈' : '📉'}
+                        title="Collected less costs"
                       >
                         {formatCurrency(net)}
                       </Chip>
+                      {Math.abs(projectedNet - net) >= 0.01 && (
+                        <Chip tone="info" title="Once every balance is paid">
+                          Projected {formatCurrency(projectedNet)}
+                        </Chip>
+                      )}
                       <Chip tone="neutral" icon="➗">
                         P&L / Half: {formatCurrency(pnlPerHalf)}
                       </Chip>
@@ -363,7 +471,7 @@ export default function FinancialsPage() {
                                   {cost.description || 'No description'}
                                 </span>
                                 <span className="text-[color:var(--text-muted)] text-sm">
-                                  {cost.date ? new Date(cost.date).toLocaleDateString() : ''}
+                                  {cost.date ? formatDate(cost.date) : ''}
                                 </span>
                               </div>
                               <div className="flex items-center gap-3">
@@ -371,7 +479,7 @@ export default function FinancialsPage() {
                                   {formatCurrency(Number(cost.amount || 0))}
                                 </span>
                                 <button
-                                  onClick={() => handleDeleteCost(cost.id)}
+                                  onClick={() => handleDeleteCost(cost)}
                                   className="text-[color:var(--danger-fg)] text-sm font-semibold hover:underline"
                                   disabled={deletingCostId === cost.id}
                                 >
@@ -472,6 +580,7 @@ export default function FinancialsPage() {
                             <TH align="right">Deposits Paid</TH>
                             <TH align="right">Balance Paid</TH>
                             <TH align="right">Total Paid</TH>
+                            <TH align="right">Still Owed</TH>
                             <TH align="right">Their Cost Share</TH>
                             <TH align="right">Their P&L</TH>
                           </TR>
@@ -484,7 +593,9 @@ export default function FinancialsPage() {
                             const balancePaid = sumPaidByType(session.payments, 'balance');
                             const totalPaid = depositPaid + balancePaid + sumPaidByType(session.payments, 'other');
                             const costShare = costSharePerUnit * unitCost;
-                            const pnl = totalPaid - costShare;
+                            const money = orderMoney(session);
+                            // Against what the order is worth, not just what has arrived so far.
+                            const pnl = money.projected - costShare;
                             const orderLabel = session.purchase_type === 'whole'
                               ? 'Whole Beef'
                               : session.purchase_type === 'half'
@@ -510,6 +621,11 @@ export default function FinancialsPage() {
                                 <TD align="right">{formatCurrency(depositPaid)}</TD>
                                 <TD align="right">{formatCurrency(balancePaid)}</TD>
                                 <TD align="right" className="font-semibold">{formatCurrency(totalPaid)}</TD>
+                                <TD align="right">
+                                  {money.owed > 0 ? (
+                                    <span style={{ color: 'var(--gold-fg)' }}>{formatCurrency(money.owed)}</span>
+                                  ) : '—'}
+                                </TD>
                                 <TD align="right">{formatCurrency(costShare)}</TD>
                                 <TD align="right">
                                   <span style={{ color: pnl >= 0 ? 'var(--success-fg)' : 'var(--danger-fg)' }}>
@@ -530,12 +646,15 @@ export default function FinancialsPage() {
                             <TD align="right" className="font-semibold">
                               {formatCurrency(totalRevenue)}
                             </TD>
+                            <TD align="right" className="font-semibold" style={{ color: 'var(--gold-fg)' }}>
+                              {formatCurrency(projectedRevenue - totalRevenue)}
+                            </TD>
                             <TD align="right" className="font-semibold text-[color:var(--danger-fg)]">
                               {formatCurrency(totalCosts)}
                             </TD>
                             <TD align="right" className="font-semibold">
-                              <span style={{ color: net >= 0 ? 'var(--success-fg)' : 'var(--danger-fg)' }}>
-                                {formatCurrency(net)}
+                              <span style={{ color: projectedNet >= 0 ? 'var(--success-fg)' : 'var(--danger-fg)' }}>
+                                {formatCurrency(projectedNet)}
                               </span>
                             </TD>
                           </TR>

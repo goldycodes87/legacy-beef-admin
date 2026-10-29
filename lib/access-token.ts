@@ -17,8 +17,15 @@ export async function createAccessToken(sessionId: string, expiresAt: Date): Pro
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** 60 days after butcher day — long enough to cover aging, cutting and pickup. */
+export function linkLifetime(butcherDate: string | null | undefined): Date {
+  const base = butcherDate ? new Date(`${butcherDate}T00:00:00`) : new Date();
+  return new Date(base.getTime() + 60 * DAY_MS);
+}
+
 /**
- * A link that will still open for at least `minDays` from now.
+ * A link that will still open for at least `minDays` from now (and at least
+ * until `until`, when given).
  *
  * Tokens were minted to expire 60 days after the butcher date, and later emails
  * reused them as-is — so a "beef is ready" link sent after that point landed on
@@ -28,9 +35,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export async function ensureAccessToken(
   sessionId: string,
   current: { access_token?: string | null; access_token_expires_at?: string | null },
-  minDays = 60
+  minDays = 60,
+  until?: Date
 ): Promise<string> {
-  const validUntil = new Date(Date.now() + minDays * DAY_MS);
+  const floor = Date.now() + minDays * DAY_MS;
+  const validUntil = new Date(Math.max(floor, until?.getTime() ?? 0));
   if (!current.access_token) return createAccessToken(sessionId, validUntil);
 
   const expires = current.access_token_expires_at ? new Date(current.access_token_expires_at) : null;

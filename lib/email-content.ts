@@ -489,6 +489,8 @@ export interface BeefReadyParams {
   pricePerLb: number;
   totalCost: number;
   depositPaid: number;
+  /** Shown as its own line so Total − Deposit − Discount = Balance. */
+  discountAmount?: number;
   balanceDue: number;
   pickupUrl: string;
 }
@@ -508,6 +510,7 @@ export const beefReady: EmailTemplate<BeefReadyParams> = {
       { label: 'Price Per Lb', value: `${money(p.pricePerLb)}/lb` },
       { label: 'Total Cost', value: money(p.totalCost) },
       { label: 'Deposit Paid', value: `-${money(p.depositPaid)}` },
+      ...(p.discountAmount ? [{ label: 'Discount', value: `-${money(p.discountAmount)}` }] : []),
       { label: 'Balance Due', value: p.balanceDue > 0 ? money(p.balanceDue) : 'Paid in Full ✓' },
     ])}
     ${whatToBring(p.balanceDue)}

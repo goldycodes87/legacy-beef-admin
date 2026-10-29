@@ -33,7 +33,9 @@ export async function GET(request: NextRequest) {
         deposit_amount,
         customers (name, email, phone),
         animals (id, name, animal_type, butcher_date, price_per_lb),
-        payments (id, type, status, amount_cents, surcharge_cents, paid_at, method, check_number)
+        animal_id,
+        payments (id, type, status, amount_cents, surcharge_cents, paid_at, method, check_number),
+        pickup_appointments (id, pickup_window_id, confirmed_at)
       `)
       .neq('status', 'cancelled')
       .order('created_at', { ascending: false });
@@ -82,20 +84,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(flat);
     }
 
-    // Group by animal
+    // Group by animal. Keyed by id: two butcher dates in the same month share a
+    // name ("October 2026 — Grass-Fed") and used to merge into one group.
     const grouped = (sessions || []).reduce((acc: any, session: any) => {
-      const animalName = session.animals?.name || 'Unknown';
-      if (!acc[animalName]) {
-        acc[animalName] = {
+      const key = session.animals?.id || 'unknown';
+      if (!acc[key]) {
+        acc[key] = {
           animal: session.animals,
           sessions: [],
         };
       }
       // Same summary the Payments tab uses, so both screens agree.
       const money = summarizeReservation(session);
+      const appointments = session.pickup_appointments || [];
 
-      acc[animalName].sessions.push({
+      acc[key].sessions.push({
         id: session.id,
+        animal_id: session.animal_id,
+        pickup_appointment: appointments[0] || null,
         customer_name: session.customers?.name || 'Unknown',
         purchase_type: session.purchase_type,
         status: session.status,
@@ -116,6 +122,9 @@ export async function GET(request: NextRequest) {
             )) * 100
         ),
         deposit_taken_cents: money.depositCents,
+        deposit_net_cents: money.depositNetCents,
+        balance_paid_cents: money.balancePaidCents,
+        balance_method: money.balanceMethod,
         order_total_cents: money.orderTotalCents,
         banked_cents: money.bankedCents,
         outstanding_cents: money.outstandingCents,

@@ -24,7 +24,9 @@ export interface SettleResult {
  */
 export async function settlePastButcherDates(): Promise<SettleResult> {
   const supabase = getSupabaseAdmin();
-  const today = new Date().toISOString().slice(0, 10);
+  // Today at the ranch. UTC rolls over at 6 PM in Colorado, which made today's
+  // butcher date count as past every evening.
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver' }).format(new Date());
 
   const { data: animals, error } = await supabase
     .from('animals')

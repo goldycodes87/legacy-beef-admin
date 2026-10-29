@@ -15,7 +15,7 @@ export async function POST(
     const { data: session } = await supabase
       .from('sessions')
       .select(`
-        id, purchase_type, access_token, price_per_lb,
+        id, purchase_type, access_token, access_token_expires_at, price_per_lb,
         customers (id, name, email),
         animals (name, butcher_date, estimated_ready_date, price_per_lb)
       `)
@@ -37,16 +37,9 @@ export async function POST(
       return NextResponse.json({ error: 'Missing customer or animal' }, { status: 400 });
     }
 
-    // Mint a token if the session doesn't have one yet (same as mark-ready
-    // and confirm-deposit), instead of refusing to send the invite.
-    let accessToken = (session as any).access_token as string | null;
-    if (!accessToken) {
-      const { createAccessToken } = await import('@/lib/access-token');
-      const expires = animal.butcher_date
-        ? new Date(new Date(animal.butcher_date).getTime() + 60 * 24 * 60 * 60 * 1000)
-        : new Date(Date.now() + 150 * 24 * 60 * 60 * 1000);
-      accessToken = await createAccessToken(id, expires);
-    }
+    // Same link the customer already has, kept open long enough to use.
+    const { ensureAccessToken, linkLifetime } = await import('@/lib/access-token');
+    const accessToken = await ensureAccessToken(id, session as any, 60, linkLifetime(animal.butcher_date));
 
     try {
       const { Resend } = await import('resend');
@@ -76,12 +69,17 @@ export async function POST(
         cutSheetUrl,
       });
 
-      await resend.emails.send({
+      // Resend reports failures in the result rather than throwing.
+      const { error: sendError } = await resend.emails.send({
         from: 'Legacy Land & Cattle <orders@legacylandandcattleco.com>',
         to: customer.email,
         subject,
         html,
       });
+      if (sendError) {
+        console.error('Cut sheet email rejected:', sendError);
+        return NextResponse.json({ error: `Email not sent: ${sendError.message}` }, { status: 502 });
+      }
 
       return NextResponse.json({ success: true });
     } catch (emailErr) {

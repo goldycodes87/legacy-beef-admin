@@ -9,6 +9,7 @@ export async function PATCH(
   const supabase = getSupabaseAdmin();
   const { id } = await params;
   const { home_raised } = await request.json();
-  await supabase.from('animals').update({ home_raised }).eq('id', id);
+  const { error } = await supabase.from('animals').update({ home_raised: !!home_raised }).eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

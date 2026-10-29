@@ -31,6 +31,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     );
   }
 
+  // Once the balance is settled the weight is part of a closed bill. Changing it
+  // would email the customer a fresh "balance due" for money already paid.
+  const { data: current } = await supabase
+    .from('sessions')
+    .select('status, balance_paid')
+    .eq('id', id)
+    .single();
+  if (!current) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+  if (current.balance_paid || current.status === 'picked_up' || current.status === 'cancelled') {
+    return NextResponse.json(
+      { error: 'This order is already settled — its hanging weight can no longer be changed.' },
+      { status: 409 }
+    );
+  }
+
   const { error } = await supabase.from('sessions')
     .update({ hanging_weight_lbs: weight })
     .eq('id', id);

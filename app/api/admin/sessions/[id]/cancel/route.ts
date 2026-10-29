@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { unitCostFor } from '@/lib/inventory';
+import { holdsCapacity, unitCostFor } from '@/lib/inventory';
 
 export async function POST(
   request: NextRequest,
@@ -14,7 +14,7 @@ export async function POST(
 
     const { data: session } = await supabase
       .from('sessions')
-      .select('id, status, purchase_type, animal_id')
+      .select('id, status, purchase_type, animal_id, group_role')
       .eq('id', id)
       .single();
 
@@ -22,6 +22,11 @@ export async function POST(
 
     if (session.status === 'cancelled') {
       return NextResponse.json({ error: 'This reservation is already cancelled.' }, { status: 409 });
+    }
+    // The beef is gone. Cancelling would hand its share back to a date that
+    // has already been cut, where the portal could sell it again.
+    if (session.status === 'picked_up') {
+      return NextResponse.json({ error: 'This order was already picked up and cannot be cancelled.' }, { status: 409 });
     }
 
     // Mark cancelled first. If releasing capacity then fails we have a spot
@@ -39,8 +44,7 @@ export async function POST(
       );
     }
 
-    // Drafts never claimed capacity, so there is nothing to give back.
-    if (session.status !== 'draft') {
+    if (holdsCapacity(session)) {
       const { error: releaseError } = await supabase.rpc('adjust_animal_units', {
         p_animal_id: session.animal_id,
         p_delta: -unitCostFor(session.purchase_type),

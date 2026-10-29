@@ -100,16 +100,31 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     pricePerLb,
     totalCost: (hangingWeight || 0) * pricePerLb,
     depositPaid,
+    discountAmount: Number((session as any).discount_amount) || 0,
     balanceDue: balanceToStore,
     pickupUrl: `${APP_URL}/api/token/${accessToken}`,
   });
 
-  await resend.emails.send({
-    from: 'Legacy Land & Cattle <orders@legacylandandcattleco.com>',
-    to: customer.email,
-    subject,
-    html: htmlBody,
-  }).catch((err: any) => console.error('Resend error:', err));
+  // Resend reports a rejected email in the result, not by throwing — check both,
+  // so a failed pickup email is never reported as sent.
+  const sendError = await resend.emails
+    .send({
+      from: 'Legacy Land & Cattle <orders@legacylandandcattleco.com>',
+      to: customer.email,
+      subject,
+      html: htmlBody,
+    })
+    .then((r: any) => r?.error ?? null)
+    .catch((err: any) => err);
 
-  return NextResponse.json({ success: true });
+  if (sendError) {
+    console.error('Beef ready email failed:', sendError);
+    return NextResponse.json({
+      success: true,
+      email_sent: false,
+      warning: `Marked ready, but the pickup email to ${customer.email} did not send: ${sendError.message || 'unknown error'}. Send them the link another way.`,
+    });
+  }
+
+  return NextResponse.json({ success: true, email_sent: true });
 }

@@ -11,3 +11,16 @@ export function unitCostFor(purchaseType: string | null | undefined): number {
   if (purchaseType === 'half') return 0.5;
   return 0.25;
 }
+
+/**
+ * Whether a reservation is holding a share of its animal.
+ *
+ * The portal claims capacity the moment a buyer books — while the reservation
+ * is still a draft — and the overnight cleanup releases it from abandoned
+ * drafts. A split partner joining an order never claims; the buyer's booking
+ * already covers them. Cancel and move used to assume drafts held nothing, so
+ * cancelling an unpaid booking stranded its share for good.
+ */
+export function holdsCapacity(session: { status?: string | null; group_role?: string | null }): boolean {
+  return session.status !== 'cancelled' && session.group_role !== 'partner';
+}

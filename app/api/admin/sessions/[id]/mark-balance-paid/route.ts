@@ -50,16 +50,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       ? (session as any).animals[0]
       : (session as any).animals;
 
-    // Trust the stored balance when it exists, else recompute it.
-    const stored = Number((session as any).balance_due);
-    const amountDue = Number.isFinite(stored) && stored > 0
-      ? stored
-      : computeBalance({
-          hangingWeightLbs: (session as any).hanging_weight_lbs,
-          pricePerLb: (session as any).price_per_lb ?? animal?.price_per_lb,
-          payments: (session as any).payments,
-          discountAmount: (session as any).discount_amount,
-        }).balanceDue;
+    // Always from the weight, price, discount and payments. The stored
+    // balance_due goes stale (a discount or a re-entered weight does not always
+    // rewrite it), and this figure is written down as money received.
+    const amountDue = computeBalance({
+      hangingWeightLbs: (session as any).hanging_weight_lbs,
+      pricePerLb: (session as any).price_per_lb ?? animal?.price_per_lb,
+      payments: (session as any).payments,
+      discountAmount: (session as any).discount_amount,
+    }).balanceDue;
+
+    if (amountDue <= 0) {
+      return NextResponse.json(
+        { error: (session as any).hanging_weight_lbs ? 'Nothing is owed on this order.' : 'Enter the hanging weight first.' },
+        { status: 409 }
+      );
+    }
 
     const { error: paymentError } = await supabase.from('payments').insert({
       session_id: id,

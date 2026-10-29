@@ -7,7 +7,16 @@ import { ReservationCard } from '@/components/ReservationCard';
 import { ActionSheet, SheetAction } from '@/components/ActionSheet';
 import { getStage, getStageMeta, getStageDetail } from '@/lib/reservation-status';
 import { Chip } from '@/components/ui/Chip';
-import { formatMonth, purchaseTypeLabel, formatCents, paymentMethodLabel } from '@/lib/format';
+import { formatDate, formatMonth, purchaseTypeLabel, formatCents, paymentMethodLabel } from '@/lib/format';
+import { unitCostFor } from '@/lib/inventory';
+
+/** Shows the server's error and reports whether the request failed. */
+async function reportFailure(res: Response, what: string): Promise<boolean> {
+  if (res.ok) return false;
+  const body = await res.json().catch(() => ({}));
+  alert(`Could not ${what}: ${body.error || res.statusText}`);
+  return true;
+}
 
 function ConfirmModal({ message, onConfirm, onCancel }: { message: string, onConfirm: () => void, onCancel: () => void }) {
   return (
@@ -19,7 +28,7 @@ function ConfirmModal({ message, onConfirm, onCancel }: { message: string, onCon
         <p className="text-white font-semibold mb-6 text-center">{message}</p>
         <div className="flex gap-3">
           <button onClick={onConfirm} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-semibold">
-            Yes, Delete
+            Yes, Continue
           </button>
           <button
             onClick={onCancel}
@@ -50,6 +59,9 @@ interface Reservation {
   balance_paid?: boolean;
   balance_due?: number;
   deposit_taken_cents?: number | null;
+  deposit_net_cents?: number | null;
+  balance_paid_cents?: number;
+  balance_method?: string | null;
   order_total_cents?: number;
   banked_cents?: number;
   outstanding_cents?: number;
@@ -91,11 +103,12 @@ export default function SlotsPage() {
   const [sheetWeight, setSheetWeight] = useState('');
 
   const handleSaveAdminNotes = async (sessionId: string, notes: string) => {
-    await fetch(`/api/admin/sessions/${sessionId}/notes`, {
+    const res = await fetch(`/api/admin/sessions/${sessionId}/notes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ admin_notes: notes }),
     });
+    await reportFailure(res, 'save the note');
   };
 
   const handleMarkBalancePaid = async (
@@ -145,20 +158,32 @@ export default function SlotsPage() {
 
   const handleMoveOpen = async (session: Reservation) => {
     const res = await fetch('/api/admin/animals');
+    if (await reportFailure(res, 'load butcher dates')) return;
     const animals = await res.json();
-    // Filter to same purchase type availability
-    setAvailableAnimals(animals.filter((a: any) => a.id !== session.animal_id && (a.total_animals - a.units_used) > 0));
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver' }).format(new Date());
+    const needs = unitCostFor(session.purchase_type);
+    // Open, upcoming dates with room for this size. It used to offer any date
+    // with any room left — a whole on a date with a quarter left, archived and
+    // past dates, even the date it was already on.
+    setAvailableAnimals(animals.filter((a: any) =>
+      a.id !== session.animal_id &&
+      a.status === 'available' &&
+      a.butcher_date >= today &&
+      (Number(a.total_animals) || 0) - (Number(a.units_used) || 0) >= needs
+    ));
+    setSelectedAnimalId('');
     setMoveModal({ open: true, session });
   };
 
   const handleMove = async () => {
     if (!moveModal.session || !selectedAnimalId) return;
     try {
-      await fetch(`/api/admin/sessions/${moveModal.session.id}/move`, {
+      const res = await fetch(`/api/admin/sessions/${moveModal.session.id}/move`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ new_animal_id: selectedAnimalId }),
       });
+      if (await reportFailure(res, 'move the reservation')) return;
       setMoveModal({ open: false, session: null });
       loadSlots();
     } catch (err) {
@@ -173,8 +198,9 @@ export default function SlotsPage() {
       message: cancelMessage,
       onConfirm: async () => {
         try {
-          await fetch(`/api/admin/sessions/${session.id}/cancel`, { method: 'POST' });
+          const res = await fetch(`/api/admin/sessions/${session.id}/cancel`, { method: 'POST' });
           setConfirmModal({ open: false, message: '', onConfirm: () => {} });
+          await reportFailure(res, 'cancel the reservation');
           loadSlots();
         } catch (err) {
           console.error('Cancel error:', err);
@@ -202,12 +228,10 @@ export default function SlotsPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     });
-    if (res.ok) {
-      loadSlots();
-    } else {
-      const error = await res.json().catch(() => ({}));
-      alert(`Error marking ready: ${error.error || 'Unknown error'}`);
-    }
+    if (await reportFailure(res, 'mark it ready')) return;
+    const body = await res.json().catch(() => ({}));
+    if (body.warning) alert(body.warning);
+    loadSlots();
   };
 
   const handleSaveHangingWeight = async (sessionId: string) => {
@@ -295,7 +319,7 @@ export default function SlotsPage() {
             {Object.entries(getFilteredSlots()).map(([animalName, group]) => (
             <div key={animalName}>
               <h3 className="font-display font-bold text-lg text-white mb-4">
-                {group.animal?.name ?? "Unknown"} • Butcher {group.animal?.butcher_date ? new Date(group.animal.butcher_date).toLocaleDateString() : "TBD"}
+                {group.animal?.name ?? "Unknown"} • Butcher {formatDate(group.animal?.butcher_date, 'TBD')}
               </h3>
 
               {group.sessions.length === 0 ? (
@@ -352,12 +376,15 @@ export default function SlotsPage() {
                             <div className="flex flex-col gap-1">
                               {session.deposit_paid ? (
                                 <div className="flex flex-col">
-                                  <span className="text-green-600 font-semibold text-xs">
-                                    ✓ {formatCents(session.banked_cents ?? 0)}
-                                    {session.payment_method ? ` · ${paymentMethodLabel(session.payment_method)}` : ''}
-                                  </span>
-                                  {session.deposit_taken_cents == null && (
-                                    <span className="text-gray-500 text-xs">paid without a deposit</span>
+                                  {/* The deposit alone. This used to show every dollar received,
+                                      so a paid balance landed here under the deposit's method. */}
+                                  {session.deposit_net_cents != null ? (
+                                    <span className="text-green-600 font-semibold text-xs">
+                                      ✓ {formatCents(session.deposit_net_cents)}
+                                      {session.payment_method ? ` · ${paymentMethodLabel(session.payment_method)}` : ''}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-500 text-xs">No separate deposit</span>
                                   )}
                                   {session.payment_method === 'check' && session.check_number && (
                                     <span className="text-gray-500 text-xs">
@@ -401,7 +428,14 @@ export default function SlotsPage() {
                                 )}
                               </span>
                             ) : (
-                              <span className="text-green-600 font-semibold">✓ Paid</span>
+                              <span className="text-green-600 font-semibold">
+                                ✓ {session.balance_paid_cents ? `${formatCents(session.balance_paid_cents)} ` : ''}Paid
+                                {session.balance_method && (
+                                  <span className="block text-xs font-normal text-brand-gray">
+                                    {paymentMethodLabel(session.balance_method)}
+                                  </span>
+                                )}
+                              </span>
                             )}
                           </td>
                           <td className="px-6 py-4">
@@ -498,7 +532,7 @@ export default function SlotsPage() {
                         </tr>
                         {expandedSession === session.id && (
                           <tr key={session.id + '-expand'}>
-                            <td colSpan={7} className="px-6 py-4 border-b text-white" style={{background:"var(--surface-2)",borderColor:"var(--border)"}}>
+                            <td colSpan={8} className="px-6 py-4 border-b text-white" style={{background:"var(--surface-2)",borderColor:"var(--border)"}}>
                               <div className="flex items-center gap-4">
                                 <p className="text-sm font-semibold text-white">Hanging Weight (lbs):</p>
                                 <input
@@ -599,9 +633,17 @@ export default function SlotsPage() {
                                       if (!form?.value) return;
                                       let discountAmount = parseFloat(form.value);
                                       if (form.type === 'percent') {
-                                        discountAmount = (session.balance_due || 0) * (discountAmount / 100);
+                                        // A percent of the order itself. It was taken of the remaining
+                                        // balance — after the deposit and any earlier discount — so 10%
+                                        // twice shrank, and before weighing it silently saved $0.
+                                        const orderTotal = (session.order_total_cents ?? 0) / 100;
+                                        if (orderTotal <= 0) {
+                                          alert('Enter the hanging weight first — a percent discount needs an order total.');
+                                          return;
+                                        }
+                                        discountAmount = Math.round(orderTotal * discountAmount) / 100;
                                       }
-                                      await fetch(`/api/admin/sessions/${session.id}/discount`, {
+                                      const res = await fetch(`/api/admin/sessions/${session.id}/discount`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({
@@ -609,6 +651,7 @@ export default function SlotsPage() {
                                           discount_note: form.note || null,
                                         }),
                                       });
+                                      if (await reportFailure(res, 'apply the discount')) return;
                                       loadSlots();
                                     }}
                                     className="px-4 py-2 bg-brand-orange text-white text-sm rounded-lg font-semibold hover:bg-brand-orange-hover"
@@ -616,9 +659,10 @@ export default function SlotsPage() {
                                     Apply Discount
                                   </button>
                                 </div>
-                                {(session as any).discount_amount > 0 && (
+                                {Number((session as any).discount_amount) > 0 && (
                                   <div className="mt-2 text-sm text-green-700 font-semibold">
-                                    ✓ Discount applied: -${(session as any).discount_amount?.toFixed(2)}
+                                    {/* Postgres numerics arrive as strings — .toFixed on one crashed the page. */}
+                                    ✓ Discount applied: -${Number((session as any).discount_amount).toFixed(2)}
                                     {(session as any).discount_note && 
                                       <span className="text-gray-500 font-normal ml-2">
                                         "{(session as any).discount_note}"
@@ -631,10 +675,11 @@ export default function SlotsPage() {
                                 <button
                                   onClick={async (e) => {
                                     e.stopPropagation();
-                                    await fetch(`/api/admin/sessions/${session.id}/send-cut-sheet-email`, {
+                                    const res = await fetch(`/api/admin/sessions/${session.id}/send-cut-sheet-email`, {
                                       method: 'POST',
                                       headers: { 'Content-Type': 'application/json' },
                                     });
+                                    if (await reportFailure(res, 'send the cut sheet email')) return;
                                     alert('Cut sheet email sent to ' + session.customer_name);
                                     loadSlots();
                                   }}
