@@ -126,7 +126,7 @@ export async function POST(
     if (type === 'balance' && totalCost > 0 && amountCents < owedCents) {
       return NextResponse.json(
         {
-          error: `Record the full $${(owedCents / 100).toFixed(2)} balance — partial balance payments can't be recorded yet.`,
+          error: `The balance is paid in one payment — record the full $${(owedCents / 100).toFixed(2)}.`,
         },
         { status: 400 }
       );
