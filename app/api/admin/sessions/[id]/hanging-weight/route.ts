@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { build, hangingWeight as hangingWeightEmail } from '@/lib/email-content';
 import { sendPushNotification } from '@/lib/push';
 import { computeBalance } from '@/lib/money';
+import { ensureAccessToken } from '@/lib/access-token';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.legacylandandcattleco.com';
 
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { data: session } = await supabase
     .from('sessions')
     .select(`
-      id, purchase_type, is_splitting, access_token, price_per_lb, discount_amount, discount_note,
+      id, purchase_type, is_splitting, access_token, access_token_expires_at, price_per_lb, discount_amount, discount_note,
       customers (id, name, email),
       animals (name, butcher_date),
       payments (amount_cents, surcharge_cents, type, status)
@@ -83,12 +84,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             ? 'Half Beef'
             : 'Quarter Beef';
 
-      const accessToken = (session as any).access_token;
       // /api/token/<token> is the only route that consumes an access token: it
       // verifies it, sets the access cookie, and forwards to the right page.
-      const payLink = accessToken
-        ? `${APP_URL}/api/token/${accessToken}`
-        : `${APP_URL}`;
+      const accessToken = await ensureAccessToken(id, session as any);
+      const payLink = `${APP_URL}/api/token/${accessToken}`;
 
       const { subject, html } = build(hangingWeightEmail, {
         firstName,

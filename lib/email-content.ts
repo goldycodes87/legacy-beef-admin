@@ -20,7 +20,7 @@ export interface BuiltEmail {
 
 const PHONE = '(719) 258-1777';
 /** Given to customers only. Never on the public site. */
-const PICKUP_ADDRESS = '6105 Burgess Rd, Colorado Springs CO 80908';
+export const PICKUP_ADDRESS = '6105 Burgess Rd, Colorado Springs CO 80908';
 
 function hero(
   emoji: string,

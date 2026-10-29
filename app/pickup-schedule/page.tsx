@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import AdminLayout from '@/components/AdminLayout';
+import { formatTime } from '@/lib/format';
 
 interface Appointment {
   id: string;
@@ -41,8 +42,9 @@ export default function PickupSchedulePage() {
       ) : (
         Object.entries(grouped).map(([key, apts]) => {
           const apt = apts[0];
-          const dateStr = format(new Date(apt.pickup_windows.pickup_date), 'EEE, MMM d');
-          const timeStr = `${apt.pickup_windows.start_time} – ${apt.pickup_windows.end_time}`;
+          // A bare date parses as UTC midnight — the evening before in Colorado.
+          const dateStr = format(new Date(`${apt.pickup_windows.pickup_date}T00:00:00`), 'EEE, MMM d');
+          const timeStr = `${formatTime(apt.pickup_windows.start_time)} – ${formatTime(apt.pickup_windows.end_time)}`;
 
           return (
             <div key={key} className="mb-8">

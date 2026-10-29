@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { computeBalance } from '@/lib/money';
 import { build, beefReady } from '@/lib/email-content';
+import { ensureAccessToken } from '@/lib/access-token';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.legacylandandcattleco.com';
 
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { data: session, error: sessionError } = await supabase
     .from('sessions')
     .select(`
-      id, status, hanging_weight_lbs, price_per_lb, is_splitting, purchase_type, access_token,
+      id, status, hanging_weight_lbs, price_per_lb, is_splitting, purchase_type, access_token, access_token_expires_at,
       discount_amount, balance_due, balance_paid,
       customers(id, name, email),
       animals(id, name, butcher_date),
@@ -28,7 +29,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const customer = Array.isArray(session.customers) ? session.customers[0] : session.customers;
-  const animal = Array.isArray(session.animals) ? session.animals[0] : session.animals;
+
+  // The ready email states the final weight and balance, so it cannot go out
+  // before there is one — it used to send "TBD" and a $0.00 total.
+  if (!session.hanging_weight_lbs) {
+    return NextResponse.json(
+      { error: 'Enter the hanging weight first — the ready email shows the final balance.' },
+      { status: 400 }
+    );
+  }
+  if (['beef_ready', 'picked_up', 'cancelled'].includes(session.status)) {
+    return NextResponse.json(
+      { error: `This order is already ${session.status.replace('_', ' ')} — no email sent.` },
+      { status: 409 }
+    );
+  }
 
   // Recompute through the shared calculator so the discount is honoured and
   // the card surcharge is not credited against the beef. Previously this
@@ -44,21 +59,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // A settled balance stays settled.
   const balanceToStore = (session as any).balance_paid ? 0 : balanceDue;
 
-  await supabase
+  // Conditional on the status we just read, so two clicks (or the admin
+  // assistant retrying) can only flip it — and send the email — once.
+  const { data: flipped } = await supabase
     .from('sessions')
     .update({
       status: 'beef_ready',
       beef_ready_at: new Date().toISOString(),
       balance_due: balanceToStore,
     })
-    .eq('id', id);
+    .eq('id', id)
+    .eq('status', session.status)
+    .select('id');
 
-  // Generate fresh access token if needed
-  let accessToken = session.access_token;
-  if (!accessToken) {
-    const { createAccessToken } = await import('@/lib/access-token');
-    accessToken = await createAccessToken(id, new Date(animal.butcher_date));
+  if (!flipped?.length) {
+    return NextResponse.json({ error: 'This order was just updated — refresh and try again.' }, { status: 409 });
   }
+
+  // Customers schedule pickup from this link, often weeks after butcher day.
+  const accessToken = await ensureAccessToken(id, session);
 
   // Send email via Resend
   const { Resend } = await import('resend');

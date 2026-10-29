@@ -42,7 +42,7 @@ export async function DELETE(request: NextRequest) {
   const { count } = await supabase
     .from('pickup_appointments')
     .select('id', { count: 'exact' })
-    .eq('window_id', windowId);
+    .eq('pickup_window_id', windowId);
   
   if (count && count > 0) {
     return NextResponse.json({ error: 'Cannot delete window with appointments' }, { status: 400 });

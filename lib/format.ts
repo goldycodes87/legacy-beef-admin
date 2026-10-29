@@ -46,6 +46,16 @@ export function formatDateTime(value: string | Date | null | undefined, fallback
   });
 }
 
+/** "9AM", "1:30PM" — from a Postgres `time` like "13:30:00". */
+export function formatTime(value: string | null | undefined, fallback = '—'): string {
+  if (!value) return fallback;
+  const [h, m] = value.split(':').map(Number);
+  if (Number.isNaN(h)) return fallback;
+  const hour = h % 12 || 12;
+  const period = h >= 12 ? 'PM' : 'AM';
+  return m ? `${hour}:${String(m).padStart(2, '0')}${period}` : `${hour}${period}`;
+}
+
 /** "$1,284.50" from dollars. */
 export function formatCurrency(dollars: number | string | null | undefined, fallback = '—'): string {
   const n = typeof dollars === 'string' ? parseFloat(dollars) : dollars;

@@ -360,10 +360,10 @@ export async function listPickupWindows(): Promise<Json> {
     .order('start_time', { ascending: true });
   if (error) return { error: error.message };
 
-  const { data: appts } = await supabase.from('pickup_appointments').select('window_id');
+  const { data: appts } = await supabase.from('pickup_appointments').select('pickup_window_id');
   const counts: Record<string, number> = {};
   for (const a of appts || []) {
-    if (a.window_id) counts[a.window_id] = (counts[a.window_id] || 0) + 1;
+    if (a.pickup_window_id) counts[a.pickup_window_id] = (counts[a.pickup_window_id] || 0) + 1;
   }
   return {
     windows: (windows || []).map((w) => ({ ...w, appointments_booked: counts[w.id] || 0 })),
@@ -462,7 +462,7 @@ export async function updatePickupWindow(input: {
   const { count } = await getSupabaseAdmin()
     .from('pickup_appointments')
     .select('id', { count: 'exact', head: true })
-    .eq('window_id', found.window.id);
+    .eq('pickup_window_id', found.window.id);
 
   const { error } = await getSupabaseAdmin()
     .from('pickup_windows')
@@ -492,7 +492,7 @@ export async function deletePickupWindow(input: {
   const { count } = await getSupabaseAdmin()
     .from('pickup_appointments')
     .select('id', { count: 'exact', head: true })
-    .eq('window_id', found.window.id);
+    .eq('pickup_window_id', found.window.id);
   if (count && count > 0) {
     return {
       error: `Refused: ${count} appointment(s) are booked into that window. Move or cancel them first, or deactivate the window instead.`,
