@@ -16,6 +16,7 @@ interface DashboardData {
   pending_cut_sheets: number;
   awaiting_hanging_weight: number;
   balance_due: number;
+  needs_ready: number;
   ready_for_pickup: number;
   picked_up: number;
   unrecorded_settlements: number;
@@ -49,6 +50,7 @@ export default function DashboardPage() {
     { key: 'pending_cut_sheets', label: 'Cut sheets open', count: data?.pending_cut_sheets ?? 0, href: '/cut-sheets' },
     { key: 'awaiting_hanging_weight', label: 'Needs hanging weight', count: data?.awaiting_hanging_weight ?? 0, href: '/slots' },
     { key: 'balance_due', label: 'Balance due', count: data?.balance_due ?? 0, href: '/payments' },
+    { key: 'needs_ready', label: 'Paid — needs marking ready', count: data?.needs_ready ?? 0, href: '/slots' },
     { key: 'ready_for_pickup', label: 'Ready for pickup', count: data?.ready_for_pickup ?? 0, href: '/slots' },
   ].filter((a) => a.count > 0);
 

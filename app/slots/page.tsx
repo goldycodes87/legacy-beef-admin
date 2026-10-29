@@ -5,7 +5,8 @@ import { PaymentForm, CreditCard } from 'react-square-web-payments-sdk';
 import AdminLayout from '@/components/AdminLayout';
 import { ReservationCard } from '@/components/ReservationCard';
 import { ActionSheet, SheetAction } from '@/components/ActionSheet';
-import { getStage, getStageMeta } from '@/lib/reservation-status';
+import { getStage, getStageMeta, getStageDetail } from '@/lib/reservation-status';
+import { Chip } from '@/components/ui/Chip';
 import { formatMonth, purchaseTypeLabel, formatCents, paymentMethodLabel } from '@/lib/format';
 
 function ConfirmModal({ message, onConfirm, onCancel }: { message: string, onConfirm: () => void, onCancel: () => void }) {
@@ -196,6 +197,19 @@ export default function SlotsPage() {
     }
   };
 
+  const handleMarkReady = async (sessionId: string) => {
+    const res = await fetch(`/api/admin/sessions/${sessionId}/mark-ready`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (res.ok) {
+      loadSlots();
+    } else {
+      const error = await res.json().catch(() => ({}));
+      alert(`Error marking ready: ${error.error || 'Unknown error'}`);
+    }
+  };
+
   const handleSaveHangingWeight = async (sessionId: string) => {
     const weight = parseFloat(hangingWeights[sessionId]);
     if (!Number.isFinite(weight) || weight < 50 || weight > 1200) {
@@ -226,14 +240,6 @@ export default function SlotsPage() {
     } finally {
       setSavingWeight(null);
     }
-  };
-
-  const statusColors: Record<string, string> = {
-    draft: 'bg-yellow-100 text-yellow-800',
-    deposit_paid: 'bg-green-100 text-green-800',
-    locked: 'bg-blue-100 text-blue-800',
-    processing: 'bg-amber-100 text-amber-800',
-    beef_ready: 'bg-green-100 text-green-800',
   };
 
   const getFilteredSlots = () => {
@@ -383,29 +389,31 @@ export default function SlotsPage() {
                             )}
                           </td>
                           <td className="px-6 py-4 text-sm">
-                            {(session.balance_due ?? 0) > 0 ? (
-                              session.balance_paid ? (
-                                <span className="text-green-600 font-semibold">✓ Paid</span>
-                              ) : (
-                                <span className="text-amber-600 font-semibold">
-                                  ${(session.balance_due ?? 0).toFixed(2)} due
-                                </span>
-                              )
-                            ) : (
+                            {/* "TBD" only means no weight yet. A settled balance is
+                                stored as $0 due, which used to read as TBD too. */}
+                            {!session.order_total_cents ? (
                               <span className="text-brand-gray text-xs">TBD</span>
+                            ) : (session.outstanding_cents ?? 0) > 0 ? (
+                              <span className="text-amber-600 font-semibold">
+                                ${(session.balance_due ?? 0).toFixed(2)} due
+                                {session.balance_payment_method === 'cash' && (
+                                  <span className="block text-xs font-normal text-brand-gray">cash/check at pickup</span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-green-600 font-semibold">✓ Paid</span>
                             )}
                           </td>
                           <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[session.status] || 'bg-gray-100'}`}>
-                                {session.status === 'draft' ? 'Awaiting Payment' : session.status === 'deposit_paid' ? 'Confirmed' : session.status === 'locked' ? 'Cut Sheet Locked' : session.status === 'beef_ready' ? 'Beef Ready' : session.status === 'picked_up' ? 'Picked Up' : session.status.charAt(0).toUpperCase() + session.status.slice(1)}
-                              </span>
-                              {session.status === 'deposit_paid' && session.payment_method === 'cash_check' && (
-                                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
-                                  Cash/Check Due
-                                </span>
-                              )}
-                            </div>
+                            {(() => {
+                              // Where the order actually stands, not its last saved status —
+                              // "locked" stays put through weighing and billing.
+                              const meta = getStageMeta(session);
+                              const label = meta.stage === 'balance_due' && session.status === 'beef_ready'
+                                ? 'Ready · balance due'
+                                : meta.label;
+                              return <Chip tone={meta.tone} title={getStageDetail(session)}>{label}</Chip>;
+                            })()}
                           </td>
                           <td className="px-6 py-4 text-sm text-brand-gray">
                             {new Date(session.created_at).toLocaleDateString()}
@@ -444,19 +452,9 @@ export default function SlotsPage() {
                               </button>
                               {(session.status === 'locked' || session.status === 'deposit_paid' || session.status === 'beef_ready') && (
                                 <button
-                                  onClick={async (e) => {
+                                  onClick={(e) => {
                                     e.stopPropagation();
-                                    if (session.status === 'beef_ready') return;
-                                    const res = await fetch(`/api/admin/sessions/${session.id}/mark-ready`, {
-                                      method: 'POST',
-                                      headers: { 'Content-Type': 'application/json' },
-                                    });
-                                    if (res.ok) {
-                                      loadSlots(); // Refresh table
-                                    } else {
-                                      const error = await res.json();
-                                      alert(`Error marking ready: ${error.error || 'Unknown error'}`);
-                                    }
+                                    if (session.status !== 'beef_ready') handleMarkReady(session.id);
                                   }}
                                   disabled={session.status === 'beef_ready'}
                                   className="px-3 py-1 bg-green-600 text-white rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -953,6 +951,15 @@ export default function SlotsPage() {
                   }}
                 >
                   Record balance payment
+                </SheetAction>
+              )}
+
+              {(stage === 'needs_ready' || (stage === 'balance_due' && sheetSession.status !== 'beef_ready')) && (
+                <SheetAction
+                  intent={stage === 'needs_ready' ? 'primary' : undefined}
+                  onClick={() => { const id = sheetSession.id; close(); handleMarkReady(id); }}
+                >
+                  Mark ready and email pickup link
                 </SheetAction>
               )}
 

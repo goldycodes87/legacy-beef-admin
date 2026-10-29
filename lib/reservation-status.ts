@@ -14,6 +14,7 @@ export type ReservationStage =
   | 'needs_cut_sheet'
   | 'needs_weight'
   | 'balance_due'
+  | 'needs_ready'
   | 'ready_for_pickup'
   | 'in_progress';
 
@@ -27,6 +28,8 @@ export interface StageInput {
   /** Still owed, in cents. */
   outstanding_cents?: number;
   intended_payment_method?: string | null;
+  /** 'cash' once the customer chose to settle at pickup. */
+  balance_payment_method?: string | null;
 }
 
 export interface StageMeta {
@@ -45,9 +48,12 @@ export function getStage(r: StageInput): ReservationStage {
   const banked = r.banked_cents ?? 0;
   const outstanding = r.outstanding_cents ?? 0;
 
-  // Once a weight is entered the order has a real price, so money decides.
+  // Once a weight is entered the order has a real price, so money decides —
+  // but paid is not ready. Customers can pay weeks before the beef is cut, and
+  // calling that "ready for pickup" hid the Mark Ready step and its email.
   if (orderTotal > 0) {
-    return outstanding > 0 ? 'balance_due' : 'ready_for_pickup';
+    if (outstanding > 0) return 'balance_due';
+    return r.status === 'beef_ready' ? 'ready_for_pickup' : 'needs_ready';
   }
 
   // Before weighing: nothing received yet means we are waiting on the deposit.
@@ -63,6 +69,7 @@ const META: Record<ReservationStage, Omit<StageMeta, 'stage'>> = {
   needs_cut_sheet:  { label: 'Cut sheet open',   tone: 'info',    needsAction: false },
   needs_weight:     { label: 'Needs weight',     tone: 'warning', needsAction: true },
   balance_due:      { label: 'Balance due',      tone: 'gold',    needsAction: true },
+  needs_ready:      { label: 'Paid — mark ready', tone: 'info',   needsAction: true },
   ready_for_pickup: { label: 'Ready for pickup', tone: 'success', needsAction: true },
   in_progress:      { label: 'In progress',      tone: 'info',    needsAction: false },
 };
@@ -84,7 +91,12 @@ export function getStageDetail(r: StageInput): string {
     case 'needs_weight':
       return 'Cut sheet done — enter hanging weight';
     case 'balance_due':
-      return 'Balance outstanding';
+      if (r.status === 'beef_ready') return 'Beef ready — balance outstanding';
+      return r.balance_payment_method === 'cash'
+        ? 'Paying cash/check at pickup — mark ready when cut'
+        : 'Balance outstanding — mark ready when cut';
+    case 'needs_ready':
+      return 'Paid in full — mark ready to send the pickup email';
     case 'ready_for_pickup':
       return 'Paid in full — ready to collect';
     case 'picked_up':

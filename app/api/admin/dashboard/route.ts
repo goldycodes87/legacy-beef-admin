@@ -61,6 +61,7 @@ export async function GET() {
       needs_cut_sheet: 0,
       needs_weight: 0,
       balance_due: 0,
+      needs_ready: 0,
       ready_for_pickup: 0,
       picked_up: 0,
     };
@@ -94,6 +95,7 @@ export async function GET() {
       pending_cut_sheets: stages.needs_cut_sheet,
       awaiting_hanging_weight: stages.needs_weight,
       balance_due: stages.balance_due,
+      needs_ready: stages.needs_ready,
       ready_for_pickup: stages.ready_for_pickup,
       picked_up: stages.picked_up,
 
