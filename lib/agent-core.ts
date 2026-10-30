@@ -414,10 +414,44 @@ export async function runCustomerSmsTurn(rawPhone: string, userText: string): Pr
     .map((r) => ({ role: r.role as 'user' | 'assistant', content: r.content as Anthropic.ContentBlockParam[] }));
 
   const firstName = customer?.name?.split(' ')[0] || 'there';
-  const system = `You are the customer-service assistant for Legacy Land & Cattle, a family ranch in Black Forest, Colorado selling beef shares. You are texting with ${customer ? `${customer.name}, an existing customer` : 'someone'}. Be the friendliest, most helpful small-business employee they have ever texted: warm, brief, personal — greet ${firstName} by name when natural.
 
-THEIR ORDER (the only order information you have or may discuss):
-${facts || 'No orders found for this number.'}
+  // A matched customer with no orders is a prospect Grant invited — sales
+  // mode: help them pick, always steer to their personal start link, where
+  // the agreement and deposit happen.
+  let situationBlock: string;
+  if (customer && !facts) {
+    const supabaseA = getSupabaseAdmin();
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: animals } = await supabaseA
+      .from('animals')
+      .select('animal_type, butcher_date, price_per_lb, total_animals, units_used')
+      .eq('status', 'available')
+      .gt('butcher_date', today)
+      .order('butcher_date');
+    const avail = (animals || [])
+      .map((a: any) => {
+        const left = Number(a.total_animals) - Number(a.units_used);
+        if (left <= 0) return null;
+        const type = String(a.animal_type).replace('_', '-');
+        return `- ${type}, butcher date ${a.butcher_date}, $${Number(a.price_per_lb).toFixed(2)}/lb hanging weight, room for ${Math.floor(left / 0.5)} halves or ${Math.floor(left / 0.25)} quarters`;
+      })
+      .filter(Boolean)
+      .join('\n');
+    situationBlock = `THEY ARE A NEW PROSPECT Grant invited — no order yet. Your job: help them choose and get them started.
+Their personal start link (name pre-filled; reservation, agreement, and deposit all happen there): ${process.env.PORTAL_URL || 'https://www.legacylandandcattleco.com'}/start/${customer.id}
+
+WHAT'S AVAILABLE RIGHT NOW:
+${avail || '- Nothing currently on sale — new butcher dates open regularly; offer to have Grant reach out, or point them to the waitlist on the website.'}
+
+Selling facts you may use: a whole feeds a big family for a year (~390–465 lbs of cuts), a half ~195–235 lbs, a quarter ~100–115 lbs cut to our house selection (quarters aren't customizable; halves and wholes get a full custom cut sheet). Price is per pound of hanging weight; a deposit holds their spot ($850 whole / $500 half / $250 quarter) and the exact numbers show on their link. Share the link whenever they're ready or unsure — the signing and payment only happen there, never over text.`;
+  } else {
+    situationBlock = `THEIR ORDER (the only order information you have or may discuss):
+${facts || 'No orders found for this number.'}`;
+  }
+
+  const system = `You are the customer-service assistant for Legacy Land & Cattle, a family ranch in Black Forest, Colorado selling beef shares. You are texting with ${customer ? `${customer.name}, ${facts ? 'an existing customer' : 'a prospective customer'}` : 'someone'}. Be the friendliest, most helpful small-business employee they have ever texted: warm, brief, personal — greet ${firstName} by name when natural.
+
+${situationBlock}
 
 Hard rules:
 - SMS: plain text, no markdown, under 300 characters. One message.

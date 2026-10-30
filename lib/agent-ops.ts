@@ -693,6 +693,91 @@ export async function updateWaitlistEntry(input: {
   return { updated: `${row.customer_name} <${row.email}>`, changes };
 }
 
+// ─── Prospect creation & invite ─────────────────────────────────────────────
+
+const PORTAL_URL = process.env.PORTAL_URL || 'https://www.legacylandandcattleco.com';
+
+/**
+ * Creates a customer record for someone Grant met off-portal and texts them
+ * their personal fast-pass link (/start/<id> prefills the booking funnel and
+ * the funnel claims this record at booking). If they reply instead of
+ * tapping, the SMS webhook matches their phone and the prospect
+ * conversation mode walks them toward the same link.
+ */
+export async function createCustomer(input: {
+  name: string;
+  phone: string;
+  email?: string;
+  send_invite?: boolean;
+  custom_message?: string;
+}): Promise<Json> {
+  const supabase = getSupabaseAdmin();
+  const name = String(input.name || '').trim();
+  if (!name) return { error: 'A name is required.' };
+
+  const digits = String(input.phone || '').replace(/[^\d]/g, '').replace(/^1(?=\d{10}$)/, '');
+  if (digits.length !== 10) return { error: `"${input.phone}" does not look like a US phone number.` };
+  const prettyPhone = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+
+  // Never create a second record for someone we already know.
+  const { data: existing } = await supabase
+    .from('customers')
+    .select('id, name, email, phone')
+    .not('phone', 'is', null);
+  const phoneClash = (existing || []).find(
+    (c) => String(c.phone || '').replace(/[^\d]/g, '').replace(/^1(?=\d{10}$)/, '') === digits
+  );
+  if (phoneClash) {
+    return {
+      error: `${phoneClash.name} already has that phone number on file — no new record created. Want me to text them instead?`,
+    };
+  }
+  if (input.email) {
+    const { data: emailClash } = await supabase
+      .from('customers')
+      .select('id, name')
+      .eq('email', input.email.toLowerCase().trim())
+      .maybeSingle();
+    if (emailClash) {
+      return { error: `${emailClash.name} already has that email on file — no new record created.` };
+    }
+  }
+
+  // email/address are NOT NULL; the placeholder email is replaced by their
+  // real one the moment they complete the booking form.
+  const { data: created, error } = await supabase
+    .from('customers')
+    .insert({
+      name,
+      phone: prettyPhone,
+      email: input.email?.toLowerCase().trim() || `pending-${digits}@invite.legacylandandcattleco.com`,
+      address: '',
+      sms_consent: false,
+    })
+    .select('id, name')
+    .single();
+  if (error) return { error: error.message };
+
+  const link = `${PORTAL_URL}/start/${created.id}`;
+  const firstName = name.split(' ')[0];
+
+  if (input.send_invite === false) {
+    return { created: created.name, start_link: link, invite_sent: false };
+  }
+
+  const message =
+    input.custom_message?.trim() ||
+    `Hi ${firstName}, this is Rusty with Legacy Land & Cattle. Grant mentioned you'd like to get some beef ordered — happy to help! Tap here to get started: ${link} Or just reply here with what you're looking for and I'll walk you through it.`;
+
+  const sent = await textCustomer({ phone: digits, message });
+  return {
+    created: created.name,
+    start_link: link,
+    invite_sent: !sent.error,
+    ...(sent.error ? { invite_error: sent.error } : {}),
+  };
+}
+
 // ─── Customer text threads ──────────────────────────────────────────────────
 
 /** Recent customer-facing SMS exchanges, newest first, names resolved. */

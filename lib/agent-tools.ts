@@ -23,6 +23,7 @@ import {
   listWaitlist,
   updateWaitlistEntry,
   customerTexts,
+  createCustomer,
 } from '@/lib/agent-ops';
 
 /**
@@ -71,6 +72,7 @@ export const WRITE_TOOLS = new Set([
   'delete_pickup_window',
   'record_animal_cost',
   'update_waitlist',
+  'create_customer',
 ]);
 
 /** Every session-scoped tool takes the customer the same way. */
@@ -500,6 +502,23 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'create_customer',
+    description:
+      'WRITE - approval required. Creates a customer record for someone Grant met off the website and texts them a warm invite with their personal fast-pass link (name pre-filled, booking + agreement + deposit all on the link). If they reply by text instead, the customer-service line walks them through it. Refuses if the phone or email already belongs to a customer.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Full name, e.g. "Mike Henderson"' },
+        phone: { type: 'string', description: 'Their cell number' },
+        email: { type: 'string', description: 'Optional — collected at booking if unknown' },
+        send_invite: { type: 'boolean', description: 'Default true; false creates the record and returns the link without texting' },
+        custom_message: { type: 'string', description: 'Optional replacement for the standard welcome text (include the link yourself if you use this)' },
+      },
+      required: ['name', 'phone'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'customer_texts',
     description:
       'Recent SMS conversations between customers and the customer-service line (including unmatched/unknown senders). Use when Grant asks what customers have texted or whether anyone reached out.',
@@ -918,6 +937,8 @@ export async function executeTool(name: string, input: unknown): Promise<Json> {
         return await listWaitlist();
       case 'update_waitlist':
         return await updateWaitlistEntry(input as Parameters<typeof updateWaitlistEntry>[0]);
+      case 'create_customer':
+        return await createCustomer(input as Parameters<typeof createCustomer>[0]);
       case 'customer_texts':
         return await customerTexts();
       case 'upcoming_pickups':
