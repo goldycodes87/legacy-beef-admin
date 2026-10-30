@@ -173,7 +173,12 @@ export async function textCustomer(input: { phone: string; message: string }): P
       Authorization: `Basic ${auth}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: new URLSearchParams({ From: from, To: to, Body: input.message.slice(0, 1600) }),
+    body: new URLSearchParams({
+      MessagingServiceSid: (await import('@/lib/sms')).messagingServiceSid(),
+      From: from,
+      To: to,
+      Body: input.message.slice(0, 1600),
+    }),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');

@@ -17,6 +17,16 @@
  * This file is mirrored from legacy-beef-portal/src/lib/sms.ts.
  */
 
+/**
+ * The A2P campaign's Messaging Service ("Legacy Land & Cattle"). Sending
+ * through it is what carries the campaign registration — a bare From-number
+ * send from outside the campaign's service dies with error 30034. The env
+ * var wins so the SID can be rotated without a deploy.
+ */
+export function messagingServiceSid(): string {
+  return process.env.TWILIO_MESSAGING_SERVICE_SID || 'MG44180ddc3d6be20506be9c17108094c2';
+}
+
 export function smsConfigured(): boolean {
   return Boolean(
     process.env.TWILIO_ACCOUNT_SID &&
@@ -41,6 +51,7 @@ export async function sendAdminSms(body: string): Promise<void> {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
+        MessagingServiceSid: messagingServiceSid(),
         From: process.env.TWILIO_FROM_NUMBER!,
         To: process.env.ADMIN_SMS_TO!,
         Body: body.slice(0, 1600),
