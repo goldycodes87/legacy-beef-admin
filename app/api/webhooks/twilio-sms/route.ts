@@ -74,6 +74,16 @@ function normalizePhone(n: string | null | undefined): string {
   return (n || '').replace(/[^\d]/g, '').replace(/^1/, '');
 }
 
+/** "update customer info — customer: Brenda Roberts, phone: 719-933-1343" instead of raw JSON. */
+function describeAction(tool: string, input: Record<string, unknown> | undefined): string {
+  const name = tool.replace(/_/g, ' ');
+  const details = Object.entries(input || {})
+    .filter(([, v]) => v !== undefined && v !== null && v !== '')
+    .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+    .join(', ');
+  return details ? `${name} — ${details}` : name;
+}
+
 export async function POST(request: NextRequest) {
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const grantCell = process.env.ADMIN_SMS_TO;
@@ -116,9 +126,7 @@ export async function POST(request: NextRequest) {
           );
           let reply = `📥 Butcher texted: "${text.slice(0, 160)}"\n\n${r.reply || ''}`;
           if (r.pending) {
-            reply += `\n\nNeeds your OK: ${r.pending.tool.replace(/_/g, ' ')} ${JSON.stringify(
-              r.pending.input
-            )}. Reply YES to approve or NO to cancel.`;
+            reply += `\n\nNeeds your OK: ${describeAction(r.pending.tool, r.pending.input)}. Reply YES or NO.`;
           }
           await sendAdminSms(reply.slice(0, 1500));
         } catch (err) {
@@ -176,8 +184,9 @@ export async function POST(request: NextRequest) {
           reply = r.reply;
           newPending = r.pending;
         } else {
-          reply = `Still waiting on your call for: ${pending.tool.replace(/_/g, ' ')} ${JSON.stringify(
-            pending.args
+          reply = `Still waiting on your call: ${describeAction(
+            pending.tool,
+            pending.args as Record<string, unknown>
           )}. Reply YES to approve or NO to cancel.`;
         }
       } else {
@@ -188,8 +197,8 @@ export async function POST(request: NextRequest) {
 
       if (newPending) {
         reply =
-          `${reply ? reply + '\n\n' : ''}Needs your OK: ${newPending.tool.replace(/_/g, ' ')} ` +
-          `${JSON.stringify(newPending.input)}. Reply YES to approve or NO to cancel.`;
+          `${reply ? reply + '\n\n' : ''}Needs your OK: ` +
+          `${describeAction(newPending.tool, newPending.input)}. Reply YES or NO.`;
       }
 
       await sendAdminSms(reply || 'Done.');
