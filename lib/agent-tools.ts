@@ -22,6 +22,7 @@ import {
   financesReport,
   listWaitlist,
   updateWaitlistEntry,
+  customerTexts,
 } from '@/lib/agent-ops';
 
 /**
@@ -499,6 +500,12 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'customer_texts',
+    description:
+      'Recent SMS conversations between customers and the customer-service line (including unmatched/unknown senders). Use when Grant asks what customers have texted or whether anyone reached out.',
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
     name: 'upcoming_pickups',
     description: 'Scheduled pickup appointments with who, when, and whether they still owe money.',
     input_schema: { type: 'object', properties: {}, additionalProperties: false },
@@ -911,6 +918,8 @@ export async function executeTool(name: string, input: unknown): Promise<Json> {
         return await listWaitlist();
       case 'update_waitlist':
         return await updateWaitlistEntry(input as Parameters<typeof updateWaitlistEntry>[0]);
+      case 'customer_texts':
+        return await customerTexts();
       case 'upcoming_pickups':
         return await upcomingPickups();
       default:

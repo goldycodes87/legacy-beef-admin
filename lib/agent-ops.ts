@@ -693,6 +693,43 @@ export async function updateWaitlistEntry(input: {
   return { updated: `${row.customer_name} <${row.email}>`, changes };
 }
 
+// ─── Customer text threads ──────────────────────────────────────────────────
+
+/** Recent customer-facing SMS exchanges, newest first, names resolved. */
+export async function customerTexts(): Promise<Json> {
+  const supabase = getSupabaseAdmin();
+  const { data: rows, error } = await supabase
+    .from('agent_messages')
+    .select('counterparty, role, content, created_at')
+    .eq('channel', 'customer_sms')
+    .order('created_at', { ascending: false })
+    .limit(40);
+  if (error) return { error: error.message };
+  if (!rows || rows.length === 0) return { threads: [], note: 'No customer texts yet.' };
+
+  const { data: customers } = await supabase
+    .from('customers')
+    .select('name, phone')
+    .not('phone', 'is', null);
+  const nameByPhone: Record<string, string> = {};
+  for (const c of customers || []) {
+    nameByPhone[String(c.phone || '').replace(/[^\d]/g, '').replace(/^1(?=\d{10}$)/, '')] = c.name;
+  }
+
+  const messages = rows.reverse().map((r) => {
+    const text = Array.isArray(r.content)
+      ? (r.content as Array<{ text?: string }>).map((b) => b.text || '').join(' ')
+      : String(r.content);
+    return {
+      who: nameByPhone[r.counterparty || ''] || `unknown (${r.counterparty})`,
+      direction: r.role === 'user' ? 'from them' : 'our reply',
+      text: text.slice(0, 300),
+      at: r.created_at,
+    };
+  });
+  return { messages };
+}
+
 // ─── Finances (the Financials tab) ───────────────────────────────────────────
 
 const ANIMAL_COST_TYPES = ['purchase', 'feed', 'butcher', 'other'];

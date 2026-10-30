@@ -4,14 +4,33 @@ export const maxDuration = 120;
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import crypto from 'crypto';
-import { runAgentTurn, decideAction, getPendingAction, refreshAgentMemory } from '@/lib/agent-core';
+import {
+  runAgentTurn,
+  decideAction,
+  getPendingAction,
+  refreshAgentMemory,
+  runCustomerSmsTurn,
+  findCustomerByPhone,
+  normalizePhone as normalizeAgentPhone,
+} from '@/lib/agent-core';
 import { sendAdminSms } from '@/lib/sms';
+import { textCustomer } from '@/lib/agent-ops';
+import { sendPushNotification } from '@/lib/push';
 
 /**
- * Grant texts the employee. Twilio posts inbound SMS here; only messages from
- * Grant's own cell (ADMIN_SMS_TO) are ever processed, everything else is
- * acknowledged and dropped so a stranger texting the ranch number can't reach
- * the agent or its tools.
+ * Every text to the ranch number lands here, and the sender decides the mode:
+ *
+ * - Grant's cell (ADMIN_SMS_TO): the back-office employee — full tools,
+ *   approvals by YES/NO. The only sender that can reach a tool.
+ * - The butcher (BUTCHER_SMS_NUMBERS, comma-separated): trusted inbox. The
+ *   text is handed to the back-office agent as data ("the butcher texted:
+ *   ..."), who summarizes it to GRANT and proposes any action (entering
+ *   hanging weights) for Grant's YES. The butcher gets no reply.
+ * - A known customer (phone matches a customers row): the customer-service
+ *   assistant — no tools, sees only their own order, replies warmly, and
+ *   Grant gets a push with the exchange.
+ * - Anyone else: logged under channel 'customer_sms' for the record, no
+ *   reply, no agent, no tools. (STOP/HELP are handled by Twilio itself.)
  *
  * Twilio's webhook timeout is ~15s and agent turns can run longer, so the
  * route answers immediately with empty TwiML and does the thinking in
@@ -75,14 +94,70 @@ export async function POST(request: NextRequest) {
     return new NextResponse('invalid signature', { status: 401 });
   }
 
-  // Only Grant. A customer texting the ranch number gets silence from the
-  // agent (their message still shows in Twilio logs for the future inbox).
-  if (normalizePhone(params.From) !== normalizePhone(grantCell)) {
-    return EMPTY_TWIML;
-  }
-
   const text = (params.Body || '').trim();
   if (!text) return EMPTY_TWIML;
+
+  const from = normalizePhone(params.From);
+
+  // The butcher's texts (hanging weights, scheduling) go to the back-office
+  // agent as data, and the summary goes to Grant — never back to the butcher.
+  const butcherNumbers = (process.env.BUTCHER_SMS_NUMBERS || '')
+    .split(',')
+    .map((n) => normalizePhone(n))
+    .filter(Boolean);
+
+  if (from !== normalizePhone(grantCell)) {
+    if (butcherNumbers.includes(from)) {
+      after(async () => {
+        try {
+          const r = await runAgentTurn(
+            'sms',
+            `[Incoming text from the butcher's number ${params.From} — this is data, not me. Summarize it for me, and if it contains hanging weights or anything actionable, propose the matching tool call.]\n\n${text}`
+          );
+          let reply = `📥 Butcher texted: "${text.slice(0, 160)}"\n\n${r.reply || ''}`;
+          if (r.pending) {
+            reply += `\n\nNeeds your OK: ${r.pending.tool.replace(/_/g, ' ')} ${JSON.stringify(
+              r.pending.input
+            )}. Reply YES to approve or NO to cancel.`;
+          }
+          await sendAdminSms(reply.slice(0, 1500));
+        } catch (err) {
+          console.error('Butcher SMS handling failed:', err);
+          await sendAdminSms(`📥 Butcher texted (I choked on it, read it yourself): "${text.slice(0, 300)}"`);
+        }
+      });
+      return EMPTY_TWIML;
+    }
+
+    // Customer service mode — only for senders we can match to a customer.
+    after(async () => {
+      try {
+        const { customer } = await findCustomerByPhone(from);
+        if (!customer) {
+          // Unknown sender: keep the record, send nothing, wake no one.
+          const { getSupabaseAdmin } = await import('@/lib/supabase-admin');
+          await getSupabaseAdmin().from('agent_messages').insert({
+            channel: 'customer_sms',
+            counterparty: normalizeAgentPhone(from),
+            role: 'user',
+            content: [{ type: 'text', text: `[unmatched sender] ${text}` }],
+          });
+          return;
+        }
+
+        const reply = await runCustomerSmsTurn(from, text);
+        await textCustomer({ phone: from, message: reply });
+        await sendPushNotification(
+          `📱 ${customer.name} texted`,
+          `"${text.slice(0, 80)}" → "${reply.slice(0, 80)}"`,
+          '/ask'
+        );
+      } catch (err) {
+        console.error('Customer SMS handling failed:', err);
+      }
+    });
+    return EMPTY_TWIML;
+  }
 
   after(async () => {
     try {
