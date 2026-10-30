@@ -25,6 +25,7 @@ import {
   customerTexts,
   createCustomer,
   schedulePickup,
+  pickupLink,
 } from '@/lib/agent-ops';
 
 /**
@@ -504,6 +505,17 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'pickup_link',
+    description:
+      'The customer\'s secure order link, freshened to stay valid 60+ days. For beef-ready customers it opens directly on the pickup window picker — use it in beef-ready texts so they can tap and pick a slot.',
+    input_schema: {
+      type: 'object',
+      properties: { ...CUSTOMER_ARG },
+      required: ['customer'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'schedule_pickup',
     description:
       'WRITE - approval required. Books a ready order into a pickup window (same guards as the portal: order must be beef_ready, window open with room, no double-booking) and sends the confirmation email with address and calendar link. Use list_pickup_windows first to see what is open.',
@@ -954,6 +966,8 @@ export async function executeTool(name: string, input: unknown): Promise<Json> {
         return await listWaitlist();
       case 'update_waitlist':
         return await updateWaitlistEntry(input as Parameters<typeof updateWaitlistEntry>[0]);
+      case 'pickup_link':
+        return await pickupLink(input as { customer: string });
       case 'schedule_pickup':
         return await schedulePickup(input as Parameters<typeof schedulePickup>[0]);
       case 'create_customer':

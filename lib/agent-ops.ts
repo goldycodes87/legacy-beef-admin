@@ -833,6 +833,39 @@ export async function bookPickup(sessionId: string, windowId: string): Promise<J
   return { scheduled: when, customer: customer?.name, confirmation_email: customer?.email || 'none on file' };
 }
 
+/**
+ * The customer's secure order link (fresh for ≥60 days) — for beef-ready
+ * customers it lands directly on the pickup window picker. For texting.
+ */
+export async function pickupLink(input: { customer: string }): Promise<Json> {
+  const resolved = await resolveSession(input.customer);
+  if (!resolved.sessionId) return { error: resolved.error, candidates: resolved.candidates };
+
+  const supabase = getSupabaseAdmin();
+  const { data: session } = await supabase
+    .from('sessions')
+    .select('id, status, access_token, access_token_expires_at, animals(butcher_date)')
+    .eq('id', resolved.sessionId)
+    .single();
+  if (!session) return { error: 'Could not load that reservation.' };
+
+  const animal = Array.isArray((session as any).animals)
+    ? (session as any).animals[0]
+    : (session as any).animals;
+  const { ensureAccessToken, linkLifetime } = await import('@/lib/access-token');
+  const token = await ensureAccessToken(resolved.sessionId, session as any, 60, linkLifetime(animal?.butcher_date));
+
+  return {
+    customer: resolved.customer,
+    status: (session as any).status,
+    link: `${PORTAL_URL}/api/token/${token}`,
+    note:
+      (session as any).status === 'beef_ready'
+        ? 'This link lands on the pickup window picker.'
+        : 'This link lands wherever their order currently needs them.',
+  };
+}
+
 /** Grant's tool: "schedule Mark for the Saturday 9am window". */
 export async function schedulePickup(input: {
   customer: string;

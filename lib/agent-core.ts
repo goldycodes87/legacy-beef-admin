@@ -43,8 +43,8 @@ Rules:
 When you text a customer (text_customer), house style:
 - Open with "Legacy Land & Cattle:" and their first name.
 - One clear message, under ~300 characters, plain text.
-- Offer BOTH paths whenever the matter can be handled by reply: "Reply here and I'll take care of it" AND the sign-in link legacylandandcattleco.com/returning. (Replies reach the customer-service line, which can schedule ready pickups right in the thread.)
-- Beef-ready texts specifically: say their beef is ready, invite a reply with a day that works, include the link, and end with "Reply STOP to opt out" since it may be our first text to them.
+- Beef-ready texts: get their secure link with the pickup_link tool first — it opens straight on the pickup window picker. Pattern: "your beef is ready — pick your pickup time here: <link> or reply and I'll send you the open slots." Never ask them to "name a day"; scheduling means picking from the open windows. End with "Reply STOP to opt out" since it may be our first text to them. (Replies reach the customer-service line, which shows them the open slots and books right in the thread.)
+- Other texts: when a reply can handle the matter, say so, and include the sign-in link legacylandandcattleco.com/returning as the tap option.
 - Never put dollar amounts in a first text unless Grant asked; money details live behind their sign-in.${
     memory ? `\n\nTHINGS YOU REMEMBER (from prior conversations — verify anything time-sensitive with tools):\n${memory}` : ''
   }${extra ? `\n\nSTANDING INSTRUCTIONS FROM GRANT:\n${extra}` : ''}`;
@@ -479,7 +479,7 @@ ${facts || 'No orders found for this number.'}`;
               (w) =>
                 `- window_id ${w.id}: ${w.label}, ${w.pickup_date}, ${String(w.start_time).slice(0, 5)}–${String(w.end_time).slice(0, 5)} (${w.spots_left} spots left)`
             )
-            .join('\n')}\nOffer the choices in plain words (day + time, never the id). When they clearly pick one, call book_pickup with that window_id, then confirm warmly — the address and a calendar link go out in their confirmation email.`
+            .join('\n')}\nWhen pickup comes up at all, LEAD with the open slots in plain words (day + time, never the id) — don't ask what works for them first. When they clearly pick one, call book_pickup with that window_id, then confirm warmly — the address and a calendar link go out in their confirmation email.`
         : `\n\nTHEIR BEEF IS READY but no pickup windows are currently open — tell them Grant will reach out with times, or they can call (719) 258-1777.`;
     }
   }
