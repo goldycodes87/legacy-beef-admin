@@ -37,7 +37,7 @@ Rules:
 - Lead with the answer. Grant is usually on his phone.
 - "Banked" money is net of card surcharges; $0 banked means unpaid regardless of status.
 - Anything that changes data goes to Grant for approval — propose it with exact parameters, then call the tool; the system will route the approval.
-- If you have no tool for something, say so and name the manual path in the admin.
+- If you have no tool for something, say so. Name the manual path in the admin only if you are certain it exists — never describe admin screens or buttons you are not sure of; "I don't have a way to do that, ask Claude to build it" is a fine answer.
 - An empty email log more likely means the Resend webhook isn't configured than that no email was sent.${
     memory ? `\n\nTHINGS YOU REMEMBER (from prior conversations — verify anything time-sensitive with tools):\n${memory}` : ''
   }${extra ? `\n\nSTANDING INSTRUCTIONS FROM GRANT:\n${extra}` : ''}`;
@@ -345,23 +345,28 @@ export function normalizePhone(value: string | null | undefined): string {
 export async function findCustomerByPhone(rawPhone: string): Promise<{
   customer: { id: string; name: string; email: string } | null;
   facts: string;
+  /** Set when exactly one order is beef_ready with no pickup scheduled — the only order text-side booking may touch. */
+  readySessionId: string | null;
 }> {
   const target = normalizePhone(rawPhone);
-  if (target.length !== 10) return { customer: null, facts: '' };
+  if (target.length !== 10) return { customer: null, facts: '', readySessionId: null };
 
   const supabase = getSupabaseAdmin();
+  // Archiving a customer is Grant's kill switch: an archived record gets no
+  // auto-replies (and its /start link is dead on the portal side too).
   const { data: customers } = await supabase
     .from('customers')
     .select('id, name, email, phone')
-    .not('phone', 'is', null);
+    .not('phone', 'is', null)
+    .is('archived_at', null);
 
   const match = (customers || []).find((c) => normalizePhone(c.phone) === target);
-  if (!match) return { customer: null, facts: '' };
+  if (!match) return { customer: null, facts: '', readySessionId: null };
 
   const { data: sessions } = await supabase
     .from('sessions')
     .select(
-      `status, purchase_type, hanging_weight_lbs, balance_due, balance_paid, created_at,
+      `id, status, purchase_type, hanging_weight_lbs, balance_due, balance_paid, created_at,
        animals(name, butcher_date),
        pickup_appointments(pickup_windows(pickup_date, start_time, end_time))`
     )
@@ -369,6 +374,11 @@ export async function findCustomerByPhone(rawPhone: string): Promise<{
     .neq('status', 'cancelled')
     .order('created_at', { ascending: false })
     .limit(3);
+
+  const readyUnscheduled = (sessions || []).filter(
+    (s: any) => s.status === 'beef_ready' && (s.pickup_appointments || []).length === 0
+  );
+  const readySessionId = readyUnscheduled.length === 1 ? readyUnscheduled[0].id : null;
 
   const lines = (sessions || []).map((s: any) => {
     const animal = Array.isArray(s.animals) ? s.animals[0] : s.animals;
@@ -387,7 +397,11 @@ export async function findCustomerByPhone(rawPhone: string): Promise<{
     return '- ' + parts.join('; ');
   });
 
-  return { customer: { id: match.id, name: match.name, email: match.email }, facts: lines.join('\n') };
+  return {
+    customer: { id: match.id, name: match.name, email: match.email },
+    facts: lines.join('\n'),
+    readySessionId,
+  };
 }
 
 /**
@@ -399,7 +413,7 @@ export async function findCustomerByPhone(rawPhone: string): Promise<{
 export async function runCustomerSmsTurn(rawPhone: string, userText: string): Promise<string> {
   const phone = normalizePhone(rawPhone);
   const supabase = getSupabaseAdmin();
-  const { customer, facts } = await findCustomerByPhone(phone);
+  const { customer, facts, readySessionId } = await findCustomerByPhone(phone);
 
   const { data: rows } = await supabase
     .from('agent_messages')
@@ -447,6 +461,20 @@ Selling facts you may use: a whole feeds a big family for a year (~390–465 lbs
   } else {
     situationBlock = `THEIR ORDER (the only order information you have or may discuss):
 ${facts || 'No orders found for this number.'}`;
+
+    // Beef ready, nothing scheduled: they can book right here in the thread.
+    if (readySessionId) {
+      const { openPickupWindows } = await import('@/lib/agent-ops');
+      const windows = await openPickupWindows();
+      situationBlock += windows.length
+        ? `\n\nTHEIR BEEF IS READY AND NO PICKUP IS SCHEDULED. You can book it for them with the book_pickup tool. Open windows:\n${windows
+            .map(
+              (w) =>
+                `- window_id ${w.id}: ${w.label}, ${w.pickup_date}, ${String(w.start_time).slice(0, 5)}–${String(w.end_time).slice(0, 5)} (${w.spots_left} spots left)`
+            )
+            .join('\n')}\nOffer the choices in plain words (day + time, never the id). When they clearly pick one, call book_pickup with that window_id, then confirm warmly — the address and a calendar link go out in their confirmation email.`
+        : `\n\nTHEIR BEEF IS READY but no pickup windows are currently open — tell them Grant will reach out with times, or they can call (719) 258-1777.`;
+    }
   }
 
   const system = `You are the customer-service assistant for Legacy Land & Cattle, a family ranch in Black Forest, Colorado selling beef shares. You are texting with ${customer ? `${customer.name}, ${facts ? 'an existing customer' : 'a prospective customer'}` : 'someone'}. Be the friendliest, most helpful small-business employee they have ever texted: warm, brief, personal — greet ${firstName} by name when natural.
@@ -461,17 +489,62 @@ Hard rules:
 - To schedule or manage their order they can sign in at legacylandandcattleco.com/returning
 - If the text is clearly not from a customer (marketing, spam, wrong number), reply with one polite line that this is the Legacy Land & Cattle order line.`;
 
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 300,
-    system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-    messages: [...history, { role: 'user', content: [{ type: 'text', text: userText }] }],
-  });
+  // The one tool a customer thread can ever hold: booking THEIR ready order
+  // (session id chosen server-side, never by the model) into a listed window.
+  const tools: Anthropic.Tool[] = readySessionId
+    ? [
+        {
+          name: 'book_pickup',
+          description: 'Books the customer\'s ready beef into one of the open pickup windows listed in your instructions.',
+          input_schema: {
+            type: 'object',
+            properties: { window_id: { type: 'string', description: 'The window_id of the slot they chose' } },
+            required: ['window_id'],
+            additionalProperties: false,
+          },
+        },
+      ]
+    : [];
 
-  const reply =
-    response.content.find((b): b is Anthropic.TextBlock => b.type === 'text')?.text?.trim() ||
-    `Thanks for reaching out! Grant will follow up with you shortly, or call us at (719) 258-1777.`;
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const convo: Anthropic.MessageParam[] = [
+    ...history,
+    { role: 'user', content: [{ type: 'text', text: userText }] },
+  ];
+
+  let reply = '';
+  for (let round = 0; round < 3; round++) {
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 400,
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+      messages: convo,
+      ...(tools.length ? { tools } : {}),
+    });
+
+    const toolUse = response.content.find(
+      (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use'
+    );
+    if (toolUse && readySessionId && toolUse.name === 'book_pickup') {
+      const { bookPickup } = await import('@/lib/agent-ops');
+      const windowId = String((toolUse.input as { window_id?: string })?.window_id || '');
+      const result = /^[0-9a-f-]{36}$/i.test(windowId)
+        ? await bookPickup(readySessionId, windowId)
+        : { error: 'That window id was not one of the listed options.' };
+      convo.push({ role: 'assistant', content: response.content });
+      convo.push({
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: toolUse.id, content: JSON.stringify(result) }],
+      });
+      continue;
+    }
+
+    reply = response.content.find((b): b is Anthropic.TextBlock => b.type === 'text')?.text?.trim() || '';
+    break;
+  }
+  if (!reply) {
+    reply = `Thanks for reaching out! Grant will follow up with you shortly, or call us at (719) 258-1777.`;
+  }
 
   const now = Date.now();
   await supabase.from('agent_messages').insert([

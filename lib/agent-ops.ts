@@ -693,6 +693,160 @@ export async function updateWaitlistEntry(input: {
   return { updated: `${row.customer_name} <${row.email}>`, changes };
 }
 
+// ─── Pickup scheduling ──────────────────────────────────────────────────────
+
+/** "2026-11-08" and "HH:MM" right now at the ranch (America/Denver). */
+function ranchNow(): { date: string; time: string } {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Denver',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(new Date()).map((p) => [p.type, p.value])
+  );
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
+}
+
+function fmtDay(date: string, options: Intl.DateTimeFormatOptions): string {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', { ...options, timeZone: 'UTC' });
+}
+
+function fmtClock(time: string): string {
+  const [h, m] = String(time).split(':').map(Number);
+  const hour = h % 12 || 12;
+  const period = h >= 12 ? 'PM' : 'AM';
+  return m ? `${hour}:${String(m).padStart(2, '0')}${period}` : `${hour}${period}`;
+}
+
+/** Windows a customer could actually book right now: active, not past, has room. */
+export async function openPickupWindows(): Promise<
+  Array<{ id: string; label: string; pickup_date: string; start_time: string; end_time: string; spots_left: number }>
+> {
+  const supabase = getSupabaseAdmin();
+  const now = ranchNow();
+  const { data: windows } = await supabase
+    .from('pickup_windows')
+    .select('id, label, pickup_date, start_time, end_time, max_slots, active, pickup_appointments(id)')
+    .eq('active', true)
+    .gte('pickup_date', now.date)
+    .order('pickup_date')
+    .order('start_time');
+  return (windows || [])
+    .filter(
+      (w: any) =>
+        !(w.pickup_date === now.date && String(w.end_time).slice(0, 5) <= now.time) &&
+        (w.pickup_appointments || []).length < (w.max_slots ?? 999)
+    )
+    .map((w: any) => ({
+      id: w.id,
+      label: w.label,
+      pickup_date: w.pickup_date,
+      start_time: w.start_time,
+      end_time: w.end_time,
+      spots_left: (w.max_slots ?? 999) - (w.pickup_appointments || []).length,
+    }));
+}
+
+/**
+ * Books a pickup with the same guards as the portal: order must be
+ * beef_ready, not already scheduled, and the window active, not past, with
+ * room. Sends the pickup-confirmed email (address, calendar link, balance).
+ */
+export async function bookPickup(sessionId: string, windowId: string): Promise<Json> {
+  const supabase = getSupabaseAdmin();
+  const now = ranchNow();
+
+  const [{ data: session }, { data: window }, { data: existing }] = await Promise.all([
+    supabase
+      .from('sessions')
+      .select('id, status, balance_due, balance_paid, customers(name, email)')
+      .eq('id', sessionId)
+      .maybeSingle(),
+    supabase
+      .from('pickup_windows')
+      .select('*, pickup_appointments(id)')
+      .eq('id', windowId)
+      .maybeSingle(),
+    supabase.from('pickup_appointments').select('id').eq('session_id', sessionId).maybeSingle(),
+  ]);
+
+  if (!session) return { error: 'Reservation not found.' };
+  if (session.status !== 'beef_ready') {
+    return { error: `That order is ${String(session.status).replace(/_/g, ' ')} — pickups open once it's marked ready.` };
+  }
+  if (existing) return { error: 'A pickup is already scheduled for this order — change it in the admin if needed.' };
+  if (
+    !window ||
+    !window.active ||
+    window.pickup_date < now.date ||
+    (window.pickup_date === now.date && String(window.end_time).slice(0, 5) <= now.time) ||
+    (window.pickup_appointments || []).length >= (window.max_slots ?? 999)
+  ) {
+    return { error: 'That pickup window is no longer available — pick another.' };
+  }
+
+  const { error } = await supabase.from('pickup_appointments').insert({
+    session_id: sessionId,
+    pickup_window_id: windowId,
+    is_alternate: false,
+    waiver_signed: false,
+  });
+  if (error) return { error: error.message };
+
+  const customer = Array.isArray((session as any).customers)
+    ? (session as any).customers[0]
+    : (session as any).customers;
+  const when = `${fmtDay(window.pickup_date, { weekday: 'long', month: 'long', day: 'numeric' })}, ${fmtClock(window.start_time)} – ${fmtClock(window.end_time)}`;
+
+  if (customer?.email && !String(customer.email).endsWith('@invite.legacylandandcattleco.com')) {
+    try {
+      const { build, pickupConfirmed, PICKUP_ADDRESS } = await import('@/lib/email-content');
+      const stamp = (t: string) => `${window.pickup_date.replace(/-/g, '')}T${String(t).slice(0, 5).replace(':', '')}00`;
+      const calendarUrl = `https://calendar.google.com/calendar/render?${new URLSearchParams({
+        action: 'TEMPLATE',
+        text: 'Beef Pickup — Legacy Land & Cattle',
+        dates: `${stamp(window.start_time)}/${stamp(window.end_time)}`,
+        ctz: 'America/Denver',
+        location: PICKUP_ADDRESS,
+      })}`;
+      const { subject, html } = build(pickupConfirmed, {
+        firstName: customer.name?.split(' ')[0] ?? 'there',
+        dayOfWeek: fmtDay(window.pickup_date, { weekday: 'long' }),
+        pickupDate: fmtDay(window.pickup_date, { weekday: 'long', month: 'long', day: 'numeric' }),
+        pickupTime: `${fmtClock(window.start_time)} – ${fmtClock(window.end_time)}`,
+        pickupPerson: customer.name,
+        balanceDue: (session as any).balance_paid ? 0 : Number((session as any).balance_due) || 0,
+        calendarUrl,
+      });
+      const { Resend } = await import('resend');
+      await new Resend(process.env.RESEND_API_KEY).emails.send({
+        from: 'Legacy Land & Cattle <orders@legacylandandcattleco.com>',
+        to: customer.email,
+        subject,
+        html,
+      });
+    } catch (emailErr) {
+      console.error('Pickup confirmation email failed:', emailErr);
+    }
+  }
+
+  return { scheduled: when, customer: customer?.name, confirmation_email: customer?.email || 'none on file' };
+}
+
+/** Grant's tool: "schedule Mark for the Saturday 9am window". */
+export async function schedulePickup(input: {
+  customer: string;
+  pickup_date: string;
+  which?: string;
+}): Promise<Json> {
+  const resolved = await resolveSession(input.customer);
+  if (!resolved.sessionId) return { error: resolved.error, candidates: resolved.candidates };
+  const found = await resolvePickupWindow(input.pickup_date, input.which);
+  if (!found.window) return { error: found.error, candidates: found.candidates };
+  const result = await bookPickup(resolved.sessionId, found.window.id);
+  return { customer: resolved.customer, ...result };
+}
+
 // ─── Prospect creation & invite ─────────────────────────────────────────────
 
 const PORTAL_URL = process.env.PORTAL_URL || 'https://www.legacylandandcattleco.com';

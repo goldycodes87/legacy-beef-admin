@@ -24,6 +24,7 @@ import {
   updateWaitlistEntry,
   customerTexts,
   createCustomer,
+  schedulePickup,
 } from '@/lib/agent-ops';
 
 /**
@@ -73,6 +74,7 @@ export const WRITE_TOOLS = new Set([
   'record_animal_cost',
   'update_waitlist',
   'create_customer',
+  'schedule_pickup',
 ]);
 
 /** Every session-scoped tool takes the customer the same way. */
@@ -498,6 +500,21 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
         delete_entry: { type: 'boolean', description: 'true permanently deletes the entry' },
       },
       required: ['entry'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'schedule_pickup',
+    description:
+      'WRITE - approval required. Books a ready order into a pickup window (same guards as the portal: order must be beef_ready, window open with room, no double-booking) and sends the confirmation email with address and calendar link. Use list_pickup_windows first to see what is open.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ...CUSTOMER_ARG,
+        pickup_date: { type: 'string', description: 'YYYY-MM-DD of the window' },
+        which: { type: 'string', description: 'Label or start time, when that date has several windows' },
+      },
+      required: ['customer', 'pickup_date'],
       additionalProperties: false,
     },
   },
@@ -937,6 +954,8 @@ export async function executeTool(name: string, input: unknown): Promise<Json> {
         return await listWaitlist();
       case 'update_waitlist':
         return await updateWaitlistEntry(input as Parameters<typeof updateWaitlistEntry>[0]);
+      case 'schedule_pickup':
+        return await schedulePickup(input as Parameters<typeof schedulePickup>[0]);
       case 'create_customer':
         return await createCustomer(input as Parameters<typeof createCustomer>[0]);
       case 'customer_texts':

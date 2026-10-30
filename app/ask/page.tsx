@@ -47,6 +47,7 @@ const TOOL_LABEL: Record<string, string> = {
   record_animal_cost: 'Record an animal cost',
   update_waitlist: 'Update waitlist entry',
   create_customer: 'Create customer & send invite',
+  schedule_pickup: 'Schedule a pickup',
 };
 
 const SUGGESTIONS = [
