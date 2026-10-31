@@ -25,6 +25,7 @@ import {
   customerTexts,
   createCustomer,
   schedulePickup,
+  reschedulePickup,
   pickupLink,
   checkSmsDelivery,
 } from '@/lib/agent-ops';
@@ -77,6 +78,7 @@ export const WRITE_TOOLS = new Set([
   'update_waitlist',
   'create_customer',
   'schedule_pickup',
+  'reschedule_pickup',
 ]);
 
 /** Every session-scoped tool takes the customer the same way. */
@@ -525,6 +527,21 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
       properties: {
         ...CUSTOMER_ARG,
         pickup_date: { type: 'string', description: 'YYYY-MM-DD of the window' },
+        which: { type: 'string', description: 'Label or start time, when that date has several windows' },
+      },
+      required: ['customer', 'pickup_date'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'reschedule_pickup',
+    description:
+      'WRITE - approval required. Moves an EXISTING pickup appointment to a different open window (target must be active, not past, with room). The appointment itself is preserved — only the time changes — and the customer gets a fresh confirmation email. Use schedule_pickup when nothing is booked yet; use list_pickup_windows first to see what is open.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ...CUSTOMER_ARG,
+        pickup_date: { type: 'string', description: 'YYYY-MM-DD of the NEW window' },
         which: { type: 'string', description: 'Label or start time, when that date has several windows' },
       },
       required: ['customer', 'pickup_date'],
@@ -984,6 +1001,8 @@ export async function executeTool(name: string, input: unknown): Promise<Json> {
         return await pickupLink(input as { customer: string });
       case 'schedule_pickup':
         return await schedulePickup(input as Parameters<typeof schedulePickup>[0]);
+      case 'reschedule_pickup':
+        return await reschedulePickup(input as Parameters<typeof reschedulePickup>[0]);
       case 'create_customer':
         return await createCustomer(input as Parameters<typeof createCustomer>[0]);
       case 'customer_texts':

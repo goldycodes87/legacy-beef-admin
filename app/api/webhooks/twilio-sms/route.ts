@@ -75,10 +75,11 @@ function normalizePhone(n: string | null | undefined): string {
 }
 
 /** "update customer info — customer: Brenda Roberts, phone: 719-933-1343" instead of raw JSON. */
+const INTERNAL_ARGS = new Set(['session_id', 'window_id', 'notify_phone']);
 function describeAction(tool: string, input: Record<string, unknown> | undefined): string {
   const name = tool.replace(/_/g, ' ');
   const details = Object.entries(input || {})
-    .filter(([, v]) => v !== undefined && v !== null && v !== '')
+    .filter(([k, v]) => !INTERNAL_ARGS.has(k) && v !== undefined && v !== null && v !== '')
     .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
     .join(', ');
   return details ? `${name} — ${details}` : name;

@@ -775,7 +775,7 @@ export async function bookPickup(sessionId: string, windowId: string): Promise<J
   if (session.status !== 'beef_ready') {
     return { error: `That order is ${String(session.status).replace(/_/g, ' ')} — pickups open once it's marked ready.` };
   }
-  if (existing) return { error: 'A pickup is already scheduled for this order — change it in the admin if needed.' };
+  if (existing) return { error: 'A pickup is already scheduled for this order — use reschedule_pickup to move it.' };
   if (
     !window ||
     !window.active ||
@@ -801,39 +801,149 @@ export async function bookPickup(sessionId: string, windowId: string): Promise<J
 
   const when = `${fmtDay(window.pickup_date, { weekday: 'long', month: 'long', day: 'numeric' })}, ${fmtClock(window.start_time)} – ${fmtClock(window.end_time)}`;
 
-  if (customer?.email && !String(customer.email).endsWith('@invite.legacylandandcattleco.com')) {
-    try {
-      const { build, pickupConfirmed, PICKUP_ADDRESS } = await import('@/lib/email-content');
-      const stamp = (t: string) => `${window.pickup_date.replace(/-/g, '')}T${String(t).slice(0, 5).replace(':', '')}00`;
-      const calendarUrl = `https://calendar.google.com/calendar/render?${new URLSearchParams({
-        action: 'TEMPLATE',
-        text: 'Beef Pickup — Legacy Land & Cattle',
-        dates: `${stamp(window.start_time)}/${stamp(window.end_time)}`,
-        ctz: 'America/Denver',
-        location: PICKUP_ADDRESS,
-      })}`;
-      const { subject, html } = build(pickupConfirmed, {
-        firstName: customer.name?.split(' ')[0] ?? 'there',
-        dayOfWeek: fmtDay(window.pickup_date, { weekday: 'long' }),
-        pickupDate: fmtDay(window.pickup_date, { weekday: 'long', month: 'long', day: 'numeric' }),
-        pickupTime: `${fmtClock(window.start_time)} – ${fmtClock(window.end_time)}`,
-        pickupPerson: customer.name,
-        balanceDue: (session as any).balance_paid ? 0 : Number((session as any).balance_due) || 0,
-        calendarUrl,
-      });
-      const { Resend } = await import('resend');
-      await new Resend(process.env.RESEND_API_KEY).emails.send({
-        from: 'Legacy Land & Cattle <orders@legacylandandcattleco.com>',
-        to: customer.email,
-        subject,
-        html,
-      });
-    } catch (emailErr) {
-      console.error('Pickup confirmation email failed:', emailErr);
-    }
-  }
+  await sendPickupConfirmationEmail(customer, session as any, window);
 
   return { scheduled: when, customer: customer?.name, confirmation_email: customer?.email || 'none on file' };
+}
+
+/** The pickup-confirmed email — sent on first booking and again on a reschedule (it restates date, time, and address). */
+async function sendPickupConfirmationEmail(
+  customer: { name?: string | null; email?: string | null } | null,
+  session: { balance_due?: unknown; balance_paid?: boolean | null },
+  window: { pickup_date: string; start_time: string; end_time: string }
+): Promise<void> {
+  if (!customer?.email || String(customer.email).endsWith('@invite.legacylandandcattleco.com')) return;
+  try {
+    const { build, pickupConfirmed, PICKUP_ADDRESS } = await import('@/lib/email-content');
+    const stamp = (t: string) => `${window.pickup_date.replace(/-/g, '')}T${String(t).slice(0, 5).replace(':', '')}00`;
+    const calendarUrl = `https://calendar.google.com/calendar/render?${new URLSearchParams({
+      action: 'TEMPLATE',
+      text: 'Beef Pickup — Legacy Land & Cattle',
+      dates: `${stamp(window.start_time)}/${stamp(window.end_time)}`,
+      ctz: 'America/Denver',
+      location: PICKUP_ADDRESS,
+    })}`;
+    const { subject, html } = build(pickupConfirmed, {
+      firstName: customer.name?.split(' ')[0] ?? 'there',
+      dayOfWeek: fmtDay(window.pickup_date, { weekday: 'long' }),
+      pickupDate: fmtDay(window.pickup_date, { weekday: 'long', month: 'long', day: 'numeric' }),
+      pickupTime: `${fmtClock(window.start_time)} – ${fmtClock(window.end_time)}`,
+      pickupPerson: customer.name || '',
+      balanceDue: session.balance_paid ? 0 : Number(session.balance_due) || 0,
+      calendarUrl,
+    });
+    const { Resend } = await import('resend');
+    await new Resend(process.env.RESEND_API_KEY).emails.send({
+      from: 'Legacy Land & Cattle <orders@legacylandandcattleco.com>',
+      to: customer.email,
+      subject,
+      html,
+    });
+  } catch (emailErr) {
+    console.error('Pickup confirmation email failed:', emailErr);
+  }
+}
+
+/**
+ * Moves an existing pickup appointment to a different window, in place — the
+ * appointment row (waiver, pickup person) is preserved, only the window
+ * changes. Same guards as booking on the target window, and the customer gets
+ * a fresh confirmation email with the new time.
+ */
+export async function reschedulePickupCore(sessionId: string, windowId: string): Promise<Json> {
+  const supabase = getSupabaseAdmin();
+  const now = ranchNow();
+
+  const [{ data: session }, { data: window }, { data: existing }] = await Promise.all([
+    supabase
+      .from('sessions')
+      .select('id, status, balance_due, balance_paid, customers(name, email)')
+      .eq('id', sessionId)
+      .maybeSingle(),
+    supabase
+      .from('pickup_windows')
+      .select('*, pickup_appointments(id)')
+      .eq('id', windowId)
+      .maybeSingle(),
+    supabase
+      .from('pickup_appointments')
+      .select('id, pickup_window_id, pickup_windows(pickup_date, start_time, end_time)')
+      .eq('session_id', sessionId)
+      .maybeSingle(),
+  ]);
+
+  if (!session) return { error: 'Reservation not found.' };
+  if (session.status !== 'beef_ready') {
+    return { error: `That order is ${String(session.status).replace(/_/g, ' ')} — only ready orders can be rescheduled.` };
+  }
+  if (!existing) {
+    return { error: 'No pickup is scheduled for this order yet — use schedule_pickup to book one.' };
+  }
+  if (existing.pickup_window_id === windowId) {
+    return { error: 'They are already booked into that window.' };
+  }
+  if (
+    !window ||
+    !window.active ||
+    window.pickup_date < now.date ||
+    (window.pickup_date === now.date && String(window.end_time).slice(0, 5) <= now.time) ||
+    (window.pickup_appointments || []).length >= (window.max_slots ?? 999)
+  ) {
+    return { error: 'That pickup window is not available (inactive, past, or full) — pick another.' };
+  }
+
+  const { error } = await supabase
+    .from('pickup_appointments')
+    .update({ pickup_window_id: windowId })
+    .eq('id', existing.id);
+  if (error) return { error: error.message };
+
+  const prevWin = Array.isArray((existing as any).pickup_windows)
+    ? (existing as any).pickup_windows[0]
+    : (existing as any).pickup_windows;
+  const previous = prevWin
+    ? `${fmtDay(prevWin.pickup_date, { weekday: 'long', month: 'long', day: 'numeric' })}, ${fmtClock(prevWin.start_time)} – ${fmtClock(prevWin.end_time)}`
+    : 'unknown';
+  const when = `${fmtDay(window.pickup_date, { weekday: 'long', month: 'long', day: 'numeric' })}, ${fmtClock(window.start_time)} – ${fmtClock(window.end_time)}`;
+
+  const customer = Array.isArray((session as any).customers)
+    ? (session as any).customers[0]
+    : (session as any).customers;
+
+  await sendPickupConfirmationEmail(customer, session as any, window);
+
+  return {
+    rescheduled: when,
+    previous,
+    customer: customer?.name,
+    confirmation_email: customer?.email || 'none on file',
+  };
+}
+
+/**
+ * Grant's tool: "move Chanel to the Sunday window". Also accepts the resolved
+ * (session_id, window_id) form, which is how an approved customer-requested
+ * reschedule executes.
+ */
+export async function reschedulePickup(input: {
+  customer?: string;
+  pickup_date?: string;
+  which?: string;
+  session_id?: string;
+  window_id?: string;
+}): Promise<Json> {
+  if (input.session_id && input.window_id) {
+    return reschedulePickupCore(input.session_id, input.window_id);
+  }
+  if (!input.customer || !input.pickup_date) {
+    return { error: 'customer and pickup_date (of the NEW window) are required.' };
+  }
+  const resolved = await resolveSession(input.customer);
+  if (!resolved.sessionId) return { error: resolved.error, candidates: resolved.candidates };
+  const found = await resolvePickupWindow(input.pickup_date, input.which);
+  if (!found.window) return { error: found.error, candidates: found.candidates };
+  const result = await reschedulePickupCore(resolved.sessionId, found.window.id);
+  return { customer: resolved.customer, ...result };
 }
 
 /**
