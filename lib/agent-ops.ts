@@ -785,17 +785,19 @@ export async function bookPickup(sessionId: string, windowId: string): Promise<J
     return { error: 'That pickup window is no longer available — pick another.' };
   }
 
+  const customer = Array.isArray((session as any).customers)
+    ? (session as any).customers[0]
+    : (session as any).customers;
+
   const { error } = await supabase.from('pickup_appointments').insert({
     session_id: sessionId,
     pickup_window_id: windowId,
-    is_alternate: false,
+    is_alternate_pickup: false,
+    pickup_person_name: customer?.name || null,
     waiver_signed: false,
   });
   if (error) return { error: error.message };
 
-  const customer = Array.isArray((session as any).customers)
-    ? (session as any).customers[0]
-    : (session as any).customers;
   const when = `${fmtDay(window.pickup_date, { weekday: 'long', month: 'long', day: 'numeric' })}, ${fmtClock(window.start_time)} – ${fmtClock(window.end_time)}`;
 
   if (customer?.email && !String(customer.email).endsWith('@invite.legacylandandcattleco.com')) {
