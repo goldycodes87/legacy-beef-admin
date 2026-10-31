@@ -19,6 +19,8 @@ import {
   previewPricing,
   checkCustomerEmails,
   recordAnimalCost,
+  updateAnimalCost,
+  deleteAnimalCost,
   financesReport,
   listWaitlist,
   updateWaitlistEntry,
@@ -75,6 +77,8 @@ export const WRITE_TOOLS = new Set([
   'update_pickup_window',
   'delete_pickup_window',
   'record_animal_cost',
+  'update_animal_cost',
+  'delete_animal_cost',
   'update_waitlist',
   'create_customer',
   'schedule_pickup',
@@ -474,6 +478,48 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
         date: { type: 'string', description: 'YYYY-MM-DD spent (optional, defaults to today)' },
       },
       required: ['butcher_date', 'animal_type', 'cost_type', 'amount'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'update_animal_cost',
+    description:
+      'WRITE - approval required. Corrects an existing cost line on the Financials tab — wrong amount, description, date, or cost type. Finds the line by butcher date + animal + cost type; when the animal has several lines of that type, give current_amount to pick one. Check finances_report first to see the lines.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        butcher_date: { type: 'string', description: 'YYYY-MM-DD of the animal the line belongs to' },
+        animal_type: { type: 'string', enum: ['grass_fed', 'grain_finished', 'wagyu'] },
+        cost_type: { type: 'string', enum: ['purchase', 'feed', 'butcher', 'other'] },
+        current_amount: {
+          type: 'number',
+          description: "The line's current amount in dollars — needed when the animal has several lines of the same type",
+        },
+        new_amount: { type: 'number', description: 'Corrected amount in dollars' },
+        new_description: { type: 'string' },
+        new_date: { type: 'string', description: 'YYYY-MM-DD spent' },
+        new_cost_type: { type: 'string', enum: ['purchase', 'feed', 'butcher', 'other'] },
+      },
+      required: ['butcher_date', 'animal_type', 'cost_type'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'delete_animal_cost',
+    description:
+      'WRITE - approval required. Permanently deletes a cost line from the Financials tab — for duplicates and lines that should never have been recorded. To fix a wrong amount, use update_animal_cost instead. Finds the line the same way as update_animal_cost.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        butcher_date: { type: 'string', description: 'YYYY-MM-DD of the animal the line belongs to' },
+        animal_type: { type: 'string', enum: ['grass_fed', 'grain_finished', 'wagyu'] },
+        cost_type: { type: 'string', enum: ['purchase', 'feed', 'butcher', 'other'] },
+        current_amount: {
+          type: 'number',
+          description: "The line's current amount in dollars — needed when the animal has several lines of the same type",
+        },
+      },
+      required: ['butcher_date', 'animal_type', 'cost_type'],
       additionalProperties: false,
     },
   },
@@ -991,6 +1037,10 @@ export async function executeTool(name: string, input: unknown): Promise<Json> {
         return await checkCustomerEmails(input as { customer: string });
       case 'record_animal_cost':
         return await recordAnimalCost(input as Parameters<typeof recordAnimalCost>[0]);
+      case 'update_animal_cost':
+        return await updateAnimalCost(input as Parameters<typeof updateAnimalCost>[0]);
+      case 'delete_animal_cost':
+        return await deleteAnimalCost(input as Parameters<typeof deleteAnimalCost>[0]);
       case 'finances_report':
         return await financesReport();
       case 'view_waitlist':

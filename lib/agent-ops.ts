@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { computeBalance } from '@/lib/money';
+import { summarizeReservation } from '@/lib/reservation';
 
 /**
  * Rusty's expanded hands: the business operations behind the wider toolset.
@@ -1216,6 +1217,150 @@ export async function recordAnimalCost(input: {
   return { recorded_on: animal.name, cost: data, note: 'Shows on the Financials tab immediately.' };
 }
 
+interface CostLine {
+  id: string;
+  type: string;
+  description: string | null;
+  amount: number;
+  date: string | null;
+}
+
+/**
+ * One cost line, found the way Grant talks about it — the animal, the cost
+ * type, and (when the animal has several lines of that type) its current
+ * amount — so the approval text he reads never contains a UUID.
+ */
+async function findAnimalCost(input: {
+  butcher_date: string;
+  animal_type: string;
+  cost_type: string;
+  current_amount?: number;
+}): Promise<{ error: string } | { animal: { id: string; name: string }; cost: CostLine }> {
+  if (!ANIMAL_COST_TYPES.includes(input.cost_type)) {
+    return { error: `cost_type must be one of: ${ANIMAL_COST_TYPES.join(', ')}` };
+  }
+  const supabase = getSupabaseAdmin();
+  const { data: animal } = await supabase
+    .from('animals')
+    .select('id, name')
+    .eq('butcher_date', input.butcher_date)
+    .eq('animal_type', input.animal_type)
+    .neq('status', 'archived')
+    .maybeSingle();
+  if (!animal) return { error: 'No butcher date found for that date and type.' };
+
+  const { data: lines, error } = await supabase
+    .from('animal_costs')
+    .select('id, type, description, amount, date')
+    .eq('animal_id', animal.id)
+    .eq('type', input.cost_type);
+  if (error) return { error: error.message };
+
+  const describe = (c: CostLine) =>
+    `$${Number(c.amount).toFixed(2)} (${c.description || 'no description'}${c.date ? `, ${c.date}` : ''})`;
+  let matches = (lines || []) as CostLine[];
+  if (matches.length === 0) return { error: `${animal.name} has no ${input.cost_type} cost lines.` };
+  if (input.current_amount !== undefined) {
+    const wanted = Number(input.current_amount);
+    const filtered = matches.filter((c) => Math.abs(Number(c.amount) - wanted) < 0.005);
+    if (filtered.length === 0) {
+      return {
+        error: `${animal.name} has no ${input.cost_type} line of $${wanted.toFixed(2)} — it has: ${matches
+          .map(describe)
+          .join('; ')}`,
+      };
+    }
+    matches = filtered;
+  }
+  if (matches.length > 1) {
+    return {
+      error: `${animal.name} has ${matches.length} ${input.cost_type} lines — say which by its current amount: ${matches
+        .map(describe)
+        .join('; ')}`,
+    };
+  }
+  return { animal, cost: matches[0] };
+}
+
+/** Corrects an existing cost line in place — wrong amount, description, date, or type. */
+export async function updateAnimalCost(input: {
+  butcher_date: string;
+  animal_type: string;
+  cost_type: string;
+  current_amount?: number;
+  new_amount?: number;
+  new_description?: string;
+  new_date?: string;
+  new_cost_type?: string;
+}): Promise<Json> {
+  const found = await findAnimalCost(input);
+  if ('error' in found) return found;
+
+  const updates: Record<string, unknown> = {};
+  if (input.new_amount !== undefined) {
+    if (!(Number(input.new_amount) > 0)) {
+      return { error: 'New amount must be greater than zero — use delete_animal_cost to remove the line.' };
+    }
+    updates.amount = Number(input.new_amount);
+  }
+  if (input.new_description !== undefined) updates.description = input.new_description || null;
+  if (input.new_date !== undefined) updates.date = input.new_date;
+  if (input.new_cost_type !== undefined) {
+    if (!ANIMAL_COST_TYPES.includes(input.new_cost_type)) {
+      return { error: `new_cost_type must be one of: ${ANIMAL_COST_TYPES.join(', ')}` };
+    }
+    updates.type = input.new_cost_type;
+  }
+  if (Object.keys(updates).length === 0) {
+    return { error: 'Nothing to change — give a new amount, description, date, or cost type.' };
+  }
+
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from('animal_costs')
+    .update(updates)
+    .eq('id', found.cost.id)
+    .select('type, description, amount, date')
+    .single();
+  if (error) return { error: error.message };
+  return {
+    updated_on: found.animal.name,
+    was: {
+      type: found.cost.type,
+      description: found.cost.description,
+      amount: found.cost.amount,
+      date: found.cost.date,
+    },
+    now: data,
+    note: 'Shows on the Financials tab immediately.',
+  };
+}
+
+/** Removes a cost line outright — for duplicates and lines that should never have existed. */
+export async function deleteAnimalCost(input: {
+  butcher_date: string;
+  animal_type: string;
+  cost_type: string;
+  current_amount?: number;
+}): Promise<Json> {
+  const found = await findAnimalCost(input);
+  if ('error' in found) return found;
+
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase.from('animal_costs').delete().eq('id', found.cost.id);
+  if (error) return { error: error.message };
+  return {
+    deleted_from: found.animal.name,
+    deleted: {
+      type: found.cost.type,
+      description: found.cost.description,
+      amount: found.cost.amount,
+      date: found.cost.date,
+    },
+    note: 'Gone from the Financials tab immediately.',
+  };
+}
+
 /** The Financials tab as numbers: per-animal costs, collected revenue, margin. */
 export async function financesReport(): Promise<Json> {
   const supabase = getSupabaseAdmin();
@@ -1226,25 +1371,23 @@ export async function financesReport(): Promise<Json> {
       .order('butcher_date', { ascending: false }),
     supabase
       .from('sessions')
-      .select('animal_id, purchase_type, balance_due, status, payments(amount_cents, surcharge_cents, status)')
+      .select(
+        'animal_id, purchase_type, hanging_weight_lbs, price_per_lb, discount_amount, balance_paid, status, payments(amount_cents, surcharge_cents, status)'
+      )
       .not('status', 'in', '("cancelled","draft")'),
   ]);
 
-  // Revenue counts what customers actually paid, net of the card surcharge —
-  // the surcharge goes to the processor, not the ranch. Same math as the tab.
+  // Revenue and still-owed both come from the shared calculator — net of card
+  // surcharges, and derived from payments rather than the stored balance_due
+  // column, which goes stale (a card payment through the portal once left it
+  // behind and this report disagreed with the Financials tab).
   const revenueByAnimal: Record<string, number> = {};
   const outstandingByAnimal: Record<string, number> = {};
   for (const s of sessions || []) {
-    const paid = ((s as any).payments || [])
-      .filter((p: any) => p.status === 'paid')
-      .reduce(
-        (sum: number, p: any) =>
-          sum + Math.max(0, (p.amount_cents || 0) - (p.surcharge_cents || 0)),
-        0
-      );
-    revenueByAnimal[s.animal_id] = (revenueByAnimal[s.animal_id] || 0) + paid / 100;
+    const { bankedCents, outstandingCents } = summarizeReservation(s as any);
+    revenueByAnimal[s.animal_id] = (revenueByAnimal[s.animal_id] || 0) + bankedCents / 100;
     outstandingByAnimal[s.animal_id] =
-      (outstandingByAnimal[s.animal_id] || 0) + (Number(s.balance_due) || 0);
+      (outstandingByAnimal[s.animal_id] || 0) + outstandingCents / 100;
   }
 
   let totalRevenue = 0;
