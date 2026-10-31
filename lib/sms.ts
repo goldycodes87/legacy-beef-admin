@@ -27,6 +27,18 @@ export function messagingServiceSid(): string {
   return process.env.TWILIO_MESSAGING_SERVICE_SID || 'MG44180ddc3d6be20506be9c17108094c2';
 }
 
+/**
+ * Where Twilio reports each message's delivery status (sent → delivered /
+ * undelivered / failed). The webhook lives on the admin app and writes the
+ * sms_delivery table — the silent log behind "did that text actually arrive?".
+ */
+export function statusCallbackUrl(): string {
+  return (
+    process.env.TWILIO_STATUS_CALLBACK_URL ||
+    'https://admin.legacylandandcattleco.com/api/webhooks/twilio-status'
+  );
+}
+
 export function smsConfigured(): boolean {
   return Boolean(
     process.env.TWILIO_ACCOUNT_SID &&
@@ -55,6 +67,7 @@ export async function sendAdminSms(body: string): Promise<void> {
         From: process.env.TWILIO_FROM_NUMBER!,
         To: process.env.ADMIN_SMS_TO!,
         Body: body.slice(0, 1600),
+        StatusCallback: statusCallbackUrl(),
       }),
     });
     if (!res.ok) {

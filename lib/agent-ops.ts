@@ -178,6 +178,7 @@ export async function textCustomer(input: { phone: string; message: string }): P
       From: from,
       To: to,
       Body: input.message.slice(0, 1600),
+      StatusCallback: (await import('@/lib/sms')).statusCallbackUrl(),
     }),
   });
   if (!res.ok) {
@@ -1002,6 +1003,64 @@ export async function customerTexts(): Promise<Json> {
     };
   });
   return { messages };
+}
+
+/**
+ * The delivery log: what Twilio reported back about our outbound texts
+ * (sent / delivered / undelivered / failed), written by the status webhook.
+ * Optionally filtered to one customer's phone.
+ */
+export async function checkSmsDelivery(input?: { customer?: string; limit?: number }): Promise<Json> {
+  const supabase = getSupabaseAdmin();
+  let query = supabase
+    .from('sms_delivery')
+    .select('to_phone, status, error_code, updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(Math.min(Math.max(input?.limit ?? 20, 1), 50));
+
+  let forName: string | null = null;
+  if (input?.customer) {
+    const resolved = await resolveCustomer(input.customer);
+    if (resolved.error) return resolved as Json;
+    const { data: cust } = await supabase
+      .from('customers')
+      .select('name, phone')
+      .eq('id', resolved.id!)
+      .maybeSingle();
+    const digits = String(cust?.phone || '').replace(/[^\d]/g, '').replace(/^1(?=\d{10}$)/, '');
+    if (!digits) return { error: `${cust?.name || input.customer} has no phone number on file.` };
+    forName = cust?.name || resolved.name || input.customer;
+    query = query.like('to_phone', `%${digits}`);
+  }
+
+  const { data: rows, error } = await query;
+  if (error) return { error: error.message };
+
+  const { data: customers } = await supabase
+    .from('customers')
+    .select('name, phone')
+    .not('phone', 'is', null);
+  const nameByPhone: Record<string, string> = {};
+  for (const c of customers || []) {
+    nameByPhone[String(c.phone || '').replace(/[^\d]/g, '').replace(/^1(?=\d{10}$)/, '')] = c.name;
+  }
+
+  const messages = (rows || []).map((r) => {
+    const digits = String(r.to_phone || '').replace(/[^\d]/g, '').replace(/^1(?=\d{10}$)/, '');
+    return {
+      to: nameByPhone[digits] || r.to_phone,
+      status: r.status,
+      error_code: r.error_code || undefined,
+      at: r.updated_at,
+    };
+  });
+
+  return {
+    for: forName || 'all recent outbound texts',
+    messages,
+    note:
+      'Delivery tracking began 2026-10-31 — texts sent before then have no rows here, which proves nothing about them. "sent" means handed to the carrier; "delivered" is confirmed by the handset; "undelivered"/"failed" with an error code means it did not arrive.',
+  };
 }
 
 // ─── Finances (the Financials tab) ───────────────────────────────────────────

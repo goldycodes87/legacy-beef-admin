@@ -26,6 +26,7 @@ import {
   createCustomer,
   schedulePickup,
   pickupLink,
+  checkSmsDelivery,
 } from '@/lib/agent-ops';
 
 /**
@@ -559,6 +560,19 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
     input_schema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
+    name: 'check_sms_delivery',
+    description:
+      "The SMS delivery log: what the carrier reported about our outbound texts (sent / delivered / undelivered / failed, with error codes). Use when Grant asks whether a text actually arrived. Tracking began 2026-10-31 — no row for an older text proves nothing.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        customer: { type: 'string', description: 'Optional — a name, email, or customer id to filter to one person' },
+        limit: { type: 'number', description: 'How many recent messages (default 20, max 50)' },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'update_persona',
     description:
       'WRITE — requires Grant’s approval. Changes your own name and/or standing instructions (tone, priorities, recurring behaviors Grant wants). Use when Grant asks you to change how you behave or what you are called.',
@@ -976,6 +990,8 @@ export async function executeTool(name: string, input: unknown): Promise<Json> {
         return await customerTexts();
       case 'upcoming_pickups':
         return await upcomingPickups();
+      case 'check_sms_delivery':
+        return await checkSmsDelivery(input as Parameters<typeof checkSmsDelivery>[0]);
       default:
         return { error: `Unknown tool: ${name}` };
     }
