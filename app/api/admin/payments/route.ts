@@ -18,7 +18,7 @@ export async function GET() {
     .from('sessions')
     .select(`
       id, purchase_type, status, balance_due, balance_paid,
-      balance_paid_at, balance_payment_method, price_per_lb,
+      balance_paid_at, balance_payment_method, balance_reminder_sent_at, price_per_lb,
       hanging_weight_lbs, discount_amount, created_at,
       customers(name, email, phone),
       animals(name, butcher_date),
@@ -59,6 +59,7 @@ export async function GET() {
       balance_paid: !!session.balance_paid,
       balance_paid_at: session.balance_paid_at,
       balance_payment_method: session.balance_payment_method,
+      balance_reminder_sent_at: session.balance_reminder_sent_at,
 
       order_total_cents: orderTotalCents,
       banked_cents: bankedCents,

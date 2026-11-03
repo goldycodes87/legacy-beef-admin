@@ -33,6 +33,7 @@ interface Customer {
   zip: string;
   created_at: string;
   archived_at?: string | null;
+  banned_at?: string | null;
   sessions: Session[];
   links?: CustomerLink[];
   has_active_sessions?: boolean;
@@ -128,6 +129,25 @@ export default function CustomersPage() {
     );
     if (res.ok) loadCustomers();
     else alert('Archive action failed');
+  };
+
+  const handleBan = async (customer: Customer) => {
+    const isBanned = !!customer.banned_at;
+    if (
+      !isBanned &&
+      !confirm(
+        `Ban ${customer.name}? They won't be able to place a new order or join the waitlist. Their existing orders are not affected.`
+      )
+    ) {
+      return;
+    }
+    const res = await fetch(`/api/admin/customers/${customer.id}/ban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ banned: !isBanned }),
+    });
+    if (res.ok) loadCustomers();
+    else alert('Ban action failed');
   };
 
   const handleMergeCustomers = async () => {
@@ -274,7 +294,21 @@ export default function CustomersPage() {
                     <tr key={c.id} className="hover:bg-white/5">
                       <td className="px-6 py-4 text-sm">
                         <div>
-                          <p className="font-medium">{c.name}</p>
+                          <p className="font-medium">
+                            {c.name}
+                            {c.banned_at && (
+                              <span
+                                className="ml-2 align-middle text-[10px] font-bold tracking-wide px-2 py-0.5 rounded"
+                                style={{
+                                  background: 'var(--danger-bg)',
+                                  border: '1px solid var(--danger-border)',
+                                  color: 'var(--danger-fg)',
+                                }}
+                              >
+                                BANNED
+                              </span>
+                            )}
+                          </p>
                           {getLinkedCustomers(c).length > 0 && (
                             <div className="mt-1 space-y-0.5">
                               {getLinkedCustomers(c).map((link, idx) => (
@@ -314,6 +348,14 @@ export default function CustomersPage() {
                             }`}
                           >
                             {c.archived_at ? 'Unarchive' : 'Archive'}
+                          </button>
+                          <button
+                            onClick={() => handleBan(c)}
+                            className={`text-sm font-semibold ${
+                              c.banned_at ? 'text-green-400 hover:text-green-300' : 'text-red-400 hover:text-red-300'
+                            }`}
+                          >
+                            {c.banned_at ? 'Unban' : 'Ban'}
                           </button>
                           <button
                             onClick={() => {

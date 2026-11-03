@@ -419,25 +419,27 @@ export function normalizePhone(value: string | null | undefined): string {
 export async function findCustomerByPhone(rawPhone: string): Promise<{
   customer: { id: string; name: string; email: string } | null;
   facts: string;
+  /** True when Grant banned them from new purchases — service on existing orders continues, selling stops. */
+  banned: boolean;
   /** Set when exactly one order is beef_ready with no pickup scheduled — the only order text-side booking may touch. */
   readySessionId: string | null;
   /** Set when exactly one order is beef_ready WITH a pickup scheduled — the only order a text-side reschedule request may touch. */
   scheduledPickup: { sessionId: string; currentWindowId: string; when: string } | null;
 }> {
   const target = normalizePhone(rawPhone);
-  if (target.length !== 10) return { customer: null, facts: '', readySessionId: null, scheduledPickup: null };
+  if (target.length !== 10) return { customer: null, facts: '', banned: false, readySessionId: null, scheduledPickup: null };
 
   const supabase = getSupabaseAdmin();
   // Archiving a customer is Grant's kill switch: an archived record gets no
   // auto-replies (and its /start link is dead on the portal side too).
   const { data: customers } = await supabase
     .from('customers')
-    .select('id, name, email, phone')
+    .select('id, name, email, phone, banned_at')
     .not('phone', 'is', null)
     .is('archived_at', null);
 
   const match = (customers || []).find((c) => normalizePhone(c.phone) === target);
-  if (!match) return { customer: null, facts: '', readySessionId: null, scheduledPickup: null };
+  if (!match) return { customer: null, facts: '', banned: false, readySessionId: null, scheduledPickup: null };
 
   const { data: sessions } = await supabase
     .from('sessions')
@@ -451,6 +453,12 @@ export async function findCustomerByPhone(rawPhone: string): Promise<{
     .neq('status', 'cancelled')
     .order('created_at', { ascending: false })
     .limit(3);
+
+  // A banned prospect gets the same treatment as an unknown number: silence.
+  // Banned customers WITH orders keep normal service on the beef they bought.
+  if (match.banned_at && (sessions || []).length === 0) {
+    return { customer: null, facts: '', banned: true, readySessionId: null, scheduledPickup: null };
+  }
 
   const readyUnscheduled = (sessions || []).filter(
     (s: any) => s.status === 'beef_ready' && (s.pickup_appointments || []).length === 0
@@ -496,6 +504,7 @@ export async function findCustomerByPhone(rawPhone: string): Promise<{
   return {
     customer: { id: match.id, name: match.name, email: match.email },
     facts: lines.join('\n'),
+    banned: !!match.banned_at,
     readySessionId,
     scheduledPickup,
   };
@@ -533,7 +542,7 @@ const WAITLIST_LINE =
 export async function runCustomerSmsTurn(rawPhone: string, userText: string): Promise<string> {
   const phone = normalizePhone(rawPhone);
   const supabase = getSupabaseAdmin();
-  const { customer, facts, readySessionId, scheduledPickup } = await findCustomerByPhone(phone);
+  const { customer, facts, banned, readySessionId, scheduledPickup } = await findCustomerByPhone(phone);
 
   const { data: rows } = await supabase
     .from('agent_messages')
@@ -572,11 +581,16 @@ Selling facts you may use: a whole feeds a big family for a year (~390–465 lbs
 ${facts || 'No orders found for this number.'}`;
 
     // Repeat orders are the easiest sale there is — give the model the same
-    // live availability a prospect gets, steered to the website.
-    const availLines = await upcomingAvailabilityLines();
-    situationBlock += availLines.length
-      ? `\n\nUPCOMING AVAILABILITY (share freely if they ask about the next butcher date or ordering more beef):\n${availLines.join('\n')}\nReserving another share happens on the website, never over text: https://www.legacylandandcattleco.com`
-      : `\n\nNEXT BUTCHER DATE: none scheduled yet. If they ask about the next date or ordering more beef, tell them ${WAITLIST_LINE}`;
+    // live availability a prospect gets, steered to the website. Unless Grant
+    // banned them from new purchases: then service continues, selling stops.
+    if (banned) {
+      situationBlock += `\n\nIf they ask about ordering more beef or future butcher dates, don't offer anything — say Grant handles new orders personally and they can call (719) 258-1777.`;
+    } else {
+      const availLines = await upcomingAvailabilityLines();
+      situationBlock += availLines.length
+        ? `\n\nUPCOMING AVAILABILITY (share freely if they ask about the next butcher date or ordering more beef):\n${availLines.join('\n')}\nReserving another share happens on the website, never over text: https://www.legacylandandcattleco.com`
+        : `\n\nNEXT BUTCHER DATE: none scheduled yet. If they ask about the next date or ordering more beef, tell them ${WAITLIST_LINE}`;
+    }
 
     // Beef ready, nothing scheduled: they can book right here in the thread.
     if (readySessionId) {

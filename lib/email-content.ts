@@ -480,6 +480,67 @@ export const hangingWeight: EmailTemplate<HangingWeightParams> = {
   },
 };
 
+// ─── Balance reminder ───────────────────────────────────────────────────────
+// Sent by hand from the Payments tab (and some day on a schedule) when an
+// order has been weighed but money is still outstanding.
+export interface BalanceReminderParams {
+  firstName: string;
+  purchaseLabel: string;
+  hangingWeight: number;
+  pricePerLb: number;
+  totalCost: number;
+  /** Everything banked so far — deposit plus any partial payments, fees excluded. */
+  paidSoFar: number;
+  discountAmount: number;
+  discountNote: string | null;
+  balanceDue: number;
+  payUrl: string;
+}
+
+export const balanceReminder: EmailTemplate<BalanceReminderParams> = {
+  label: 'Balance reminder',
+  when: 'Sent by hand from the Payments tab when a weighed order still has money outstanding.',
+  subject: (p) => `Quick reminder — ${money(p.balanceDue)} balance on your ${p.purchaseLabel}`,
+  preheader: (p) => `Your ${p.purchaseLabel.toLowerCase()} is coming along — here's where your balance stands.`,
+  content: (p) => `
+    ${hero('🤠', `Just a friendly nudge, ${p.firstName}.`, 'Your balance is ready whenever you are.')}
+    ${para(
+      'No rush and no worries — we just like to keep everyone squared up before pickup day so the only thing left to do is load beef. Here&rsquo;s where your order stands:'
+    )}
+    ${orderCard([
+      { label: 'Order', value: p.purchaseLabel },
+      { label: 'Hanging Weight', value: `${p.hangingWeight} lbs` },
+      { label: 'Price Per Lb', value: `${money(p.pricePerLb)}/lb` },
+      { label: 'Total Cost', value: money(p.totalCost) },
+      { label: 'Paid So Far', value: `-${money(p.paidSoFar)}` },
+      ...(p.discountAmount > 0
+        ? [
+            {
+              label: p.discountNote ? `Discount — ${p.discountNote}` : 'Discount',
+              value: `-${money(p.discountAmount)}`,
+            },
+          ]
+        : []),
+      { label: 'Balance Due', value: money(p.balanceDue) },
+    ])}
+    ${para('You can settle up online in about a minute, or bring payment to pickup — cash, check, or card all work.')}
+    ${ctaButton('Pay My Balance Now →', p.payUrl)}
+    ${fineprint(`Already sent a check or paid us in person? Then ignore this — we may have crossed in the mail. Questions? Call us at ${PHONE} or reply to this email.`)}
+  `,
+  sample: {
+    firstName: 'Sarah',
+    purchaseLabel: 'Half Beef',
+    hangingWeight: 352,
+    pricePerLb: 8.5,
+    totalCost: 2992,
+    paidSoFar: 500,
+    discountAmount: 0,
+    discountNote: null,
+    balanceDue: 2492,
+    payUrl: 'https://www.legacylandandcattleco.com/api/token/sample',
+  },
+};
+
 // ─── Beef ready for pickup ──────────────────────────────────────────────────
 // The admin used to send its own unbranded version of this, quoting a
 // hardcoded $8.25/lb when a session had no price. Both senders use this now.
@@ -811,6 +872,7 @@ export const EMAIL_TEMPLATES: Record<string, EmailTemplate<any>> = {
   cut_sheet_locked: cutSheetLocked,
   cut_sheet_locked_partner: cutSheetLockedPartner,
   hanging_weight: hangingWeight,
+  balance_reminder: balanceReminder,
   beef_ready: beefReady,
   pickup_confirmed: pickupConfirmed,
   partner_invite: partnerInvite,

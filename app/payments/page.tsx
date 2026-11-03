@@ -29,6 +29,7 @@ interface PaymentRecord {
   balance_paid: boolean;
   balance_paid_at: string | null;
   balance_payment_method: string | null;
+  balance_reminder_sent_at: string | null;
   order_total_cents: number;
   banked_cents: number;
   outstanding_cents: number;
@@ -61,6 +62,8 @@ export default function PaymentsPage() {
   const [checkNumber, setCheckNumber] = useState('');
   const [amount, setAmount] = useState('');
   const [saving, setSaving] = useState(false);
+  const [sendingReminder, setSendingReminder] = useState(false);
+  const [reminderResult, setReminderResult] = useState<string | null>(null);
 
   useEffect(() => {
     load();
@@ -84,6 +87,29 @@ export default function PaymentsPage() {
     setMethod('cash');
     setCheckNumber('');
     setAmount((r.outstanding_cents / 100).toFixed(2));
+    setReminderResult(null);
+  }
+
+  async function sendReminder() {
+    if (!sheet || sendingReminder) return;
+    setSendingReminder(true);
+    setReminderResult(null);
+    try {
+      const res = await fetch(`/api/admin/sessions/${sheet.session_id}/payment-reminder`, {
+        method: 'POST',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setReminderResult(data.error || 'Could not send the reminder.');
+        return;
+      }
+      setReminderResult(`Reminder sent to ${data.sent_to}.`);
+      load();
+    } catch (err) {
+      setReminderResult(`Could not send the reminder: ${err instanceof Error ? err.message : 'unknown error'}`);
+    } finally {
+      setSendingReminder(false);
+    }
   }
 
   async function record(paidInFull: boolean) {
@@ -284,6 +310,26 @@ export default function PaymentsPage() {
               >
                 Charge {formatCents(sheet.outstanding_cents)} in Square POS
               </button>
+            )}
+
+            {sheet.outstanding_cents > 0 && (
+              <div className="mb-4">
+                <button
+                  onClick={sendReminder}
+                  disabled={sendingReminder}
+                  className="w-full py-3 rounded-xl text-sm font-semibold disabled:opacity-50"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                >
+                  {sendingReminder ? 'Sending…' : '📧 Email a payment reminder'}
+                </button>
+                <p className="text-[11px] mt-1.5 text-center" style={{ color: 'var(--text-muted)' }}>
+                  {reminderResult
+                    ? reminderResult
+                    : sheet.balance_reminder_sent_at
+                      ? `Last reminder sent ${formatDate(sheet.balance_reminder_sent_at)}`
+                      : 'Friendly nudge with their balance and a pay link.'}
+                </p>
+              </div>
             )}
 
             <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>
